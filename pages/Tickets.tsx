@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
 import { mockUsers } from '../mockData';
+import { TicketService } from '../services/api';
 
 interface TicketsProps {
   tickets: Ticket[];
@@ -13,6 +13,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const [filter, setFilter] = useState('');
   const [replyText, setReplyText] = useState('');
   const [showTransferList, setShowTransferList] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const filteredTickets = tickets.filter(t => 
     t.subject.toLowerCase().includes(filter.toLowerCase()) || 
@@ -31,58 +32,76 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const getStatusStyle = (status: TicketStatus) => {
     switch (status) {
       case TicketStatus.OPEN: return 'bg-primary/10 text-primary border-primary/20';
+      case TicketStatus.IN_ANALYSIS: return 'bg-warning/10 text-warning border-warning/20';
       case TicketStatus.IN_PROGRESS: return 'bg-primary/20 text-primary border-primary/30';
       case TicketStatus.RESOLVED: return 'bg-success/10 text-success border-success/20';
       default: return 'bg-background-input text-text-muted border-border-dark';
     }
   };
 
-  const handleSendMessage = () => {
-    if (!selectedTicket || !replyText.trim()) return;
-
-    const newMessage: Message = {
-      id: `m-${Date.now()}`,
-      senderId: 'u1', // Ricardo Mendes (current user)
-      senderName: 'Você',
-      content: replyText,
-      timestamp: 'Agora mesmo'
-    };
-
-    const updatedTicket = { ...selectedTicket };
-    updatedTicket.messages = [...updatedTicket.messages, newMessage];
-    
-    // Auto-assignment logic: if no technician, assign to current user on first reply
-    if (!updatedTicket.technician || updatedTicket.technician === 'Ninguém') {
-      updatedTicket.technician = 'Ricardo Mendes';
-      updatedTicket.technicianAvatar = 'https://picsum.photos/seed/ricardo/200';
-      updatedTicket.status = TicketStatus.IN_PROGRESS;
+  const handleTicketClick = async (ticket: Ticket) => {
+    setLoadingDetails(true);
+    try {
+      // Fetch full details including messages
+      const fullTicket = await TicketService.getById(ticket.id);
+      setSelectedTicket(fullTicket);
+    } catch (error) {
+      console.error('Failed to fetch ticket details', error);
+      // Fallback to local data if fetch fails
+      setSelectedTicket(ticket);
+    } finally {
+      setLoadingDetails(false);
     }
-
-    onUpdate(updatedTicket);
-    setSelectedTicket(updatedTicket);
-    setReplyText('');
   };
 
-  const handleTransfer = (technician: User) => {
+  const handleSendMessage = async () => {
+    if (!selectedTicket || !replyText.trim()) return;
+
+    try {
+      const newMessage = await TicketService.addMessage(selectedTicket.id, replyText, false);
+      
+      const updatedTicket = { ...selectedTicket };
+      updatedTicket.messages = [...(updatedTicket.messages || []), newMessage];
+      
+      onUpdate(updatedTicket); // Update list in parent
+      setSelectedTicket(updatedTicket); // Update modal
+      setReplyText('');
+    } catch (error) {
+      console.error('Failed to send message', error);
+      alert('Erro ao enviar mensagem');
+    }
+  };
+
+  const handleTransfer = async (technician: User) => {
     if (!selectedTicket) return;
     
-    const updatedTicket = { ...selectedTicket };
-    updatedTicket.technician = technician.name;
-    updatedTicket.technicianAvatar = technician.avatar;
-    
-    // Add internal message about the transfer
-    updatedTicket.messages.push({
-      id: `transfer-${Date.now()}`,
-      senderId: 'system',
-      senderName: 'Sistema',
-      content: `Chamado encaminhado para ${technician.name}`,
-      timestamp: 'Agora mesmo',
-      isInternal: true
-    });
+    try {
+        // We pass the technician ID as 'technician' property which we'll handle in backend or map correctly
+        // Ideally we should fix the type to allow technicianId or similar, but for now we cast
+        await TicketService.update(selectedTicket.id, { technician: technician.id } as any);
+        
+        // Re-fetch to get updated names
+        const refreshed = await TicketService.getById(selectedTicket.id);
 
-    onUpdate(updatedTicket);
-    setSelectedTicket(updatedTicket);
-    setShowTransferList(false);
+        onUpdate(refreshed);
+        setSelectedTicket(refreshed);
+        setShowTransferList(false);
+    } catch (error) {
+        console.error('Failed to transfer ticket', error);
+        alert('Erro ao transferir chamado');
+    }
+  };
+
+  const handleResolve = async () => {
+      if (!selectedTicket) return;
+      try {
+          const updated = await TicketService.update(selectedTicket.id, { status: TicketStatus.RESOLVED });
+          onUpdate(updated);
+          setSelectedTicket(updated);
+      } catch (error) {
+          console.error('Failed to resolve ticket', error);
+          alert('Erro ao resolver chamado');
+      }
   };
 
   const technicians = mockUsers.filter(u => u.profile === 'Suporte Técnico' || u.profile === 'Administrador');
@@ -132,7 +151,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
             </thead>
             <tbody className="divide-y divide-border-dark">
               {filteredTickets.map((ticket) => (
-                <tr key={ticket.id} className="group hover:bg-background-input/40 transition-colors cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
+                <tr key={ticket.id} className="group hover:bg-background-input/40 transition-colors cursor-pointer" onClick={() => handleTicketClick(ticket)}>
                   <td className="p-4 text-xs font-mono text-text-secondary">{ticket.id}</td>
                   <td className="p-4">
                     <div className="flex flex-col">
@@ -179,7 +198,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                 </div>
                 <div>
                   <h2 className="text-white text-lg font-bold leading-tight">{selectedTicket.subject}</h2>
-                  <p className="text-text-muted text-xs">Elias Boutala • Aberto há 2h</p>
+                  <p className="text-text-muted text-xs">{selectedTicket.clientName} • Criado em {selectedTicket.createdAt}</p>
                 </div>
               </div>
               <button onClick={() => { setSelectedTicket(null); setReplyText(''); setShowTransferList(false); }} className="text-[#4b5563] hover:text-white transition-colors">
@@ -195,10 +214,10 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                   <h4 className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">Mensagens / Comentários</h4>
                   
                   <div className="flex flex-col gap-5">
-                    {selectedTicket.messages.map((msg, i) => (
+                    {selectedTicket.messages && selectedTicket.messages.map((msg, i) => (
                       <div key={i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
                         <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
-                          {msg.senderName[0]}
+                          {msg.senderName ? msg.senderName[0] : '?'}
                         </div>
                         <div className={`flex flex-col gap-1 max-w-[70%] ${msg.senderName === 'Você' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2">
@@ -211,13 +230,16 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                         </div>
                       </div>
                     ))}
+                    {(!selectedTicket.messages || selectedTicket.messages.length === 0) && (
+                        <div className="text-center text-text-muted text-xs py-10">Nenhuma mensagem ainda.</div>
+                    )}
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-[#1f2937]">
                   <div className="relative mb-4 group">
                     <textarea 
-                      placeholder="Olá"
+                      placeholder="Digite sua resposta..."
                       className="w-full h-[120px] bg-[#1a2233] border border-[#374151] rounded-xl p-4 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none transition-all placeholder:text-[#4b5563]"
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
@@ -249,11 +271,11 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                   <div className="bg-[#1a2233]/40 border border-[#374151] rounded-xl p-4 flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                       <span className="text-[#9ca3af] text-[11px]">Prioridade:</span>
-                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">Baixa</span>
+                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">{selectedTicket.priority}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[#9ca3af] text-[11px]">Status:</span>
-                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">Aberto</span>
+                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">{selectedTicket.status}</span>
                     </div>
                     <div className="flex justify-between items-center relative">
                       <span className="text-[#9ca3af] text-[11px]">Atribuído:</span>
@@ -310,10 +332,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
                 <div className="mt-auto">
                   <button 
-                    onClick={() => {
-                      onUpdate({ ...selectedTicket, status: TicketStatus.RESOLVED });
-                      setSelectedTicket(null);
-                    }}
+                    onClick={handleResolve}
                     className="w-full h-11 border border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] text-[11px] font-bold rounded-xl hover:bg-[#10b981] hover:text-white transition-all active:scale-95"
                   >
                     Marcar como Resolvido

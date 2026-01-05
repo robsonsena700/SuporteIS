@@ -1,6 +1,6 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AuthService } from '../services/api';
 
 interface SignupProps {
   onSignup: () => void;
@@ -8,10 +8,55 @@ interface SignupProps {
 
 const Signup: React.FC<SignupProps> = ({ onSignup }) => {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    company: '',
+    password: '',
+    agreeTerms: false
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSignup();
+    setError('');
+    
+    if (formData.password.length < 8) {
+      setError('A senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await AuthService.register({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        company: formData.company,
+        password: formData.password,
+        role: 'Cliente', // Default for self-signup
+        profile: 'Cliente' // Default profile
+      });
+      
+      // Auto login after signup? Or redirect to login?
+      // Usually redirect to login or auto-login.
+      // Let's redirect to login for security/verification flow simulation
+      // or just call onSignup which might trigger a redirect.
+      // If onSignup expects user to be logged in, we should probably login too.
+      // But typically register -> login.
+      // The prompt says "fluxo de trabalho... verificar persistencia".
+      // I'll assume redirect to Login is safer.
+      
+      alert('Cadastro realizado com sucesso! Faça login para continuar.');
+      navigate('/login');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +106,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
       </div>
 
       {/* Right Panel - Form */}
-      <div className="w-full lg:w-7/12 flex flex-col bg-background-dark">
+      <div className="w-full lg:w-7/12 flex flex-col bg-background-dark overflow-y-auto">
         <header className="flex items-center justify-between px-8 py-8 lg:px-20">
           <div className="lg:hidden flex items-center gap-2 text-white">
             <span className="material-symbols-outlined text-primary text-3xl">hub</span>
@@ -79,6 +124,12 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             <p className="text-text-secondary text-base">Inicie seu teste gratuito de 14 dias hoje mesmo.</p>
           </div>
 
+          {error && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-4 rounded-xl">
+              {error}
+            </div>
+          )}
+
           <form className="flex flex-col gap-5" onSubmit={handleSignupSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
@@ -87,6 +138,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                   required
                   type="text" 
                   placeholder="Seu nome"
+                  value={formData.firstName}
+                  onChange={e => setFormData({...formData, firstName: e.target.value})}
                   className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
@@ -96,6 +149,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                   required
                   type="text" 
                   placeholder="Seu sobrenome"
+                  value={formData.lastName}
+                  onChange={e => setFormData({...formData, lastName: e.target.value})}
                   className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
@@ -107,6 +162,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                 required
                 type="email" 
                 placeholder="nome@empresa.com"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
                 className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
               />
             </div>
@@ -117,6 +174,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                 required
                 type="text" 
                 placeholder="Ex: TechSolutions Ltda"
+                value={formData.company}
+                onChange={e => setFormData({...formData, company: e.target.value})}
                 className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
               />
             </div>
@@ -128,6 +187,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                   required
                   type="password" 
                   placeholder="Mínimo 8 caracteres"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
                   className="w-full h-12 px-4 pr-12 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
                 <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors">
@@ -137,15 +198,26 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             </div>
 
             <div className="flex items-start gap-3 mt-2">
-              <input type="checkbox" required id="terms" className="mt-1 size-5 rounded border-border-dark bg-background-input text-primary focus:ring-primary/40 focus:ring-offset-background-dark" />
+              <input 
+                type="checkbox" 
+                required 
+                id="terms" 
+                checked={formData.agreeTerms}
+                onChange={e => setFormData({...formData, agreeTerms: e.target.checked})}
+                className="mt-1 size-5 rounded border-border-dark bg-background-input text-primary focus:ring-primary/40 focus:ring-offset-background-dark" 
+              />
               <label htmlFor="terms" className="text-sm text-text-secondary leading-relaxed">
                 Eu concordo com os <button type="button" className="text-primary font-bold hover:underline">Termos de Serviço</button> e confirmo que li a <button type="button" className="text-primary font-bold hover:underline">Política de Privacidade</button>.
               </label>
             </div>
 
-            <button type="submit" className="mt-4 w-full h-14 bg-primary hover:bg-primary-hover text-white font-black text-base rounded-xl shadow-xl shadow-primary/30 transition-all flex items-center justify-center gap-2 group active:scale-[0.98]">
-              Começar agora
-              <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="mt-4 w-full h-14 bg-primary hover:bg-primary-hover text-white font-black text-base rounded-xl shadow-xl shadow-primary/30 transition-all flex items-center justify-center gap-2 group active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? 'Criando conta...' : 'Começar agora'}
+              {!loading && <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>}
             </button>
           </form>
         </main>

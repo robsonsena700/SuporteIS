@@ -1,17 +1,47 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AuthService } from '../services/api';
+import { User } from '../types';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setError('');
+    
+    // Basic validation
+    if (!email || !password) {
+        setError('Por favor, preencha todos os campos.');
+        return;
+    }
+    
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        setError('Por favor, insira um email válido.');
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await AuthService.login(email, password);
+      // AuthService already sets token and user in localStorage
+      onLogin(response.user);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao realizar login. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,6 +63,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <p className="text-text-secondary text-sm">Acesse sua conta para gerenciar seus chamados.</p>
           </div>
 
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-3 rounded-xl text-center">
+              {error}
+            </div>
+          )}
+
           <form className="flex flex-col gap-5" onSubmit={handleLoginSubmit}>
             <div className="flex flex-col gap-2">
               <label className="text-white text-xs font-bold uppercase tracking-widest">E-mail Corporativo</label>
@@ -41,6 +77,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <input 
                   required
                   type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="usuario@empresa.com"
                   className="w-full h-12 pl-12 pr-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
@@ -57,15 +95,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <input 
                   required
                   type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="******"
                   className="w-full h-12 pl-12 pr-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
             </div>
 
-            <button type="submit" className="mt-4 w-full h-12 bg-primary hover:bg-primary-hover text-white font-bold text-sm rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 group active:scale-95">
-              Acessar Painel
-              <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">login</span>
+            <button disabled={loading} type="submit" className="mt-4 w-full h-12 bg-primary hover:bg-primary-hover text-white font-bold text-sm rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50">
+              {loading ? 'Entrando...' : 'Acessar Painel'}
+              {!loading && <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">login</span>}
             </button>
           </form>
 

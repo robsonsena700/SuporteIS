@@ -21,6 +21,9 @@ export interface User {
   status: 'Ativo' | 'Inativo';
   lastAccess: string;
   profile: 'Administrador' | 'Suporte Técnico' | 'Cliente';
+  company?: string;
+  phone?: string;
+  department?: string;
 }
 
 export interface Message {

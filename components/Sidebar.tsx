@@ -48,9 +48,17 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
                 }
               `}
             >
-              <span className={`material-symbols-outlined text-[22px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
-                {item.icon}
-              </span>
+              {item.path === '/profile' && user?.avatar ? (
+                <img 
+                  src={user.avatar} 
+                  alt="Profile" 
+                  className={`size-[22px] rounded-full object-cover border border-current ${location.pathname === item.path ? 'border-primary' : 'border-transparent'}`}
+                />
+              ) : (
+                <span className={`material-symbols-outlined text-[22px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
+                  {item.icon}
+                </span>
+              )}
               <p className="text-sm font-medium">{item.label}</p>
             </NavLink>
           ))}

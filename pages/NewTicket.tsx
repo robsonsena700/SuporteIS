@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Ticket, TicketStatus, TicketPriority } from '../types';
+import { TicketService } from '../services/api';
 
 interface NewTicketProps {
   onAdd: (ticket: Ticket) => void;
@@ -9,6 +10,7 @@ interface NewTicketProps {
 
 const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     subject: '',
     equipment: '',
@@ -17,30 +19,29 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
     description: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTicket: Ticket = {
-      id: `#CH-${Math.floor(Math.random() * 9000) + 1000}`,
-      subject: formData.subject,
-      equipment: formData.equipment,
-      clientName: formData.unit,
-      priority: formData.priority,
-      status: TicketStatus.OPEN,
-      description: formData.description,
-      createdAt: 'Agora mesmo',
-      lastInteraction: 'Agora mesmo',
-      messages: [
-        {
-          id: 'initial',
-          senderId: 'client-current',
-          senderName: 'Você',
-          content: formData.description,
-          timestamp: 'Agora mesmo'
-        }
-      ]
-    };
-    onAdd(newTicket);
-    navigate('/tickets');
+    setLoading(true);
+
+    try {
+      const newTicketData: Partial<Ticket> = {
+        subject: formData.subject,
+        equipment: formData.equipment,
+        clientName: formData.unit,
+        priority: formData.priority,
+        status: TicketStatus.OPEN,
+        description: formData.description,
+      };
+
+      const createdTicket = await TicketService.create(newTicketData);
+      onAdd(createdTicket); // Update parent state (trigger reload)
+      navigate('/tickets');
+    } catch (error) {
+      console.error('Failed to create ticket', error);
+      alert('Erro ao criar chamado. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -138,9 +139,9 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
           <button type="button" onClick={() => navigate('/tickets')} className="px-6 h-12 border border-border-dark text-white font-bold rounded-lg hover:bg-background-input transition-all">
             Cancelar
           </button>
-          <button type="submit" className="px-10 h-12 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover shadow-xl shadow-primary/30 transition-all flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">send</span>
-            Enviar Chamado
+          <button type="submit" disabled={loading} className="px-10 h-12 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover shadow-xl shadow-primary/30 transition-all flex items-center gap-2 disabled:opacity-50">
+            {loading ? <span className="material-symbols-outlined animate-spin">refresh</span> : <span className="material-symbols-outlined text-[20px]">send</span>}
+            {loading ? 'Enviando...' : 'Enviar Chamado'}
           </button>
         </div>
       </form>

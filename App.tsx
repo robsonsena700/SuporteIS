@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { mockTickets, mockUsers } from './mockData';
+import { mockUsers } from './mockData'; // Keep mockUsers for now or replace later
 import { Ticket, User } from './types';
+import { AuthService, TicketService } from './services/api';
 
 // Pages
 import Login from './pages/Login';
@@ -18,28 +19,68 @@ import NewTicket from './pages/NewTicket';
 import Sidebar from './components/Sidebar';
 
 const App: React.FC = () => {
-  const [tickets, setTickets] = useState<Ticket[]>(mockTickets);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [users, setUsers] = useState<User[]>(mockUsers);
-  const [currentUser, setCurrentUser] = useState<User | null>(mockUsers[0]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthPage = ['/login', '/signup', '/recovery'].includes(location.pathname);
 
-  // Simulated DB Actions
-  const addTicket = (ticket: Ticket) => setTickets(prev => [ticket, ...prev]);
-  const updateTicket = (updatedTicket: Ticket) => {
-    setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+  // Check Auth on Load
+  useEffect(() => {
+    const user = AuthService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+    }
+    setLoading(false);
+  }, []);
+
+  // Fetch Tickets when Authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTickets();
+    }
+  }, [isAuthenticated]);
+
+  const loadTickets = async () => {
+    try {
+      const data = await TicketService.getAll();
+      setTickets(data);
+    } catch (error) {
+      console.error('Failed to load tickets', error);
+    }
   };
 
-  const handleLogin = () => {
+  const addTicket = async (ticket: Ticket) => {
+    // Optimistic update or wait for reload?
+    // Let's rely on Tickets page to fetch or App to re-fetch
+    await loadTickets();
+  };
+
+  const updateTicket = async (updatedTicket: Ticket) => {
+    setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+    // In a real app, we would call API here too, but Tickets page might handle specific updates
+  };
+
+  const updateUser = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
+
+  const handleLogin = (user?: User) => {
     setIsAuthenticated(true);
+    if (user) setCurrentUser(user);
     navigate('/dashboard');
   };
 
   const handleLogout = () => {
+    AuthService.logout();
     setIsAuthenticated(false);
+    setCurrentUser(null);
     navigate('/login');
   };
 
@@ -52,13 +93,15 @@ const App: React.FC = () => {
     </div>
   );
 
+  if (loading) return <div className="flex h-screen items-center justify-center bg-background-dark text-white">Carregando...</div>;
+
   return (
     <Routes>
       <Route path="/login" element={layout(<Login onLogin={handleLogin} />)} />
       <Route path="/signup" element={layout(<Signup onSignup={handleLogin} />)} />
       <Route path="/recovery" element={layout(<PasswordRecovery />)} />
       
-      {/* Protected Routes Simulation */}
+      {/* Protected Routes */}
       <Route 
         path="/dashboard" 
         element={isAuthenticated ? layout(<Dashboard tickets={tickets} />) : <Navigate to="/login" />} 
@@ -73,7 +116,7 @@ const App: React.FC = () => {
       />
       <Route 
         path="/profile" 
-        element={isAuthenticated ? layout(<Profile user={currentUser} />) : <Navigate to="/login" />} 
+        element={isAuthenticated ? layout(<Profile user={currentUser} onUpdate={updateUser} />) : <Navigate to="/login" />} 
       />
       <Route 
         path="/new-ticket" 
