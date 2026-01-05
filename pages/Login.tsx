@@ -38,7 +38,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       // AuthService already sets token and user in localStorage
       onLogin(response.user);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao realizar login. Verifique suas credenciais.');
+      if (!err.response) {
+        setError('Erro de conexão. Verifique sua internet ou tente novamente mais tarde.');
+      } else if (err.response.status >= 500) {
+        setError('Erro no servidor. Tente novamente em instantes.');
+      } else {
+        setError(err.response?.data?.message || 'Erro ao realizar login. Verifique suas credenciais.');
+      }
     } finally {
       setLoading(false);
     }

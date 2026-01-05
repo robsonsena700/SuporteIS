@@ -27,9 +27,20 @@ CREATE TABLE IF NOT EXISTS tickets (
   priority VARCHAR(20) NOT NULL,
   status VARCHAR(20) NOT NULL,
   technician_id UUID REFERENCES users(id),
+  assigned_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   last_interaction TIMESTAMP DEFAULT NOW()
+);
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action VARCHAR(50) NOT NULL,
+  entity_id UUID NOT NULL, -- Ticket ID or other entity
+  user_id UUID REFERENCES users(id),
+  details TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Ticket Details (Optional, merged into tickets often for MVP, but good for separation)

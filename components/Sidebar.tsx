@@ -10,7 +10,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
   const location = useLocation();
-  const navItems = [
+  const allNavItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { label: 'Meus Chamados', path: '/tickets', icon: 'confirmation_number' },
     { label: 'Equipamentos', path: '/equipments', icon: 'devices' },
@@ -19,18 +19,23 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     { label: 'Configurações', path: '/profile', icon: 'settings' },
   ];
 
+  const navItems = allNavItems.filter(item => {
+    if (user?.profile === 'Cliente') {
+      return !['Equipamentos', 'Usuários'].includes(item.label);
+    }
+    return true;
+  });
+
   return (
     <aside className="hidden lg:flex w-72 flex-col justify-between border-r border-border-dark bg-background-surface p-5 shrink-0 h-screen transition-all duration-300">
       <div className="flex flex-col gap-8">
-        {/* Profile / Brand */}
+        {/* Brand */}
         <div className="flex gap-3 items-center">
-          <div 
-            className="size-12 rounded-full bg-cover bg-center border-2 border-primary ring-2 ring-primary/20 shadow-lg"
-            style={{ backgroundImage: `url(${user?.avatar})` }}
-          />
           <div className="flex flex-col overflow-hidden">
-            <h1 className="text-white text-base font-bold leading-tight truncate">{user?.name || 'TechSupport'}</h1>
-            <p className="text-text-secondary text-xs font-normal truncate">{user?.role || 'Painel Administrativo'}</p>
+            <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
+              <span className="text-primary">IS</span> Suporte
+            </h1>
+            <p className="text-text-secondary text-xs font-normal truncate">Sistema de Gerenciamento</p>
           </div>
         </div>
 

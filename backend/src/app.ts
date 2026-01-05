@@ -7,6 +7,10 @@ import swaggerJsdoc from 'swagger-jsdoc';
 
 import authRoutes from './routes/authRoutes';
 import ticketRoutes from './routes/ticketRoutes';
+import userRoutes from './routes/userRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import chatRoutes from './routes/chatRoutes';
 
 const app = express();
 
@@ -59,6 +63,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

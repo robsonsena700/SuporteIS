@@ -11,6 +11,10 @@ interface NewTicketProps {
 const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [ticketType, setTicketType] = useState<'Sistema' | 'Equipamento'>('Sistema');
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     subject: '',
     equipment: '',
@@ -19,18 +23,84 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
     description: '',
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) { // 1MB
+      alert('O arquivo deve ter no máximo 1MB.');
+      return;
+    }
+
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Formato de arquivo inválido. Apenas Imagens (PNG, JPG) e PDF.');
+        return;
+    }
+
+    if (file.type === 'application/pdf') {
+       const reader = new FileReader();
+       reader.onloadend = () => {
+           setAttachment(reader.result as string);
+           setAttachmentName(file.name);
+       };
+       reader.readAsDataURL(file);
+    } else if (file.type.startsWith('image/')) {
+        // Resize/Compress logic
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Compress to 70% quality
+                setAttachment(dataUrl);
+                setAttachmentName(file.name);
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!attachment) {
+        alert('Por favor, adicione um anexo (Obrigatório).');
+        return;
+    }
+
     setLoading(true);
 
     try {
-      const newTicketData: Partial<Ticket> = {
+      const newTicketData: Partial<Ticket> & { attachment?: string } = {
         subject: formData.subject,
-        equipment: formData.equipment,
+        equipment: ticketType === 'Equipamento' ? formData.equipment : 'Sistema',
         clientName: formData.unit,
         priority: formData.priority,
         status: TicketStatus.OPEN,
         description: formData.description,
+        attachment: attachment || undefined
       };
 
       const createdTicket = await TicketService.create(newTicketData);
@@ -52,6 +122,25 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-background-card border border-border-dark rounded-2xl p-8 flex flex-col gap-6 shadow-2xl">
+        
+        {/* Type Selection Tabs */}
+        <div className="flex gap-4 border-b border-border-dark mb-2">
+            <button 
+                type="button" 
+                className={`pb-2 px-4 text-sm font-bold border-b-2 transition-all ${ticketType === 'Sistema' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'}`}
+                onClick={() => setTicketType('Sistema')}
+            >
+                Sistema
+            </button>
+            <button 
+                type="button" 
+                className={`pb-2 px-4 text-sm font-bold border-b-2 transition-all ${ticketType === 'Equipamento' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'}`}
+                onClick={() => setTicketType('Equipamento')}
+            >
+                Equipamento
+            </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-white text-sm font-medium">Nome da Unidade/UF</label>
@@ -63,21 +152,24 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
               onChange={e => setFormData({...formData, unit: e.target.value})}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-white text-sm font-medium">Equipamento Afetado</label>
-            <select 
-              required
-              className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:ring-1 focus:ring-primary transition-all"
-              value={formData.equipment}
-              onChange={e => setFormData({...formData, equipment: e.target.value})}
-            >
-              <option value="" disabled>Selecione o equipamento...</option>
-              <option value="Desktop">Desktop</option>
-              <option value="Notebook">Notebook</option>
-              <option value="Impressora">Impressora</option>
-              <option value="Servidor">Servidor</option>
-            </select>
-          </div>
+          
+          {ticketType === 'Equipamento' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-sm font-medium">Equipamento Afetado</label>
+              <select 
+                required
+                className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:ring-1 focus:ring-primary transition-all"
+                value={formData.equipment}
+                onChange={e => setFormData({...formData, equipment: e.target.value})}
+              >
+                <option value="" disabled>Selecione o equipamento...</option>
+                <option value="Desktop">Desktop</option>
+                <option value="Notebook">Notebook</option>
+                <option value="Impressora">Impressora</option>
+                <option value="Servidor">Servidor</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -127,11 +219,22 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-white text-sm font-medium">Anexos (Opcional)</label>
-          <div className="border-2 border-dashed border-border-dark rounded-xl p-8 flex flex-col items-center justify-center gap-2 hover:bg-background-input transition-all cursor-pointer group">
-            <span className="material-symbols-outlined text-4xl text-text-muted group-hover:text-primary transition-colors">cloud_upload</span>
-            <p className="text-sm text-white"><span className="text-primary font-bold">Clique para enviar</span> ou arraste e solte</p>
-            <p className="text-xs text-text-muted">SVG, PNG, JPG ou PDF (MAX. 10MB)</p>
+          <label className="text-white text-sm font-medium">Anexos (Obrigatório)</label>
+          <div className="border-2 border-dashed border-border-dark rounded-xl p-8 flex flex-col items-center justify-center gap-2 hover:bg-background-input transition-all cursor-pointer group relative">
+            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" />
+            {attachmentName ? (
+                <div className="flex flex-col items-center gap-2">
+                    <span className="material-symbols-outlined text-4xl text-primary">check_circle</span>
+                    <p className="text-sm text-white font-bold">{attachmentName}</p>
+                    <p className="text-xs text-text-muted">Arquivo selecionado (Clique para alterar)</p>
+                </div>
+            ) : (
+                <>
+                    <span className="material-symbols-outlined text-4xl text-text-muted group-hover:text-primary transition-colors">cloud_upload</span>
+                    <p className="text-sm text-white"><span className="text-primary font-bold">Clique para enviar</span> ou arraste e solte</p>
+                    <p className="text-xs text-text-muted">JPG, PNG ou PDF (MAX. 1MB)</p>
+                </>
+            )}
           </div>
         </div>
 

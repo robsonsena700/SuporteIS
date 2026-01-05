@@ -19,6 +19,22 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const getPasswordStrength = (password: string) => {
+    if (!password) return 0;
+    let score = 0;
+    if (password.length >= 8) score += 1;
+    if (/[a-zA-Z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
+    return score; // Max 4
+  };
+
+  const validatePasswordStrength = (password: string) => {
+    return /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+  };
+
+  const passwordScore = getPasswordStrength(formData.password);
+
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -26,6 +42,16 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
     if (formData.password.length < 8) {
       setError('A senha deve ter no mínimo 8 caracteres.');
       return;
+    }
+
+    if (!validatePasswordStrength(formData.password)) {
+        setError('A senha deve conter letras e números.');
+        return;
+    }
+
+    if (formData.password !== (formData as any).confirmPassword) {
+        setError('As senhas não coincidem.');
+        return;
     }
 
     setLoading(true);
@@ -40,20 +66,12 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
         profile: 'Cliente' // Default profile
       });
       
-      // Auto login after signup? Or redirect to login?
-      // Usually redirect to login or auto-login.
-      // Let's redirect to login for security/verification flow simulation
-      // or just call onSignup which might trigger a redirect.
-      // If onSignup expects user to be logged in, we should probably login too.
-      // But typically register -> login.
-      // The prompt says "fluxo de trabalho... verificar persistencia".
-      // I'll assume redirect to Login is safer.
-      
       alert('Cadastro realizado com sucesso! Faça login para continuar.');
       navigate('/login');
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Erro ao criar conta. Tente novamente.');
+      const msg = err.response?.data?.message || 'Erro de conexão ou servidor. Tente novamente mais tarde.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -186,7 +204,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                 <input 
                   required
                   type="password" 
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 8 caracteres (letras e números)"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   className="w-full h-12 px-4 pr-12 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -194,6 +212,24 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                 <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors">
                   <span className="material-symbols-outlined text-[20px]">visibility</span>
                 </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Confirmar Senha</label>
+              <div className="relative">
+                <input 
+                  required
+                  type="password" 
+                  placeholder="Confirme sua senha"
+                  value={formData.confirmPassword}
+                  onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
+                  className={`w-full h-12 px-4 pr-12 bg-background-input border rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all ${
+                    formData.confirmPassword && formData.password !== formData.confirmPassword 
+                    ? 'border-red-500 focus:border-red-500' 
+                    : 'border-border-dark'
+                  }`}
+                />
               </div>
             </div>
 

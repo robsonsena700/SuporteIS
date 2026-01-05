@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
 import { mockUsers } from '../mockData';
 import { TicketService } from '../services/api';
+import TicketDetailModal from '../components/TicketDetailModal';
+import { useNotifications } from '../context/NotificationContext';
 
 interface TicketsProps {
   tickets: Ticket[];
@@ -9,13 +11,73 @@ interface TicketsProps {
 }
 
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
+  const { notifications } = useNotifications();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState('');
-  const [replyText, setReplyText] = useState('');
-  const [showTransferList, setShowTransferList] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets);
+  const [newTicketsIds, setNewTicketsIds] = useState<Set<string>>(new Set());
+  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
 
-  const filteredTickets = tickets.filter(t => 
+  // Helper to check for unread messages related to ticket
+  const hasUnreadMessages = (ticketId: string) => {
+    return notifications.some(n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead);
+  };
+
+  useEffect(() => {
+    setLocalTickets(tickets);
+  }, [tickets]);
+
+  // Polling Logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (isAutoRefresh) {
+        interval = setInterval(async () => {
+            try {
+                const updatedList = await TicketService.getAll();
+                
+                // Identify new tickets
+                const currentIds = new Set(localTickets.map(t => t.id));
+                const newIds = new Set<string>();
+                
+                updatedList.forEach(t => {
+                    if (!currentIds.has(t.id)) {
+                        newIds.add(t.id);
+                    }
+                });
+
+                if (newIds.size > 0) {
+                    setNewTicketsIds(prev => {
+                        const next = new Set(prev);
+                        newIds.forEach(id => next.add(id));
+                        return next;
+                    });
+                }
+                
+                // Preserve local changes/optimistic updates if necessary, but here we overwrite
+                // We might want to merge, but simpler to replace list and rely on React key diff
+                setLocalTickets(updatedList);
+            } catch (error) {
+                console.error('Polling failed', error);
+            }
+        }, 30000); // 30 seconds
+    }
+
+    return () => clearInterval(interval);
+  }, [isAutoRefresh, localTickets]);
+
+  const handleManualRefresh = async () => {
+    try {
+        const updatedList = await TicketService.getAll();
+        setLocalTickets(updatedList);
+        setNewTicketsIds(new Set()); // Clear highlights on manual refresh? Or keep them? Let's clear.
+    } catch (error) {
+        console.error('Manual refresh failed', error);
+    }
+  };
+
+  const filteredTickets = localTickets.filter(t => 
     t.subject.toLowerCase().includes(filter.toLowerCase()) || 
     t.id.toLowerCase().includes(filter.toLowerCase())
   );
@@ -41,67 +103,29 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
   const handleTicketClick = async (ticket: Ticket) => {
     setLoadingDetails(true);
+    // Remove from new tickets highlight
+    if (newTicketsIds.has(ticket.id)) {
+        const next = new Set(newTicketsIds);
+        next.delete(ticket.id);
+        setNewTicketsIds(next);
+    }
+
     try {
-      // Fetch full details including messages
       const fullTicket = await TicketService.getById(ticket.id);
       setSelectedTicket(fullTicket);
     } catch (error) {
       console.error('Failed to fetch ticket details', error);
-      // Fallback to local data if fetch fails
       setSelectedTicket(ticket);
     } finally {
       setLoadingDetails(false);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!selectedTicket || !replyText.trim()) return;
-
-    try {
-      const newMessage = await TicketService.addMessage(selectedTicket.id, replyText, false);
-      
-      const updatedTicket = { ...selectedTicket };
-      updatedTicket.messages = [...(updatedTicket.messages || []), newMessage];
-      
-      onUpdate(updatedTicket); // Update list in parent
-      setSelectedTicket(updatedTicket); // Update modal
-      setReplyText('');
-    } catch (error) {
-      console.error('Failed to send message', error);
-      alert('Erro ao enviar mensagem');
-    }
-  };
-
-  const handleTransfer = async (technician: User) => {
-    if (!selectedTicket) return;
-    
-    try {
-        // We pass the technician ID as 'technician' property which we'll handle in backend or map correctly
-        // Ideally we should fix the type to allow technicianId or similar, but for now we cast
-        await TicketService.update(selectedTicket.id, { technician: technician.id } as any);
-        
-        // Re-fetch to get updated names
-        const refreshed = await TicketService.getById(selectedTicket.id);
-
-        onUpdate(refreshed);
-        setSelectedTicket(refreshed);
-        setShowTransferList(false);
-    } catch (error) {
-        console.error('Failed to transfer ticket', error);
-        alert('Erro ao transferir chamado');
-    }
-  };
-
-  const handleResolve = async () => {
-      if (!selectedTicket) return;
-      try {
-          const updated = await TicketService.update(selectedTicket.id, { status: TicketStatus.RESOLVED });
-          onUpdate(updated);
-          setSelectedTicket(updated);
-      } catch (error) {
-          console.error('Failed to resolve ticket', error);
-          alert('Erro ao resolver chamado');
-      }
+  const handleModalUpdate = (updatedTicket: Ticket) => {
+      // Update local list
+      setLocalTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+      onUpdate(updatedTicket); // Propagate up if needed
+      setSelectedTicket(updatedTicket);
   };
 
   const technicians = mockUsers.filter(u => u.profile === 'Suporte Técnico' || u.profile === 'Administrador');
@@ -113,9 +137,27 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
           <h1 className="text-white text-3xl font-black">Central de Atendimento</h1>
           <p className="text-text-secondary">Gerenciamento de fila de suporte técnico</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-background-card rounded-xl border border-border-dark">
-          <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-          <span className="text-[11px] font-bold text-white uppercase tracking-widest">Status: Online</span>
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <label className="text-xs text-text-secondary font-bold uppercase tracking-wider cursor-pointer">Auto Refresh</label>
+                <div 
+                    className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${isAutoRefresh ? 'bg-primary' : 'bg-[#374151]'}`}
+                    onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+                >
+                    <div className={`size-3 rounded-full bg-white shadow-md transition-transform ${isAutoRefresh ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                </div>
+            </div>
+            <button 
+                onClick={handleManualRefresh}
+                className="size-8 rounded-lg border border-border-dark flex items-center justify-center text-text-secondary hover:text-white hover:bg-background-input transition-all active:scale-95"
+                title="Atualizar Agora"
+            >
+                <span className="material-symbols-outlined text-[20px]">refresh</span>
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-background-card rounded-xl border border-border-dark">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+            <span className="text-[11px] font-bold text-white uppercase tracking-widest">Status: Online</span>
+            </div>
         </div>
       </div>
 
@@ -146,16 +188,30 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Assunto</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Prioridade</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Status</th>
+                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Relator</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Técnico</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-dark">
               {filteredTickets.map((ticket) => (
-                <tr key={ticket.id} className="group hover:bg-background-input/40 transition-colors cursor-pointer" onClick={() => handleTicketClick(ticket)}>
-                  <td className="p-4 text-xs font-mono text-text-secondary">{ticket.id}</td>
+                <tr 
+                    key={ticket.id} 
+                    className={`group transition-colors cursor-pointer ${newTicketsIds.has(ticket.id) ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-background-input/40'}`}
+                    onClick={() => handleTicketClick(ticket)}
+                >
+                  <td className="p-4">
+                    <span className="text-primary font-bold text-sm font-mono">{ticket.code}</span>
+                  </td>
                   <td className="p-4">
                     <div className="flex flex-col">
-                      <span className="text-white text-sm font-medium">{ticket.subject}</span>
+                      <div className="flex items-center gap-2">
+                         <span className="text-white text-sm font-medium">{ticket.subject}</span>
+                         {hasUnreadMessages(ticket.id) && (
+                           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 shadow-sm animate-bounce" title="Novas mensagens">
+                             <span className="material-symbols-outlined text-white text-[12px] font-bold">mail</span>
+                           </div>
+                         )}
+                      </div>
                       <span className="text-text-muted text-[11px]">{ticket.clientName}</span>
                     </div>
                   </td>
@@ -168,6 +224,14 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusStyle(ticket.status)}`}>
                       {ticket.status}
                     </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                         <div className="size-6 rounded-full bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-[10px] text-white font-bold">
+                            {ticket.creatorName ? ticket.creatorName.charAt(0) : '-'}
+                         </div>
+                         <span className="text-white text-xs font-medium">{ticket.creatorName || 'Sistema'}</span>
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -184,165 +248,13 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
         </div>
       </div>
 
-      {/* Detail Modal Overlay - Matching the provided image */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#111827] border border-[#1f2937] w-full max-w-[900px] h-[600px] rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-slide-up">
-            
-            {/* Modal Header */}
-            <header className="p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827]">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] font-mono text-text-secondary uppercase tracking-tighter mb-1">{selectedTicket.id}</span>
-                  <div className="size-2 rounded-full bg-primary shadow-[0_0_8px_rgba(19,91,236,0.8)]"></div>
-                </div>
-                <div>
-                  <h2 className="text-white text-lg font-bold leading-tight">{selectedTicket.subject}</h2>
-                  <p className="text-text-muted text-xs">{selectedTicket.clientName} • Criado em {selectedTicket.createdAt}</p>
-                </div>
-              </div>
-              <button onClick={() => { setSelectedTicket(null); setReplyText(''); setShowTransferList(false); }} className="text-[#4b5563] hover:text-white transition-colors">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </header>
-
-            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[1fr_280px]">
-              
-              {/* Left Column: Messages and Input */}
-              <div className="flex flex-col h-full bg-[#111827] border-r border-[#1f2937]">
-                <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-                  <h4 className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">Mensagens / Comentários</h4>
-                  
-                  <div className="flex flex-col gap-5">
-                    {selectedTicket.messages && selectedTicket.messages.map((msg, i) => (
-                      <div key={i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
-                          {msg.senderName ? msg.senderName[0] : '?'}
-                        </div>
-                        <div className={`flex flex-col gap-1 max-w-[70%] ${msg.senderName === 'Você' ? 'items-end' : ''}`}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white text-[11px] font-bold">{msg.senderName}</span>
-                            <span className="text-[9px] text-[#6b7280]">{msg.timestamp}</span>
-                          </div>
-                          <div className={`p-3 rounded-xl text-sm leading-relaxed ${msg.senderName === 'Você' ? 'bg-[#135bec] text-white rounded-tr-none' : 'bg-[#1f2937] text-white border border-[#374151] rounded-tl-none'}`}>
-                            {msg.content}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {(!selectedTicket.messages || selectedTicket.messages.length === 0) && (
-                        <div className="text-center text-text-muted text-xs py-10">Nenhuma mensagem ainda.</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-6 border-t border-[#1f2937]">
-                  <div className="relative mb-4 group">
-                    <textarea 
-                      placeholder="Digite sua resposta..."
-                      className="w-full h-[120px] bg-[#1a2233] border border-[#374151] rounded-xl p-4 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none transition-all placeholder:text-[#4b5563]"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                    />
-                    <div className="absolute bottom-4 right-4 bg-primary rounded-full size-6 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-white text-[16px] filled">check</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button className="px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all">
-                      Anexar
-                    </button>
-                    <button 
-                      onClick={handleSendMessage}
-                      className="px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95"
-                    >
-                      Enviar Resposta
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Sidebar Details */}
-              <div className="flex flex-col h-full bg-[#111827] p-6 gap-8 overflow-y-auto">
-                
-                {/* Details Section */}
-                <div className="flex flex-col gap-4">
-                  <h4 className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">Detalhes do Ticket</h4>
-                  <div className="bg-[#1a2233]/40 border border-[#374151] rounded-xl p-4 flex flex-col gap-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#9ca3af] text-[11px]">Prioridade:</span>
-                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">{selectedTicket.priority}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#9ca3af] text-[11px]">Status:</span>
-                      <span className="text-[#3b82f6] text-[11px] bg-[#3b82f6]/10 px-2 py-0.5 rounded font-medium border border-[#3b82f6]/20">{selectedTicket.status}</span>
-                    </div>
-                    <div className="flex justify-between items-center relative">
-                      <span className="text-[#9ca3af] text-[11px]">Atribuído:</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-white text-[11px] font-bold">{selectedTicket.technician || 'Ninguém'}</span>
-                        <button 
-                          onClick={() => setShowTransferList(!showTransferList)}
-                          className="text-primary hover:text-white transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
-                        </button>
-                      </div>
-
-                      {/* Transfer Dropdown */}
-                      {showTransferList && (
-                        <div className="absolute right-0 top-6 w-48 bg-[#1f2937] border border-[#374151] rounded-xl shadow-2xl z-10 py-2">
-                          <p className="px-4 py-1 text-[9px] font-bold text-text-muted uppercase">Transferir para:</p>
-                          {technicians.map(tech => (
-                            <button 
-                              key={tech.id}
-                              onClick={() => handleTransfer(tech)}
-                              className="w-full text-left px-4 py-2 text-xs text-white hover:bg-primary transition-colors flex items-center gap-2"
-                            >
-                              <div className="size-4 rounded-full overflow-hidden bg-background-dark">
-                                <img src={tech.avatar} alt="" />
-                              </div>
-                              {tech.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Equipment Section */}
-                <div className="flex flex-col gap-4">
-                  <h4 className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">Equipamento</h4>
-                  <div className="bg-[#1a2233]/40 border border-[#374151] rounded-xl p-4 flex flex-col gap-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[#6b7280] text-[9px] uppercase font-bold tracking-wider">Modelo</span>
-                      <span className="text-white text-[11px] font-bold">{selectedTicket.equipmentDetails?.model || selectedTicket.equipment}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[#6b7280] text-[9px] uppercase font-bold tracking-wider">S/N</span>
-                      <span className="text-white text-[11px] font-mono">{selectedTicket.equipmentDetails?.serialNumber || 'VNC - 998877'}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[#6b7280] text-[9px] uppercase font-bold tracking-wider">Garantia</span>
-                      <span className="text-[#10b981] text-[11px] font-bold">Ativa</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-auto">
-                  <button 
-                    onClick={handleResolve}
-                    className="w-full h-11 border border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] text-[11px] font-bold rounded-xl hover:bg-[#10b981] hover:text-white transition-all active:scale-95"
-                  >
-                    Marcar como Resolvido
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>
+          <TicketDetailModal 
+            ticket={selectedTicket}
+            technicians={technicians}
+            onClose={() => setSelectedTicket(null)}
+            onUpdate={handleModalUpdate}
+          />
       )}
     </div>
   );

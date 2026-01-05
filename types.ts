@@ -19,6 +19,7 @@ export interface User {
   role: string;
   avatar: string;
   status: 'Ativo' | 'Inativo';
+  chatStatus?: 'online' | 'busy' | 'offline';
   lastAccess: string;
   profile: 'Administrador' | 'Suporte Técnico' | 'Cliente';
   company?: string;
@@ -43,11 +44,15 @@ export interface Ticket {
   priority: TicketPriority;
   status: TicketStatus;
   technician?: string;
+  technicianId?: string;
   technicianAvatar?: string;
+  assignedAt?: string;
   description: string;
   createdAt: string;
   lastInteraction: string;
   messages: Message[];
+  creatorName?: string;
+  attachment?: string;
   equipmentDetails?: {
     model: string;
     serialNumber: string;
@@ -62,4 +67,31 @@ export interface Stat {
   trendType: 'up' | 'down' | 'neutral';
   icon: string;
   color: string;
+}
+
+export interface DashboardStats {
+  totalTickets: number;
+  byStatus: { status: string; count: string }[];
+  chartData: { name: string; chamados: string }[];
+  resolvedCount: number;
+  recentActivity: any[];
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'new_message' | 'new_dm' | 'status_change' | 'system';
+  referenceId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
 }

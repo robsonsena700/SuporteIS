@@ -35,33 +35,43 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
+    console.log(`[Auth] Tentativa de login para: ${email}`);
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email e senha são obrigatórios.' });
+    }
+
     const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ message: 'Email ou senha incorretos' });
+      console.warn(`[Auth] Usuário não encontrado: ${email}`);
+      return res.status(404).json({ message: 'Usuário não encontrado. Verifique o e-mail digitado.' });
     }
 
     const user = userResult.rows[0];
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
-      return res.status(400).json({ message: 'Email ou senha incorretos' });
+      console.warn(`[Auth] Senha incorreta para usuário: ${email}`);
+      return res.status(401).json({ message: 'Senha incorreta. Tente novamente.' });
     }
 
     // Create Token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: '1h' }
+      { expiresIn: '8h' } // Extended session
     );
+
+    console.log(`[Auth] Login bem-sucedido para: ${email} (${user.role})`);
 
     // Remove password from response
     delete user.password_hash;
 
     res.json({ token, user });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erro ao realizar login' });
+    console.error('[Auth] Erro fatal no login:', error);
+    res.status(500).json({ message: 'Erro interno no servidor ao realizar login.' });
   }
 };
 

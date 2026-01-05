@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
+import { Ticket, TicketStatus, TicketPriority, User, Message, Notification, DirectMessage } from '../types';
 
 const api = axios.create({
   baseURL: '/api', // Use Vite Proxy
@@ -44,16 +44,30 @@ const mapTicketFromApi = (data: any): Ticket => ({
   priority: data.priority as TicketPriority,
   status: data.status as TicketStatus,
   technician: data.technician_name,
+  technicianId: data.technician_id,
   technicianAvatar: data.technician_avatar,
+  assignedAt: data.assigned_at ? new Date(data.assigned_at).toLocaleString() : undefined,
   description: data.description,
   createdAt: new Date(data.created_at).toLocaleString(),
   lastInteraction: new Date(data.updated_at || data.created_at).toLocaleString(),
   messages: data.messages ? data.messages.map(mapMessageFromApi) : [],
+  creatorName: data.creator_name,
+  attachment: data.attachment,
   equipmentDetails: { // Placeholder or map if available
     model: data.equipment,
     serialNumber: 'N/A',
     warranty: 'N/A'
   }
+});
+
+const mapNotificationFromApi = (data: any): Notification => ({
+  id: data.id,
+  userId: data.user_id,
+  type: data.type,
+  referenceId: data.reference_id,
+  content: data.content,
+  isRead: data.is_read,
+  createdAt: new Date(data.created_at).toLocaleString()
 });
 
 export const AuthService = {
@@ -98,14 +112,15 @@ export const TicketService = {
     const response = await api.get(`/tickets/${id}`);
     return mapTicketFromApi(response.data);
   },
-  create: async (ticket: Partial<Ticket>) => {
+  create: async (ticket: Partial<Ticket> & { attachment?: string }) => {
     const payload = {
       subject: ticket.subject,
       description: ticket.description,
       equipment: ticket.equipment,
       client_name: ticket.clientName, // Map to snake_case
       priority: ticket.priority,
-      status: ticket.status
+      status: ticket.status,
+      attachment: ticket.attachment
     };
     const response = await api.post('/tickets', payload);
     return mapTicketFromApi(response.data);
@@ -113,7 +128,10 @@ export const TicketService = {
   update: async (id: string, updates: Partial<Ticket> & { technician?: string }) => {
     const payload: any = { ...updates };
     if (updates.clientName) payload.client_name = updates.clientName;
-    if (updates.technician) payload.technician_id = updates.technician;
+    // Map technicianId (frontend) to technician_id (backend)
+    if (updates.technicianId) payload.technician_id = updates.technicianId;
+    // Legacy support if 'technician' is passed as ID (should avoid this ambiguity, but keeping for safety if used elsewhere)
+    if (updates.technician && !updates.technicianId) payload.technician_id = updates.technician;
     
     const response = await api.put(`/tickets/${id}`, payload);
     return mapTicketFromApi(response.data);
@@ -122,6 +140,79 @@ export const TicketService = {
     const response = await api.post(`/tickets/${id}/messages`, { content, is_internal: isInternal });
     return mapMessageFromApi(response.data);
   }
+};
+
+export const UserService = {
+  getAll: async () => {
+    const response = await api.get('/users');
+    return response.data;
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+  create: async (user: any) => {
+    const response = await api.post('/users', user);
+    return response.data;
+  },
+  update: async (id: string, updates: any) => {
+    const response = await api.put(`/users/${id}`, updates);
+    return response.data;
+  },
+  updateStatus: async (id: string, chatStatus: string) => {
+      const response = await api.put(`/users/${id}/status`, { chat_status: chatStatus });
+      return response.data;
+  },
+  updatePassword: async (id: string, password: string) => {
+      const response = await api.put(`/users/${id}/password`, { password });
+      return response.data;
+  },
+
+  ping: async () => {
+    await api.post('/users/ping');
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  }
+};
+
+export const DashboardService = {
+  getStats: async (period: string = 'week') => {
+    const response = await api.get('/dashboard', { params: { period } });
+    return response.data;
+  }
+};
+
+export const NotificationService = {
+    getAll: async () => {
+        const response = await api.get('/notifications');
+        return response.data.map(mapNotificationFromApi);
+    },
+    markAsRead: async (id: string) => {
+        await api.put(`/notifications/${id}/read`);
+    },
+    markAllAsRead: async () => {
+        await api.put(`/notifications/all/read`);
+    }
+};
+
+export const ChatService = {
+    sendMessage: async (receiverId: string, content: string) => {
+        const response = await api.post('/chat', { receiverId, content });
+        return response.data;
+    },
+    getMessages: async (otherUserId: string) => {
+        const response = await api.get(`/chat/${otherUserId}`);
+        return response.data.map((msg: any) => ({
+            id: msg.id,
+            senderId: msg.sender_id,
+            receiverId: msg.receiver_id,
+            content: msg.content,
+            isRead: msg.is_read,
+            createdAt: new Date(msg.created_at).toLocaleString()
+        }));
+    }
 };
 
 export default api;

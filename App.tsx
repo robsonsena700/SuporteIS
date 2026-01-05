@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { mockUsers } from './mockData'; // Keep mockUsers for now or replace later
 import { Ticket, User } from './types';
-import { AuthService, TicketService } from './services/api';
+import { TicketService } from './services/api';
+import { useAuth } from './context/AuthContext';
 
 // Pages
 import Login from './pages/Login';
@@ -17,27 +18,18 @@ import NewTicket from './pages/NewTicket';
 
 // Layout
 import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import ChatWindow from './components/ChatWindow';
 
 const App: React.FC = () => {
+  const { user, isAuthenticated, loading, login, logout, updateUser: contextUpdateUser } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [users, setUsers] = useState<User[]>(mockUsers);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [activeChatUser, setActiveChatUser] = useState<User | null>(null);
   
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthPage = ['/login', '/signup', '/recovery'].includes(location.pathname);
-
-  // Check Auth on Load
-  useEffect(() => {
-    const user = AuthService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
-  }, []);
 
   // Fetch Tickets when Authenticated
   useEffect(() => {
@@ -66,30 +58,38 @@ const App: React.FC = () => {
     // In a real app, we would call API here too, but Tickets page might handle specific updates
   };
 
-  const updateUser = (updatedUser: User) => {
-    setCurrentUser(updatedUser);
+  const handleUpdateUser = (updatedUser: User) => {
+    contextUpdateUser(updatedUser);
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
-  const handleLogin = (user?: User) => {
-    setIsAuthenticated(true);
-    if (user) setCurrentUser(user);
-    navigate('/dashboard');
+  const handleLogin = (userData?: User) => {
+    if (userData) {
+        login(userData);
+        navigate('/dashboard');
+    }
   };
 
   const handleLogout = () => {
-    AuthService.logout();
-    setIsAuthenticated(false);
-    setCurrentUser(null);
+    logout();
     navigate('/login');
   };
 
   const layout = (children: React.ReactNode) => (
     <div className="flex h-screen w-full bg-background-dark overflow-hidden font-sans">
-      {!isAuthPage && isAuthenticated && <Sidebar user={currentUser} onLogout={handleLogout} />}
-      <main className={`flex-1 overflow-y-auto ${(!isAuthPage && isAuthenticated) ? 'p-4 lg:p-8' : ''}`}>
-        {children}
-      </main>
+      {!isAuthPage && isAuthenticated && <Sidebar user={user} onLogout={handleLogout} />}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {!isAuthPage && isAuthenticated && <Header user={user} onChatSelect={setActiveChatUser} />}
+        <main className={`flex-1 overflow-y-auto ${(!isAuthPage && isAuthenticated) ? 'p-4 lg:p-8' : ''}`}>
+          {children}
+        </main>
+        {activeChatUser && (
+          <ChatWindow 
+            recipient={activeChatUser} 
+            onClose={() => setActiveChatUser(null)} 
+          />
+        )}
+      </div>
     </div>
   );
 
@@ -116,7 +116,7 @@ const App: React.FC = () => {
       />
       <Route 
         path="/profile" 
-        element={isAuthenticated ? layout(<Profile user={currentUser} onUpdate={updateUser} />) : <Navigate to="/login" />} 
+        element={isAuthenticated ? layout(<Profile user={user} onUpdate={handleUpdateUser} />) : <Navigate to="/login" />} 
       />
       <Route 
         path="/new-ticket" 
