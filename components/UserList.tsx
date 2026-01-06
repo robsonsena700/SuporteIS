@@ -55,16 +55,16 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
 
   const getStatusColor = (user: User) => {
     // Priority: 'busy' set manually > calculated 'online' > 'offline'
-    if (user.chat_status === 'busy') return 'bg-warning';
+    if (user.chatStatus === 'busy') return 'bg-warning';
     // We assume backend sends calculated_status in a field, or we rely on chat_status if it's accurate
     // But since we added calculated_status in backend query:
-    const isOnline = (user as any).calculated_status === 'online';
+    const isOnline = user.calculatedStatus === 'online';
     return isOnline ? 'bg-success' : 'bg-gray-400';
   };
 
   const getStatusLabel = (user: User) => {
-    if (user.chat_status === 'busy') return 'Ocupado';
-    const isOnline = (user as any).calculated_status === 'online';
+    if (user.chatStatus === 'busy') return 'Ocupado';
+    const isOnline = user.calculatedStatus === 'online';
     return isOnline ? 'Online' : 'Offline';
   };
 

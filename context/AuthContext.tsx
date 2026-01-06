@@ -27,22 +27,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  // Heartbeat for online status
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Session Management
+    let inactivityTimer: NodeJS.Timeout;
+    let warningTimer: NodeJS.Timeout;
+    const INACTIVITY_LIMIT = 60 * 60 * 1000; // 60 minutes
+    const WARNING_TIME = 55 * 60 * 1000; // 55 minutes
+
+    const resetInactivity = () => {
+        clearTimeout(inactivityTimer);
+        clearTimeout(warningTimer);
+        
+        warningTimer = setTimeout(() => {
+            alert('Sua sessão irá expirar em 5 minutos. Por favor, salve seu trabalho.');
+        }, WARNING_TIME);
+
+        inactivityTimer = setTimeout(() => {
+            console.warn('Sessão expirada por inatividade.');
+            // Log unexpected logout if needed
+            logout();
+            alert('Sessão expirada por inatividade.');
+        }, INACTIVITY_LIMIT);
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, resetInactivity));
+
+    // Initial start
+    resetInactivity();
+
+    // Heartbeat for online status & Token Refresh check
     const ping = async () => {
         try {
             await UserService.ping();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Ping failed', error);
+            // If 401, token is expired/invalid.
+            // Interceptor usually handles this, but we can double check.
+            if (error.response?.status === 401) {
+                console.warn('Session expired (detected by ping)');
+                logout(); 
+            }
         }
     };
 
     ping(); // Initial ping
     const interval = setInterval(ping, 60000); // Ping every minute
 
-    return () => clearInterval(interval);
+    return () => {
+        clearInterval(interval);
+        events.forEach(event => document.removeEventListener(event, resetInactivity));
+        clearTimeout(inactivityTimer);
+        clearTimeout(warningTimer);
+    };
   }, [isAuthenticated]);
 
   const login = (userData: User) => {

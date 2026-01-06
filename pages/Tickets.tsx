@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
 import { mockUsers } from '../mockData';
 import { TicketService } from '../services/api';
@@ -12,12 +13,14 @@ interface TicketsProps {
 
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const { notifications } = useNotifications();
+  const location = useLocation();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState('');
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets);
   const [newTicketsIds, setNewTicketsIds] = useState<Set<string>>(new Set());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
+  const [activeTab, setActiveTab] = useState<'Sistema' | 'Equipamento' | 'Concluído'>('Sistema');
 
   // Helper to check for unread messages related to ticket
   const hasUnreadMessages = (ticketId: string) => {
@@ -27,6 +30,23 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   useEffect(() => {
     setLocalTickets(tickets);
   }, [tickets]);
+
+  // Handle auto-open from notification
+  useEffect(() => {
+      const state = location.state as { openTicketId?: string };
+      if (state?.openTicketId) {
+          console.log(`[Tickets] Auto-opening ticket from state: ${state.openTicketId}`);
+          // Find ticket in current list or fetch it
+          // Note: localTickets might not be fully loaded yet if initial load, 
+          // but handleTicketClick fetches details by ID anyway.
+          // We construct a partial ticket object to trigger handleTicketClick
+          const ticketStub = { id: state.openTicketId } as Ticket;
+          handleTicketClick(ticketStub);
+          
+          // Clear state to prevent re-opening on re-render (optional, but good practice)
+          window.history.replaceState({}, document.title);
+      }
+  }, [location.state]);
 
   // Polling Logic
   useEffect(() => {
@@ -77,10 +97,34 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     }
   };
 
-  const filteredTickets = localTickets.filter(t => 
-    t.subject.toLowerCase().includes(filter.toLowerCase()) || 
-    t.id.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredTickets = localTickets.filter(t => {
+    const matchesFilter = 
+        t.id.toLowerCase().includes(filter.toLowerCase()) || 
+        t.subject.toLowerCase().includes(filter.toLowerCase()) ||
+        t.priority.toLowerCase().includes(filter.toLowerCase()) ||
+        t.status.toLowerCase().includes(filter.toLowerCase()) ||
+        (t.creatorName && t.creatorName.toLowerCase().includes(filter.toLowerCase())) ||
+        (t.technician && t.technician.toLowerCase().includes(filter.toLowerCase()));
+
+    if (!matchesFilter) return false;
+
+    if (activeTab === 'Concluído') {
+        return t.status === TicketStatus.RESOLVED;
+    }
+
+    // For other tabs, exclude resolved tickets
+    if (t.status === TicketStatus.RESOLVED) return false;
+
+    if (activeTab === 'Sistema') {
+        return t.equipment.toLowerCase().includes('sistema') || t.equipment.toLowerCase().includes('software');
+    }
+    
+    if (activeTab === 'Equipamento') {
+        return !t.equipment.toLowerCase().includes('sistema') && !t.equipment.toLowerCase().includes('software');
+    }
+
+    return true;
+  });
 
   const getPriorityStyle = (priority: TicketPriority) => {
     switch (priority) {
@@ -137,47 +181,56 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
           <h1 className="text-white text-3xl font-black">Central de Atendimento</h1>
           <p className="text-text-secondary">Gerenciamento de fila de suporte técnico</p>
         </div>
-        <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-                <label className="text-xs text-text-secondary font-bold uppercase tracking-wider cursor-pointer">Auto Refresh</label>
-                <div 
-                    className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${isAutoRefresh ? 'bg-primary' : 'bg-[#374151]'}`}
-                    onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+        <div className="flex gap-2 bg-background-card p-1 rounded-lg border border-border-dark">
+            {['Sistema', 'Equipamento', 'Concluído'].map((tab) => (
+                <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                        activeTab === tab 
+                        ? 'bg-primary text-white shadow-lg' 
+                        : 'text-text-secondary hover:text-white hover:bg-white/5'
+                    }`}
                 >
-                    <div className={`size-3 rounded-full bg-white shadow-md transition-transform ${isAutoRefresh ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                </div>
-            </div>
-            <button 
-                onClick={handleManualRefresh}
-                className="size-8 rounded-lg border border-border-dark flex items-center justify-center text-text-secondary hover:text-white hover:bg-background-input transition-all active:scale-95"
-                title="Atualizar Agora"
-            >
-                <span className="material-symbols-outlined text-[20px]">refresh</span>
-            </button>
-            <div className="flex items-center gap-2 px-4 py-2 bg-background-card rounded-xl border border-border-dark">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-            <span className="text-[11px] font-bold text-white uppercase tracking-widest">Status: Online</span>
-            </div>
+                    {tab}
+                </button>
+            ))}
         </div>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-background-card rounded-2xl border border-border-dark overflow-hidden shadow-xl">
-        <div className="p-5 border-b border-border-dark flex flex-col sm:flex-row justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[20px]">search</span>
+      <div className="bg-background-card rounded-xl border border-border-dark overflow-hidden shadow-2xl">
+        <div className="p-4 border-b border-border-dark flex gap-4">
+          <div className="relative flex-1">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
             <input 
               type="text" 
-              placeholder="Buscar ticket, ID ou cliente..."
-              className="w-full h-11 pl-10 pr-4 bg-background-input border border-border-dark rounded-xl text-sm text-white focus:ring-1 focus:ring-primary transition-all"
+              placeholder="Buscar por ID, assunto, status, prioridade, relator ou técnico..." 
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
+              className="w-full pl-10 pr-4 h-10 bg-background-input border border-border-dark rounded-lg text-white focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted/50"
             />
           </div>
-          <button className="h-11 px-6 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-hover transition-all flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">filter_list</span>
-            Filtrar Resultados
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+                onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+                className={`flex items-center gap-2 h-10 px-4 rounded-lg font-bold text-sm transition-all border ${
+                    isAutoRefresh 
+                    ? 'bg-success/10 text-success border-success/20' 
+                    : 'bg-background-input text-text-muted border-border-dark hover:text-white'
+                }`}
+                title={isAutoRefresh ? "Atualização automática ligada" : "Atualização automática desligada"}
+            >
+                <span className="material-symbols-outlined text-[20px]">{isAutoRefresh ? 'sync' : 'sync_disabled'}</span>
+                <span className="hidden md:inline">{isAutoRefresh ? 'Auto' : 'Manual'}</span>
+            </button>
+            <button 
+                onClick={handleManualRefresh}
+                className="flex items-center gap-2 h-10 px-4 bg-background-input text-text-secondary border border-border-dark rounded-lg font-bold text-sm hover:text-white hover:border-text-secondary transition-all"
+                title="Atualizar agora"
+            >
+                <span className="material-symbols-outlined text-[20px]">refresh</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -200,7 +253,15 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                     onClick={() => handleTicketClick(ticket)}
                 >
                   <td className="p-4">
-                    <span className="text-primary font-bold text-sm font-mono">{ticket.code}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-white text-xs font-bold font-mono tracking-wider">{ticket.code || `CH-${ticket.id.slice(0, 4).toUpperCase()}`}</span>
+                      {hasUnreadMessages(ticket.id) && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/20 rounded border border-primary/30 w-fit">
+                            <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
+                            <span className="text-[9px] font-bold text-primary">NOVA MSG</span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col">

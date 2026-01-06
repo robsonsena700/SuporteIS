@@ -89,7 +89,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose, on
                 <div className="flex flex-col gap-1 overflow-hidden">
                   <p className="text-sm text-white leading-snug">{notification.content}</p>
                   <span className="text-[10px] text-text-secondary">
-                    {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ptBR })}
+                    {notification.created_at ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ptBR }) : 'Agora'}
                   </span>
                 </div>
                 {!notification.isRead && (

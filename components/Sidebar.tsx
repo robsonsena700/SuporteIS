@@ -16,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     { label: 'Equipamentos', path: '/equipments', icon: 'devices' },
     { label: 'Usuários', path: '/users', icon: 'group' },
     { label: 'Relatórios', path: '/reports', icon: 'analytics' },
-    { label: 'Configurações', path: '/profile', icon: 'settings' },
+    { label: 'Perfil', path: '/profile', icon: 'settings' },
   ];
 
   const navItems = allNavItems.filter(item => {
@@ -53,17 +53,9 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
                 }
               `}
             >
-              {item.path === '/profile' && user?.avatar ? (
-                <img 
-                  src={user.avatar} 
-                  alt="Profile" 
-                  className={`size-[22px] rounded-full object-cover border border-current ${location.pathname === item.path ? 'border-primary' : 'border-transparent'}`}
-                />
-              ) : (
-                <span className={`material-symbols-outlined text-[22px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
+              <span className={`material-symbols-outlined text-[22px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
                   {item.icon}
-                </span>
-              )}
+              </span>
               <p className="text-sm font-medium">{item.label}</p>
             </NavLink>
           ))}

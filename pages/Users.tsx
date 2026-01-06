@@ -49,9 +49,13 @@ const Users: React.FC<UsersProps> = () => {
         createdAt: new Date(u.created_at).toLocaleString()
       }));
       setUsers(mappedUsers);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Falha ao carregar usuários. Verifique se você é Administrador.');
+      if (err.response && (err.response.status === 403 || err.response.status === 401)) {
+        setError('Falha ao carregar usuários. Verifique se você possui permissões de Administrador.');
+      } else {
+        setError('Falha ao carregar lista de usuários.');
+      }
     } finally {
       setLoading(false);
     }

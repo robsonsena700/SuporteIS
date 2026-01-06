@@ -18,9 +18,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Ignore 401 for login endpoint to allow UI to handle "Incorrect Password"
+    if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Only redirect if not already on login
+      if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -37,7 +41,8 @@ const mapMessageFromApi = (data: any): Message => ({
 });
 
 const mapTicketFromApi = (data: any): Ticket => ({
-  id: data.code || data.id, // Prefer code (CH-XXXX) if available
+  id: data.id,
+  code: data.code,
   subject: data.subject,
   equipment: data.equipment,
   clientName: data.client_name,
@@ -52,6 +57,7 @@ const mapTicketFromApi = (data: any): Ticket => ({
   lastInteraction: new Date(data.updated_at || data.created_at).toLocaleString(),
   messages: data.messages ? data.messages.map(mapMessageFromApi) : [],
   creatorName: data.creator_name,
+  creatorId: data.user_id,
   attachment: data.attachment,
   equipmentDetails: { // Placeholder or map if available
     model: data.equipment,
@@ -70,28 +76,45 @@ const mapNotificationFromApi = (data: any): Notification => ({
   createdAt: new Date(data.created_at).toLocaleString()
 });
 
+const mapUserFromApi = (data: any): User => ({
+  id: data.id,
+  name: data.name,
+  email: data.email,
+  role: data.role,
+  avatar: data.avatar,
+  status: data.status,
+  chatStatus: data.chat_status,
+  calculatedStatus: data.calculated_status,
+  lastAccess: data.last_access ? new Date(data.last_access).toLocaleString() : 'Nunca',
+  profile: data.profile,
+  company: data.company,
+  phone: data.phone,
+  department: data.department
+});
+
 export const AuthService = {
   login: async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('user', JSON.stringify(mapUserFromApi(response.data.user)));
     }
-    return response.data;
+    return { ...response.data, user: mapUserFromApi(response.data.user) };
   },
   register: async (userData: Partial<User> & { password?: string }) => {
     const response = await api.post('/auth/register', userData);
     // Automatically login or return user
-    return response.data;
+    return mapUserFromApi(response.data);
   },
   updateProfile: async (userData: Partial<User>) => {
     const response = await api.put('/auth/profile', userData);
+    const mappedUser = mapUserFromApi(response.data);
     // Update local storage user if successful
     const currentUser = AuthService.getCurrentUser();
-    if (currentUser && currentUser.id === response.data.id) {
-        localStorage.setItem('user', JSON.stringify(response.data));
+    if (currentUser && currentUser.id === mappedUser.id) {
+        localStorage.setItem('user', JSON.stringify(mappedUser));
     }
-    return response.data;
+    return mappedUser;
   },
   logout: () => {
     localStorage.removeItem('token');
@@ -145,23 +168,23 @@ export const TicketService = {
 export const UserService = {
   getAll: async () => {
     const response = await api.get('/users');
-    return response.data;
+    return response.data.map(mapUserFromApi);
   },
   getById: async (id: string) => {
     const response = await api.get(`/users/${id}`);
-    return response.data;
+    return mapUserFromApi(response.data);
   },
   create: async (user: any) => {
     const response = await api.post('/users', user);
-    return response.data;
+    return mapUserFromApi(response.data);
   },
   update: async (id: string, updates: any) => {
     const response = await api.put(`/users/${id}`, updates);
-    return response.data;
+    return mapUserFromApi(response.data);
   },
   updateStatus: async (id: string, chatStatus: string) => {
       const response = await api.put(`/users/${id}/status`, { chat_status: chatStatus });
-      return response.data;
+      return mapUserFromApi(response.data);
   },
   updatePassword: async (id: string, password: string) => {
       const response = await api.put(`/users/${id}/password`, { password });

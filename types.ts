@@ -20,6 +20,7 @@ export interface User {
   avatar: string;
   status: 'Ativo' | 'Inativo';
   chatStatus?: 'online' | 'busy' | 'offline';
+  calculatedStatus?: 'online' | 'offline';
   lastAccess: string;
   profile: 'Administrador' | 'Suporte Técnico' | 'Cliente';
   company?: string;
@@ -38,6 +39,7 @@ export interface Message {
 
 export interface Ticket {
   id: string;
+  code?: string;
   subject: string;
   equipment: string;
   clientName: string;
@@ -52,6 +54,7 @@ export interface Ticket {
   lastInteraction: string;
   messages: Message[];
   creatorName?: string;
+  creatorId?: string;
   attachment?: string;
   equipmentDetails?: {
     model: string;

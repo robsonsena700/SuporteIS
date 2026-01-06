@@ -13,6 +13,10 @@ const Dashboard: React.FC = () => {
     const currentUser = AuthService.getCurrentUser();
     setUser(currentUser);
     fetchStats();
+
+    // Real-time polling
+    const interval = setInterval(fetchStats, 30000); // 30 seconds
+    return () => clearInterval(interval);
   }, [period]);
 
   const fetchStats = async () => {
@@ -176,7 +180,7 @@ const Dashboard: React.FC = () => {
                 <div key={ticket.id} className="flex items-center justify-between p-3 rounded-lg bg-background-input/30 hover:bg-background-input/50 transition-colors border border-border-dark/50">
                    <div className="flex flex-col gap-0.5">
                       <span className="text-white font-bold text-sm truncate max-w-[200px]">{ticket.subject}</span>
-                      <span className="text-xs text-text-muted">{ticket.code} • {new Date(ticket.created_at).toLocaleDateString()}</span>
+                      <span className="text-xs text-text-muted">{ticket.code} • {new Date(ticket.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                    </div>
                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${
                        ticket.status === 'Resolvido' ? 'text-success bg-success/10 border-success/20' : 

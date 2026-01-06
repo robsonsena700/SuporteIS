@@ -23,10 +23,10 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect }) => {
         setShowNotifications(false);
         
         if (notification.type === 'new_message') {
-            console.log(`[Notification] Navigating to tickets for notification: ${notification.id}`);
-            // Navigate to tickets page
-            navigate('/tickets');
-        } else if (notification.type === 'new_dm') {
+      console.log(`[Notification] Navigating to tickets for notification: ${notification.id}`);
+      // Navigate to tickets page with state to open specific ticket
+      navigate('/tickets', { state: { openTicketId: notification.referenceId } });
+    } else if (notification.type === 'new_dm') {
             console.log(`[Notification] Opening chat for user: ${notification.referenceId}`);
             // Fetch user details to open chat
             const chatUser = await UserService.getById(notification.referenceId);

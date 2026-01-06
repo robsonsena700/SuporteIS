@@ -56,33 +56,38 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
       onUpdate(updatedTicket); 
       setLocalTicket(updatedTicket);
       setReplyText('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message', error);
-      alert('Erro ao enviar mensagem');
+      const errorMessage = error.response?.data?.message || 'Erro ao enviar mensagem. Tente novamente.';
+      alert(errorMessage);
     }
   };
 
   const handleTransfer = async (technician: User) => {
     try {
+        console.log(`Transferring ticket ${localTicket.id} to technician ${technician.id} (${technician.name})`);
         await TicketService.update(localTicket.id, { technicianId: technician.id });
         const refreshed = await TicketService.getById(localTicket.id);
         setLocalTicket(refreshed);
         onUpdate(refreshed);
         setShowTransferList(false);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to transfer ticket', error);
-        alert('Erro ao transferir chamado');
+        const errorMessage = error.response?.data?.message || 'Erro ao transferir chamado.';
+        alert(errorMessage);
     }
   };
 
   const handleResolve = async () => {
       try {
+          console.log(`Resolving ticket ${localTicket.id}`);
           const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
           onUpdate(updated);
           setLocalTicket(updated);
-      } catch (error) {
+      } catch (error: any) {
           console.error('Failed to resolve ticket', error);
-          alert('Erro ao resolver chamado');
+          const errorMessage = error.response?.data?.message || 'Erro ao resolver chamado.';
+          alert(errorMessage);
       }
   };
 
@@ -100,6 +105,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
 
   const isAssignedToOthers = localTicket.technicianId && user && localTicket.technicianId !== user.id;
   const isAssignedToMe = localTicket.technicianId && user && localTicket.technicianId === user.id;
+  const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
@@ -109,7 +115,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         <header className="p-4 md:p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827] shrink-0">
           <div className="flex gap-4">
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-mono text-text-secondary uppercase tracking-tighter mb-1">{localTicket.id}</span>
+              <span className="text-[10px] font-mono text-text-secondary uppercase tracking-tighter mb-1">{localTicket.code || `CH-${localTicket.id.slice(0, 4).toUpperCase()}`}</span>
               <div className={`size-2 rounded-full shadow-[0_0_8px] ${localTicket.status === TicketStatus.RESOLVED ? 'bg-success shadow-success/50' : 'bg-primary shadow-primary/80'}`}></div>
             </div>
             <div>
@@ -154,7 +160,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
 
             {/* Input Area */}
             <div className="p-4 md:p-6 border-t border-[#1f2937] bg-[#111827]">
-               {isAssignedToOthers ? (
+               {isAssignedToOthers && user?.profile !== 'Cliente' && !isCreator ? (
                    <div className="flex items-center justify-center p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-500 text-sm gap-2">
                        <span className="material-symbols-outlined">lock</span>
                        <span>Este chamado está sendo atendido por <strong>{localTicket.technician}</strong>.</span>

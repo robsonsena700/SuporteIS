@@ -15,6 +15,7 @@ import Tickets from './pages/Tickets';
 import Users from './pages/Users';
 import Profile from './pages/Profile';
 import NewTicket from './pages/NewTicket';
+import Reports from './pages/Reports';
 
 // Layout
 import Sidebar from './components/Sidebar';
@@ -121,6 +122,10 @@ const App: React.FC = () => {
       <Route 
         path="/new-ticket" 
         element={isAuthenticated ? layout(<NewTicket onAdd={addTicket} />) : <Navigate to="/login" />} 
+      />
+      <Route 
+        path="/reports" 
+        element={isAuthenticated ? layout(<Reports />) : <Navigate to="/login" />} 
       />
       
       <Route path="/" element={<Navigate to="/login" replace />} />

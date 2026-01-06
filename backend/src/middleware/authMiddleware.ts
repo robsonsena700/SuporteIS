@@ -18,7 +18,8 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     req.user = verified;
     next();
   } catch (err) {
-    res.status(400).json({ message: 'Token inválido' });
+    // Return 401 for invalid/expired tokens so frontend can handle logout
+    res.status(401).json({ message: 'Token inválido ou expirado' });
   }
 };
 

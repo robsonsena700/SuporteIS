@@ -99,19 +99,22 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { status, priority, technician_id } = req.body;
 
+  // Permission Check: Clients cannot update tickets directly
+  if (req.user?.role === 'Cliente') {
+      return res.status(403).json({ message: 'Permissão negada. Clientes não podem atualizar chamados diretamente.' });
+  }
+
   try {
     // If assigning a technician, record the timestamp
     let assignedAtUpdate = '';
-    const params = [status, priority, technician_id, id];
+    // Ensure undefined values are converted to null for the database driver
+    const params = [
+        status ?? null, 
+        priority ?? null, 
+        technician_id ?? null, 
+        id
+    ];
     
-    // We need to check if we are assigning a technician (technician_id provided and not null)
-    // Note: This logic assumes if technician_id is sent, it's an assignment or transfer.
-    if (technician_id) {
-        // Use a conditional update or just always update assigned_at on transfer?
-        // Requirement: "Registre timestamp de atribuição"
-        assignedAtUpdate = ', assigned_at = NOW()';
-    }
-
     // Dynamic query construction is safer, but for now fixed params with COALESCE is used.
     // To inject assigned_at logic cleanly with existing query structure:
     
@@ -123,14 +126,28 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
             technician_id = COALESCE($3, technician_id), 
             updated_at = NOW()
             ${technician_id ? ', assigned_at = NOW()' : ''}
-        WHERE id = $4 OR code = $4 
+        WHERE id::text = $4 OR code = $4 
         RETURNING *
     `;
+
+    console.log(`[Ticket] Updating ticket ${id}:`, { status, priority, technician_id });
 
     const updatedTicket = await pool.query(query, params);
     
     if (updatedTicket.rows.length === 0) {
       return res.status(404).json({ message: 'Chamado não encontrado' });
+    }
+
+    // Log transfer if technician changed
+    if (technician_id) {
+        try {
+            await pool.query(
+                'INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)',
+                ['TRANSFER', updatedTicket.rows[0].id, req.user?.id, `Chamado transferido para técnico ID ${technician_id}`]
+            );
+        } catch (logError) {
+            console.warn('Failed to create audit log for transfer', logError);
+        }
     }
 
     res.json(updatedTicket.rows[0]);
@@ -168,51 +185,66 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
           [ticketId, req.user?.id, content, is_internal || false]
       );
 
-      // Notification Logic
-      const senderId = req.user?.id;
-      const senderName = req.user?.name || 'Usuário';
+      // Notification Logic (Non-blocking)
+      try {
+        const senderId = req.user?.id;
+        if (senderId && !is_internal) {
+            // Fetch sender name
+            const senderRes = await pool.query('SELECT name FROM users WHERE id = $1', [senderId]);
+            const senderName = senderRes.rows[0]?.name || 'Usuário';
 
-      if (senderId && !is_internal) {
-          if (senderId === ticketOwnerId) {
-              // Client sent message -> Notify Technician
-              if (currentTechnicianId) {
-                  await pool.query(
-                      'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-                      [currentTechnicianId, 'new_message', ticketId, `Nova resposta de cliente no chamado ${ticketCode}`]
-                  );
-              }
-          } else {
-              // Technician/Admin sent message -> Notify Client
-              if (ticketOwnerId) {
-                  await pool.query(
-                      'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-                      [ticketOwnerId, 'new_message', ticketId, `Nova resposta do suporte no chamado ${ticketCode}`]
-                  );
-              }
-          }
+            if (senderId === ticketOwnerId) {
+                // Client sent message -> Notify Technician
+                if (currentTechnicianId) {
+                    await pool.query(
+                        'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
+                        [currentTechnicianId, 'new_message', ticketId, `Nova mensagem de ${senderName}`]
+                    );
+                }
+            } else {
+                // Technician/Admin sent message -> Notify Client
+                if (ticketOwnerId) {
+                    await pool.query(
+                        'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
+                        [ticketOwnerId, 'new_message', ticketId, `Nova mensagem de ${senderName}`]
+                    );
+                }
+            }
+        }
+      } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+          // Do not fail the request
       }
 
-      // Auto-assign Logic
-      // Ensure we check for null explicitly to avoid falsy string issues
-      if (
-          (currentTechnicianId === null || currentTechnicianId === undefined) && 
-          req.user && 
-          (req.user.role === 'Técnico' || req.user.role === 'Administrador')
-      ) {
-          console.log(`Auto-assigning ticket ${ticketId} to user ${req.user.id} (${req.user.role})`);
-          await pool.query(
-              'UPDATE tickets SET technician_id = $1, assigned_at = NOW(), updated_at = NOW(), last_interaction = NOW(), status = $3 WHERE id = $2',
-              [req.user.id, ticketId, 'Em Andamento']
-          );
+      // Auto-assign Logic (Non-blocking)
+      try {
+        if (
+            (currentTechnicianId === null || currentTechnicianId === undefined) && 
+            req.user && 
+            (req.user.role === 'Técnico' || req.user.role === 'Administrador')
+        ) {
+            console.log(`Auto-assigning ticket ${ticketId} to user ${req.user.id} (${req.user.role})`);
+            await pool.query(
+                'UPDATE tickets SET technician_id = $1, assigned_at = NOW(), updated_at = NOW(), last_interaction = NOW(), status = $3 WHERE id = $2',
+                [req.user.id, ticketId, 'Em Andamento']
+            );
 
-          // Audit Log
-          await pool.query(
-              'INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)',
-              ['AUTO_ASSIGN', ticketId, req.user.id, 'Técnico atribuído automaticamente na primeira resposta']
-          );
-      } else {
-          // Just update last_interaction
-          await pool.query('UPDATE tickets SET updated_at = NOW(), last_interaction = NOW() WHERE id = $1', [ticketId]);
+            // Audit Log (Optional)
+            try {
+                await pool.query(
+                    'INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)',
+                    ['AUTO_ASSIGN', ticketId, req.user.id, 'Técnico atribuído automaticamente na primeira resposta']
+                );
+            } catch (auditError) {
+                console.warn('Audit log failed (table might be missing):', auditError);
+            }
+        } else {
+            // Just update last_interaction
+            await pool.query('UPDATE tickets SET updated_at = NOW(), last_interaction = NOW() WHERE id = $1', [ticketId]);
+        }
+      } catch (assignError) {
+          console.error('Error in auto-assign logic:', assignError);
+          // Do not fail the request
       }
       
       res.status(201).json(newMessage.rows[0]);
