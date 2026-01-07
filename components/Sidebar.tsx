@@ -14,7 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
   const location = useLocation();
   const allNavItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { label: 'Meus Chamados', path: '/tickets', icon: 'confirmation_number' },
+    { label: 'Chamados', path: '/tickets', icon: 'confirmation_number' },
     { label: 'Usuários', path: '/users', icon: 'group' },
     { label: 'Relatórios', path: '/reports', icon: 'analytics' },
     { label: 'Perfil', path: '/profile', icon: 'settings' },
@@ -38,72 +38,66 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 flex flex-col justify-between border-r border-border-dark bg-background-surface p-5 shrink-0 h-screen transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
+        fixed inset-y-0 left-0 z-50 w-72 flex flex-col border-r border-border-dark bg-background-surface shrink-0 h-screen transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
         lg:static lg:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col gap-8">
-          {/* Brand */}
-          <div className="flex gap-3 items-center justify-between">
-            <div className="flex gap-3 items-center">
+        {/* Header */}
+        <div className="p-6 shrink-0 flex items-center justify-between border-b border-white/5">
+          <div className="flex gap-3 items-center">
               <div className="flex flex-col overflow-hidden">
                 <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
                   <span className="text-primary">IS</span> Suporte
                 </h1>
                 <p className="text-text-secondary text-xs font-normal truncate">Sistema de Gerenciamento</p>
               </div>
-            </div>
-            {/* Mobile Close Button */}
-            <button 
-              onClick={onClose}
-              className="lg:hidden p-1 text-text-secondary hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
           </div>
+          {/* Mobile Close Button */}
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-2 text-text-secondary hover:text-white transition-colors rounded-lg active:bg-white/10"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
 
-          {/* Navigation */}
-        <nav className="flex flex-col gap-1.5">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => onClose?.()}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-3 rounded-lg transition-all group
-                ${isActive 
-                  ? 'bg-primary/20 text-white border-l-4 border-primary' 
-                  : 'text-text-secondary hover:bg-background-card hover:text-white'
-                }
-              `}
-            >
-              <span className={`material-symbols-outlined text-[22px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
-                  {item.icon}
-              </span>
-              <p className="text-sm font-medium">{item.label}</p>
-            </NavLink>
-          ))}
-        </nav>
-      </div>
+        {/* Navigation - Scrollable Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+          <nav className="flex flex-col gap-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => onClose?.()}
+                className={({ isActive }) => `
+                  flex items-center gap-4 px-4 h-12 rounded-xl transition-all group select-none
+                  ${isActive 
+                    ? 'bg-primary/20 text-white border-l-4 border-primary shadow-lg shadow-primary/10' 
+                    : 'text-text-secondary hover:bg-background-card hover:text-white'
+                  }
+                `}
+              >
+                <span className={`material-symbols-outlined text-[24px] ${location.pathname === item.path ? 'filled text-primary' : ''}`}>
+                    {item.icon}
+                </span>
+                <p className="text-sm font-bold tracking-wide">{item.label}</p>
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
-      <div className="flex flex-col gap-4">
-        <NavLink 
-          to="/new-ticket"
-          className="flex w-full items-center justify-center gap-2 rounded-lg h-12 px-4 bg-primary hover:bg-primary-hover transition-all text-white text-sm font-bold shadow-lg shadow-primary/20 active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          <span className="truncate">Novo Chamado</span>
-        </NavLink>
-        
-        <button 
-          onClick={onLogout}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:text-red-400 transition-colors group"
-        >
-          <span className="material-symbols-outlined text-[22px] group-hover:text-red-400">logout</span>
-          <span className="text-sm font-medium">Sair</span>
-        </button>
-      </div>
-    </aside>
+        {/* Footer Actions - Fixed Bottom Area */}
+        <div className="p-6 shrink-0 flex flex-col gap-4 border-t border-white/5 bg-[#111827]/50 backdrop-blur-sm">
+          <button 
+            onClick={onLogout}
+            className="flex w-full items-center justify-center gap-3 h-12 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all active:scale-95 group"
+            aria-label="Sair do Sistema"
+          >
+            <span className="material-symbols-outlined text-[22px] group-hover:scale-110 transition-transform">logout</span>
+            <span className="text-sm font-bold">Sair do Sistema</span>
+          </button>
+        </div>
+      </aside>
     </>
   );
 };

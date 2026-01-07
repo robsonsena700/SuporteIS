@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useNotifications } from '../context/NotificationContext';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatNotificationTime } from '../utils/dateUtils';
 
 interface NotificationDropdownProps {
   onClose: () => void;
@@ -89,7 +88,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose, on
                 <div className="flex flex-col gap-1 overflow-hidden">
                   <p className="text-sm text-white leading-snug">{notification.content}</p>
                   <span className="text-[10px] text-text-secondary">
-                    {notification.created_at ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ptBR }) : 'Agora'}
+                    {formatNotificationTime(notification.createdAtIso)}
                   </span>
                 </div>
                 {!notification.isRead && (

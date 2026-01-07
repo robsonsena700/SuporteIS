@@ -23,11 +23,8 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
         
         let filteredUsers = allUsers.filter((u: User) => u.id !== currentUser?.id);
 
-        if (currentUser?.profile === 'Cliente') {
-           // Clients can only see Admin and Support (hide other clients)
-           filteredUsers = filteredUsers.filter((u: User) => u.profile !== 'Cliente');
-        } 
-        // Admin and Support can see everyone (including Clients to chat with them)
+        // Always hide clients from this list, as requested: "remover automaticamente usuários com perfil de cliente"
+        filteredUsers = filteredUsers.filter((u: User) => u.profile !== 'Cliente');
 
         setUsers(filteredUsers);
       } catch (error) {

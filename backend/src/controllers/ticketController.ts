@@ -2,6 +2,55 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+const logTicketHistory = async (
+  ticketId: string,
+  userId: string | undefined,
+  changeType: string,
+  oldValue: string | null,
+  newValue: string | null,
+  details: string | null
+) => {
+  try {
+    await pool.query(
+      `INSERT INTO ticket_history (ticket_id, user_id, change_type, old_value, new_value, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [ticketId, userId || null, changeType, oldValue, newValue, details]
+    );
+  } catch (error) {
+    console.error('Failed to log ticket history:', error);
+  }
+};
+
+export const getTicketHistory = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    // Resolve ID if code provided (handle CH- prefix)
+    let ticketId = id;
+    if (id.startsWith('CH-')) {
+       const t = await pool.query('SELECT id FROM tickets WHERE code = $1', [id]);
+       if (t.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
+       ticketId = t.rows[0].id;
+    } else {
+       // Verify existence if UUID
+       const t = await pool.query('SELECT id FROM tickets WHERE id = $1', [id]);
+       if (t.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    const result = await pool.query(`
+      SELECT h.*, u.name as user_name, u.avatar as user_avatar, u.role as user_role
+      FROM ticket_history h
+      LEFT JOIN users u ON h.user_id = u.id
+      WHERE h.ticket_id = $1
+      ORDER BY h.created_at DESC
+    `, [ticketId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erro ao buscar histórico' });
+  }
+};
+
 export const getTickets = async (req: AuthRequest, res: Response) => {
   try {
     let queryText = `
@@ -88,6 +137,9 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
         );
     }
 
+    // Log History
+    await logTicketHistory(newTicket.rows[0].id, req.user?.id, 'CREATE', null, null, 'Chamado criado');
+
     res.status(201).json(newTicket.rows[0]);
   } catch (error) {
     console.error(error);
@@ -97,26 +149,74 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
 
 export const updateTicket = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { status, priority, technician_id } = req.body;
-
-  // Permission Check: Clients cannot update tickets directly
-  if (req.user?.role === 'Cliente') {
-      return res.status(403).json({ message: 'Permissão negada. Clientes não podem atualizar chamados diretamente.' });
-  }
+  const { status, priority, technician_id, rating, feedback } = req.body;
 
   try {
-    // If assigning a technician, record the timestamp
-    let assignedAtUpdate = '';
-    // Ensure undefined values are converted to null for the database driver
+    // Fetch current ticket to validate rules
+    const currentTicketRes = await pool.query('SELECT * FROM tickets WHERE id::text = $1 OR code = $1', [id]);
+    if (currentTicketRes.rows.length === 0) {
+        return res.status(404).json({ message: 'Chamado não encontrado' });
+    }
+    const currentTicket = currentTicketRes.rows[0];
+
+    // Permission Check: Clients cannot update tickets directly (Except Reopen)
+    if (req.user?.role === 'Cliente') {
+        // Allow if adding rating (Client is Creator)
+        const isRating = currentTicket.status === 'Resolvido' && rating;
+
+        if (!isRating) {
+            return res.status(403).json({ message: 'Permissão negada. Apenas Responsável ou Admin podem reabrir chamados.' });
+        }
+    }
+
+    // Reopening Logic
+    if (currentTicket.status === 'Resolvido' && status && status !== 'Resolvido') {
+        const resolvedAt = new Date(currentTicket.resolved_at || currentTicket.updated_at);
+        const now = new Date();
+        const diffHours = (now.getTime() - resolvedAt.getTime()) / (1000 * 60 * 60);
+        
+        const REOPEN_WINDOW_HOURS = 24; 
+
+        if (diffHours > REOPEN_WINDOW_HOURS) {
+            // Log rejected attempt
+            await logTicketHistory(currentTicket.id, req.user?.id, 'REOPEN_ATTEMPT', 'Resolvido', status, `Tentativa de reabertura rejeitada (> ${REOPEN_WINDOW_HOURS}h)`);
+            return res.status(400).json({ message: 'Este chamado foi resolvido há mais de 24 horas. Por favor, abra um novo chamado.' });
+        }
+        
+        // Log successful reopen
+        await logTicketHistory(currentTicket.id, req.user?.id, 'REOPEN', 'Resolvido', status, 'Chamado reaberto');
+    }
+
+    // Prepare dynamic update parts
+    let additionalUpdates = '';
+    if (technician_id) additionalUpdates += ', assigned_at = NOW()';
+    if (status === 'Resolvido' && currentTicket.status !== 'Resolvido') {
+        additionalUpdates += ', resolved_at = NOW()';
+        
+        // Notify Creator if resolved by someone else
+        if (req.user?.id !== currentTicket.user_id) {
+             try {
+                 await pool.query(
+                     'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
+                     [currentTicket.user_id, 'status_change', currentTicket.id, 'Seu chamado foi resolvido. Por favor, avalie o atendimento.']
+                 );
+             } catch (e) { console.warn('Notification failed', e); }
+        }
+    }
+
+    // Rating Logic: Only Creator can rate
+    const canRate = req.user?.id === currentTicket.user_id;
+    const ratingToUpdate = canRate ? rating : null;
+    const feedbackToUpdate = canRate ? feedback : null;
+
     const params = [
         status ?? null, 
         priority ?? null, 
         technician_id ?? null, 
+        ratingToUpdate ?? null,
+        feedbackToUpdate ?? null,
         id
     ];
-    
-    // Dynamic query construction is safer, but for now fixed params with COALESCE is used.
-    // To inject assigned_at logic cleanly with existing query structure:
     
     let query = `
         UPDATE tickets 
@@ -124,33 +224,56 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
             status = COALESCE($1, status), 
             priority = COALESCE($2, priority), 
             technician_id = COALESCE($3, technician_id), 
+            rating = COALESCE($4, rating),
+            feedback = COALESCE($5, feedback),
             updated_at = NOW()
-            ${technician_id ? ', assigned_at = NOW()' : ''}
-        WHERE id::text = $4 OR code = $4 
+            ${additionalUpdates}
+        WHERE id::text = $6 OR code = $6 
         RETURNING *
     `;
 
-    console.log(`[Ticket] Updating ticket ${id}:`, { status, priority, technician_id });
+    console.log(`[Ticket] Updating ticket ${id}:`, { status, priority, technician_id, rating: ratingToUpdate });
 
     const updatedTicket = await pool.query(query, params);
+    const newTicketData = updatedTicket.rows[0];
+
+    // --- Log History for Changes ---
     
-    if (updatedTicket.rows.length === 0) {
-      return res.status(404).json({ message: 'Chamado não encontrado' });
+    // Status Change
+    if (status && status !== currentTicket.status) {
+        await logTicketHistory(newTicketData.id, req.user?.id, 'STATUS', currentTicket.status, status, `Status alterado para ${status}`);
     }
 
-    // Log transfer if technician changed
-    if (technician_id) {
+    // Priority Change
+    if (priority && priority !== currentTicket.priority) {
+        await logTicketHistory(newTicketData.id, req.user?.id, 'PRIORITY', currentTicket.priority, priority, `Prioridade alterada para ${priority}`);
+    }
+
+    // Technician Assignment
+    if (technician_id && technician_id !== currentTicket.technician_id) {
+        // Fetch tech name for better details
+        let techName = technician_id;
         try {
-            await pool.query(
-                'INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)',
-                ['TRANSFER', updatedTicket.rows[0].id, req.user?.id, `Chamado transferido para técnico ID ${technician_id}`]
-            );
-        } catch (logError) {
-            console.warn('Failed to create audit log for transfer', logError);
-        }
+            const techRes = await pool.query('SELECT name FROM users WHERE id = $1', [technician_id]);
+            if (techRes.rows.length > 0) techName = techRes.rows[0].name;
+        } catch (e) {}
+        
+        await logTicketHistory(newTicketData.id, req.user?.id, 'ASSIGNMENT', currentTicket.technician_id, technician_id, `Atribuído a ${techName}`);
     }
 
-    res.json(updatedTicket.rows[0]);
+    // Rating
+    if (ratingToUpdate && (!currentTicket.rating || ratingToUpdate !== currentTicket.rating)) {
+        await logTicketHistory(newTicketData.id, req.user?.id, 'RATING', currentTicket.rating ? String(currentTicket.rating) : null, String(ratingToUpdate), `Avaliação: ${ratingToUpdate} estrelas`);
+        // Keep audit log for backward compatibility if needed, or just rely on history.
+        // The previous code had audit log, we can keep it or replace it. I'll replace it with history as it serves the same purpose but better.
+    }
+    
+    // Feedback
+    if (feedbackToUpdate && (!currentTicket.feedback || feedbackToUpdate !== currentTicket.feedback)) {
+         await logTicketHistory(newTicketData.id, req.user?.id, 'FEEDBACK', currentTicket.feedback, feedbackToUpdate, 'Feedback de avaliação atualizado');
+    }
+
+    res.json(newTicketData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Erro ao atualizar chamado' });
@@ -167,13 +290,18 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
       let ticketResult;
       
       if (id.startsWith('CH-')) {
-          ticketResult = await pool.query('SELECT id, technician_id, user_id, code FROM tickets WHERE code = $1', [id]);
+          ticketResult = await pool.query('SELECT id, technician_id, user_id, code, status FROM tickets WHERE code = $1', [id]);
       } else {
-          ticketResult = await pool.query('SELECT id, technician_id, user_id, code FROM tickets WHERE id = $1', [id]);
+          ticketResult = await pool.query('SELECT id, technician_id, user_id, code, status FROM tickets WHERE id = $1', [id]);
       }
 
       if (ticketResult.rows.length === 0) return res.status(404).json({message: 'Ticket not found'});
       
+      const ticketStatus = ticketResult.rows[0].status;
+      if (req.user?.role === 'Cliente' && ticketStatus === 'Resolvido') {
+          return res.status(403).json({ message: 'Apenas o Responsável pelo atendimento ou Administrador podem realizar esta função!' });
+      }
+
       ticketId = ticketResult.rows[0].id;
       const currentTechnicianId = ticketResult.rows[0].technician_id;
       const ticketOwnerId = ticketResult.rows[0].user_id;
@@ -184,6 +312,9 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
           'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4) RETURNING *, (SELECT name FROM users WHERE id = $2) as sender_name',
           [ticketId, req.user?.id, content, is_internal || false]
       );
+
+      // Log History
+      await logTicketHistory(ticketId, req.user?.id, 'MESSAGE', null, content, 'Nova mensagem adicionada');
 
       // Notification Logic (Non-blocking)
       try {

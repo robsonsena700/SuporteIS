@@ -53,15 +53,31 @@ export interface Ticket {
   createdAt: string;
   createdAtIso?: string;
   lastInteraction: string;
+  resolvedAt?: string;
   messages: Message[];
   creatorName?: string;
   creatorId?: string;
   attachment?: string;
+  rating?: number;
+  feedback?: string;
   equipmentDetails?: {
     model: string;
     serialNumber: string;
     warranty: string;
   };
+}
+
+export interface TicketHistory {
+  id: string;
+  ticketId: string;
+  userId?: string;
+  userName?: string;
+  userAvatar?: string;
+  changeType: string;
+  oldValue?: string;
+  newValue?: string;
+  details?: string;
+  createdAt: string;
 }
 
 export interface Stat {
@@ -78,6 +94,7 @@ export interface DashboardStats {
   byStatus: { status: string; count: string }[];
   chartData: { name: string; chamados: string }[];
   resolvedCount: number;
+  averageRating: string;
   recentActivity: any[];
 }
 
@@ -89,6 +106,7 @@ export interface Notification {
   content: string;
   isRead: boolean;
   createdAt: string;
+  createdAtIso?: string;
 }
 
 export interface DirectMessage {

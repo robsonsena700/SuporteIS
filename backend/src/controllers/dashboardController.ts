@@ -63,20 +63,30 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
     // 3. Tickets by Day (Last 7 days) for Chart
     const chartQuery = `
-        SELECT TO_CHAR(created_at, 'Dy') as name, COUNT(*) as chamados
+        SELECT EXTRACT(DOW FROM created_at) as day_num, COUNT(*) as chamados
         FROM tickets t
         WHERE created_at >= NOW() - INTERVAL '7 days' ${roleCondition}
-        GROUP BY TO_CHAR(created_at, 'Dy'), DATE(created_at)
+        GROUP BY EXTRACT(DOW FROM created_at), DATE(created_at)
         ORDER BY DATE(created_at)
     `;
-    const chartRes = await pool.query(chartQuery, params); // Note: params might need adjustment if roleCondition used
+    const chartRes = await pool.query(chartQuery, params);
+
+    const daysMap = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const chartData = chartRes.rows.map(row => ({
+        name: daysMap[parseInt(row.day_num)],
+        chamados: parseInt(row.chamados)
+    }));
 
     // 4. SLA (Mock logic or based on resolved time if available)
     // We don't have resolved_at, but we have updated_at and status='Resolvido'
     const resolvedQuery = `SELECT COUNT(*) FROM tickets t WHERE status = 'Resolvido' ${roleCondition} ${dateFilter}`;
     const resolvedRes = await pool.query(resolvedQuery, params);
 
-    // 5. Recent Activity (Latest tickets)
+    // 5. Average Rating
+    const ratingQuery = `SELECT AVG(rating) as avg_rating FROM tickets t WHERE rating IS NOT NULL ${roleCondition} ${dateFilter}`;
+    const ratingRes = await pool.query(ratingQuery, params);
+
+    // 6. Recent Activity (Latest tickets)
     const recentQuery = `
         SELECT t.id, t.code, t.subject, t.status, t.created_at, u.name as technician_name
         FROM tickets t
@@ -90,8 +100,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const stats = {
         totalTickets: parseInt(totalTicketsRes.rows[0].count),
         byStatus: statusRes.rows,
-        chartData: chartRes.rows,
+        chartData: chartData,
         resolvedCount: parseInt(resolvedRes.rows[0].count),
+        averageRating: parseFloat(ratingRes.rows[0].avg_rating || '0').toFixed(1),
         recentActivity: recentRes.rows
     };
 

@@ -67,6 +67,14 @@ const Dashboard: React.FC = () => {
       icon: 'trending_up', 
       color: 'text-blue-400' 
     },
+    { 
+      label: 'Satisfação Média', 
+      value: stats.averageRating, 
+      trend: 'Avaliação', 
+      trendType: Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down', 
+      icon: 'star', 
+      color: 'text-yellow-400' 
+    },
   ] : [];
 
   return (
@@ -103,14 +111,14 @@ const Dashboard: React.FC = () => {
                <span className="material-symbols-outlined text-[20px]">
                   {showMyTickets ? 'person' : 'groups'}
                </span>
-               Meus Chamados
+               Chamados
             </button>
           )}
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {statCards.map((stat, idx) => (
           <div key={idx} className="bg-background-card border border-border-dark p-6 rounded-xl shadow-sm hover:border-primary/50 transition-colors group">
             <div className="flex justify-between items-start mb-4">

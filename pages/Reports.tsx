@@ -79,8 +79,8 @@ const Reports: React.FC = () => {
         const isClient = currentUser?.profile === 'Cliente';
 
         const tableHeaders = isClient 
-            ? [['Código', 'Assunto', 'Equipamento', 'Prioridade', 'Status', 'Data', 'Técnico']]
-            : [['Código', 'Assunto', 'Equipamento', 'Cliente', 'Prioridade', 'Status', 'Data', 'Técnico']];
+            ? [['Código', 'Assunto', 'Equipamento', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação']]
+            : [['Código', 'Assunto', 'Equipamento', 'Cliente', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação']];
 
         const tableData = tickets.map(t => {
             const row = [
@@ -92,7 +92,8 @@ const Reports: React.FC = () => {
                 t.priority,
                 t.status,
                 t.createdAt,
-                t.technician || '-'
+                t.technician || '-',
+                t.rating ? `${t.rating} ★` : '-'
             ];
             return row;
         });
@@ -113,8 +114,8 @@ const Reports: React.FC = () => {
         
         // Simple CSV Export
         const headers = isClient
-            ? ['Código', 'Assunto', 'Equipamento', 'Prioridade', 'Status', 'Data', 'Técnico']
-            : ['Código', 'Assunto', 'Equipamento', 'Cliente', 'Prioridade', 'Status', 'Data', 'Técnico'];
+            ? ['Código', 'Assunto', 'Equipamento', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação']
+            : ['Código', 'Assunto', 'Equipamento', 'Cliente', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação'];
 
         const csvContent = [
             headers.join(','),
@@ -128,7 +129,8 @@ const Reports: React.FC = () => {
                     t.priority,
                     t.status,
                     t.createdAt,
-                    t.technician || '-'
+                    t.technician || '-',
+                    t.rating || '-'
                 ];
                 return row.join(',');
             })
@@ -246,6 +248,7 @@ const Reports: React.FC = () => {
                                         <th className="p-3 text-xs font-bold text-text-secondary uppercase">Status</th>
                                         <th className="p-3 text-xs font-bold text-text-secondary uppercase">Data</th>
                                         <th className="p-3 text-xs font-bold text-text-secondary uppercase">Técnico</th>
+                                        <th className="p-3 text-xs font-bold text-text-secondary uppercase">Avaliação</th>
                                     </tr>
                                 </thead>
                                 <tbody className="block md:table-row-group divide-y divide-border-dark">
@@ -291,14 +294,25 @@ const Reports: React.FC = () => {
                                                 <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Data</span>
                                                 <span className="text-text-muted text-xs text-right md:text-left">{t.createdAt}</span>
                                             </td>
-                                            <td className="p-3 flex justify-between md:table-cell md:border-0">
+                                            <td className="p-3 flex justify-between md:table-cell border-b border-border-dark md:border-0">
                                                 <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Técnico</span>
                                                 <span className="text-text-muted text-xs text-right md:text-left">{t.technician || '-'}</span>
+                                            </td>
+                                            <td className="p-3 flex justify-between md:table-cell md:border-0">
+                                                <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Avaliação</span>
+                                                <span className="text-text-muted text-xs text-right md:text-left flex items-center justify-end md:justify-start gap-1">
+                                                    {t.rating ? (
+                                                        <>
+                                                            <span className="text-yellow-500 material-symbols-outlined text-[14px]">star</span>
+                                                            {t.rating}
+                                                        </>
+                                                    ) : '-'}
+                                                </span>
                                             </td>
                                         </tr>
                                     )) : (
                                         <tr>
-                                            <td colSpan={currentUser?.profile !== 'Cliente' ? 8 : 7} className="p-8 text-center text-text-muted text-sm">Nenhum registro encontrado para o período selecionado.</td>
+                                            <td colSpan={currentUser?.profile !== 'Cliente' ? 9 : 8} className="p-8 text-center text-text-muted text-sm">Nenhum registro encontrado para o período selecionado.</td>
                                         </tr>
                                     )}
                                 </tbody>

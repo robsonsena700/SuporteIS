@@ -10,9 +10,10 @@ interface HeaderProps {
   user: User | null;
   onChatSelect: (user: User) => void;
   onToggleSidebar?: () => void;
+  onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar }) => {
+const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, onLogout }) => {
   const { unreadCount } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
@@ -124,6 +125,15 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar }) 
             className="size-10 rounded-full bg-cover bg-center border border-border-dark"
             style={{ backgroundImage: `url(${user?.avatar})` }}
           />
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="size-8 rounded-full flex items-center justify-center text-text-secondary hover:text-white transition-colors ml-1"
+              title="Sair"
+            >
+              <span className="material-symbols-outlined">logout</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

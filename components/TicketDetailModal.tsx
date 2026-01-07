@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
+import { Ticket, TicketStatus, TicketPriority, User, Message, TicketHistory } from '../types';
 import { TicketService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { canReopenTicket } from '../utils/dateUtils';
 
 interface TicketDetailModalProps {
   ticket: Ticket;
@@ -17,11 +18,35 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const [showTransferList, setShowTransferList] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [localTicket, setLocalTicket] = useState<Ticket>(ticket);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState('');
+
+  // History State
+  const [history, setHistory] = useState<TicketHistory[]>([]);
+  const [activeTab, setActiveTab] = useState<'messages' | 'history'>('messages');
+  const [historyFilter, setHistoryFilter] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
 
   // Sync with prop updates
   useEffect(() => {
     setLocalTicket(ticket);
   }, [ticket]);
+
+  // Fetch History on Tab Change
+  useEffect(() => {
+    if (activeTab === 'history') {
+        const fetchHistory = async () => {
+            try {
+                const data = await TicketService.getHistory(localTicket.id);
+                setHistory(data);
+            } catch (err) {
+                console.error('Failed to fetch history', err);
+            }
+        };
+        fetchHistory();
+    }
+  }, [activeTab, localTicket.id]);
 
   // Auto-assign logic
   const handleInteractionStart = async () => {
@@ -78,17 +103,79 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
     }
   };
 
-  const handleResolve = async () => {
-      try {
-          console.log(`Resolving ticket ${localTicket.id}`);
-          const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
-          onUpdate(updated);
-          setLocalTicket(updated);
-      } catch (error: any) {
-          console.error('Failed to resolve ticket', error);
-          const errorMessage = error.response?.data?.message || 'Erro ao resolver chamado.';
-          alert(errorMessage);
+  const isClient = user?.profile === 'Cliente';
+
+  const filteredHistory = history.filter(h => {
+      if (historyFilter && h.changeType !== historyFilter) return false;
+      if (historySearch) {
+          const search = historySearch.toLowerCase();
+          return (
+              (h.userName && h.userName.toLowerCase().includes(search)) ||
+              (h.details && h.details.toLowerCase().includes(search)) ||
+              (h.oldValue && h.oldValue.toLowerCase().includes(search)) ||
+              (h.newValue && h.newValue.toLowerCase().includes(search))
+          );
       }
+      return true;
+  });
+
+  const handleReopen = async () => {
+    try {
+        console.log(`Reopening ticket ${localTicket.id}`);
+        // Default to 'Aberto' or previous status. 'Aberto' is safe.
+        const updated = await TicketService.update(localTicket.id, { status: TicketStatus.OPEN });
+        onUpdate(updated);
+        setLocalTicket(updated);
+    } catch (error: any) {
+        console.error('Failed to reopen ticket', error);
+        const errorMessage = error.response?.data?.message || 'Erro ao reabrir chamado.';
+        alert(errorMessage);
+    }
+  };
+
+  const handleResolve = async () => {
+    // If Creator, show rating modal
+    if (isCreator) {
+        setShowRatingModal(true);
+        return;
+    }
+
+    // If Technician (not Creator), resolve directly
+    if (window.confirm('Confirma a resolução deste chamado? O solicitante será notificado para realizar a avaliação.')) {
+        try {
+            const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
+            onUpdate(updated);
+            setLocalTicket(updated);
+            alert('Chamado resolvido com sucesso.');
+        } catch (error: any) {
+            console.error('Failed to resolve ticket', error);
+            alert('Erro ao resolver chamado.');
+        }
+    }
+  };
+
+  const submitResolution = async () => {
+    if (rating === 0) return;
+    if (rating <= 2 && !feedback.trim()) {
+        alert('Por favor, informe o motivo da insatisfação.');
+        return;
+    }
+
+    try {
+        console.log(`Resolving ticket ${localTicket.id} with rating ${rating}`);
+        const updated = await TicketService.update(localTicket.id, { 
+            status: TicketStatus.RESOLVED,
+            rating,
+            feedback
+        });
+        onUpdate(updated);
+        setLocalTicket(updated);
+        setShowRatingModal(false);
+    } catch (error: any) {
+        console.error('Failed to resolve ticket', error);
+        const errorMessage = error.response?.data?.message || 'Erro ao resolver chamado.';
+        alert(errorMessage);
+    }
   };
 
   const handleTakeTicket = async () => {
@@ -108,11 +195,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#111827] border border-[#1f2937] w-full max-w-[95%] lg:max-w-[1200px] h-[90vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#111827] border border-[#1f2937] w-full h-full lg:h-[90vh] lg:max-w-[1200px] lg:rounded-2xl rounded-none flex flex-col shadow-2xl overflow-hidden animate-slide-up">
         
         {/* Header */}
-        <header className="p-4 md:p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827] shrink-0">
+        <header className="p-3 md:p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827] shrink-0">
           <div className="flex gap-4">
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-mono text-text-secondary uppercase tracking-tighter mb-1">{localTicket.code || `CH-${localTicket.id.slice(0, 4).toUpperCase()}`}</span>
@@ -123,75 +210,224 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
               <p className="text-text-muted text-xs">{localTicket.clientName} • Criado em {localTicket.createdAt}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-[#4b5563] hover:text-white transition-colors p-1">
-            <span className="material-symbols-outlined text-[24px]">close</span>
-          </button>
+          <div className="flex items-center gap-3">
+             {localTicket.status === TicketStatus.RESOLVED && isCreator && !localTicket.rating ? (
+                 <button 
+                    onClick={() => setShowRatingModal(true)}
+                    className="lg:hidden h-8 px-3 border border-yellow-500/20 bg-yellow-500/10 text-yellow-500 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-yellow-500/20 animate-pulse"
+                 >
+                    <span className="material-symbols-outlined text-[16px]">star</span>
+                    <span>Avaliar</span>
+                 </button>
+             ) : (
+                 localTicket.status !== TicketStatus.RESOLVED && (
+                     <button 
+                        onClick={handleResolve}
+                        disabled={isClient && !isCreator}
+                        title={isClient && !isCreator ? 'Apenas usuários autorizados podem modificar este chamado' : ''}
+                        className={`lg:hidden h-8 px-3 border rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isClient && !isCreator ? 'bg-gray-500/10 border-gray-500/20 text-gray-500 cursor-not-allowed' : 'bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20'}`}
+                     >
+                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        <span>Resolver</span>
+                     </button>
+                 )
+             )}
+             <button onClick={onClose} className="text-[#4b5563] hover:text-white transition-colors p-1">
+                <span className="material-symbols-outlined text-[24px]">close</span>
+             </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px]">
           
-          {/* Chat Section */}
+          {/* Chat/History Section */}
           <div className="flex flex-col h-full bg-[#111827] border-r border-[#1f2937] min-h-0">
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6">
-              
-              {/* Messages */}
-              <div className="flex flex-col gap-5">
-                {localTicket.messages && localTicket.messages.map((msg, i) => (
-                  <div key={i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
-                      {msg.senderName ? msg.senderName[0] : '?'}
-                    </div>
-                    <div className={`flex flex-col gap-1 max-w-[85%] md:max-w-[70%] ${msg.senderName === 'Você' ? 'items-end' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white text-[11px] font-bold">{msg.senderName}</span>
-                        <span className="text-[9px] text-[#6b7280]">{msg.timestamp}</span>
-                      </div>
-                      <div className={`p-3 rounded-xl text-sm leading-relaxed break-words ${msg.senderName === 'Você' ? 'bg-[#135bec] text-white rounded-tr-none' : 'bg-[#1f2937] text-white border border-[#374151] rounded-tl-none'}`}>
-                        {msg.content}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {(!localTicket.messages || localTicket.messages.length === 0) && (
-                    <div className="text-center text-text-muted text-xs py-10">Nenhuma mensagem ainda.</div>
-                )}
-              </div>
+            
+            {/* Tabs */}
+            <div className="flex items-center gap-6 px-6 border-b border-[#1f2937] shrink-0 bg-[#111827]">
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`h-12 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'messages'
+                    ? 'border-primary text-white'
+                    : 'border-transparent text-text-secondary hover:text-white'
+                }`}
+              >
+                Mensagens
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`h-12 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'history'
+                    ? 'border-primary text-white'
+                    : 'border-transparent text-text-secondary hover:text-white'
+                }`}
+              >
+                Tudo
+              </button>
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 md:p-6 border-t border-[#1f2937] bg-[#111827]">
-               {isAssignedToOthers && user?.profile !== 'Cliente' && !isCreator ? (
-                   <div className="flex items-center justify-center p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-500 text-sm gap-2">
-                       <span className="material-symbols-outlined">lock</span>
-                       <span>Este chamado está sendo atendido por <strong>{localTicket.technician}</strong>.</span>
-                       <button onClick={handleTakeTicket} className="ml-2 underline hover:text-white">Assumir Chamado</button>
-                   </div>
-               ) : (
-                  <>
-                    <div className="relative mb-4 group">
-                        <textarea 
-                        placeholder="Digite sua resposta..."
-                        className="w-full h-[100px] md:h-[120px] bg-[#1a2233] border border-[#374151] rounded-xl p-4 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none transition-all placeholder:text-[#4b5563]"
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onFocus={handleInteractionStart}
-                        />
+            {activeTab === 'messages' ? (
+                <>
+                    <div className="flex-1 overflow-y-auto p-3 md:p-6 flex flex-col gap-6">
+                        {/* Messages */}
+                        <div className="flex flex-col gap-5">
+                            {localTicket.messages && localTicket.messages.map((msg, i) => (
+                            <div key={i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
+                                <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
+                                {msg.senderName ? msg.senderName[0] : '?'}
+                                </div>
+                                <div className={`flex flex-col gap-1 max-w-[85%] md:max-w-[70%] ${msg.senderName === 'Você' ? 'items-end' : ''}`}>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-white text-[11px] font-bold">{msg.senderName}</span>
+                                    <span className="text-[9px] text-[#6b7280]">{msg.timestamp}</span>
+                                </div>
+                                <div className={`p-3 rounded-xl text-sm leading-relaxed break-words ${msg.senderName === 'Você' ? 'bg-[#135bec] text-white rounded-tr-none' : 'bg-[#1f2937] text-white border border-[#374151] rounded-tl-none'}`}>
+                                    {msg.content}
+                                </div>
+                                </div>
+                            </div>
+                            ))}
+                            {(!localTicket.messages || localTicket.messages.length === 0) && (
+                                <div className="text-center text-text-muted text-xs py-10">Nenhuma mensagem ainda.</div>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex justify-end gap-3">
-                        <button className="px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all">
-                        Anexar
-                        </button>
-                        <button 
-                        onClick={handleSendMessage}
-                        disabled={!replyText.trim()}
-                        className="px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+
+                    {/* Input Area */}
+                    <div className="p-3 md:p-6 border-t border-[#1f2937] bg-[#111827]">
+                        {isAssignedToOthers && user?.profile !== 'Cliente' && !isCreator ? (
+                            <div className="flex items-center justify-center p-3 md:p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-500 text-sm gap-2">
+                                <span className="material-symbols-outlined">lock</span>
+                                <span>Este chamado está sendo atendido por <strong>{localTicket.technician}</strong>.</span>
+                                <button onClick={handleTakeTicket} className="ml-2 underline hover:text-white">Assumir Chamado</button>
+                            </div>
+                        ) : isClient && localTicket.status === TicketStatus.RESOLVED ? (
+                            <div className="flex items-center justify-center p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm gap-2">
+                                <span className="material-symbols-outlined">block</span>
+                                <span>Apenas o Responsável pelo atendimento ou Administrador podem realizar esta função!</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="relative mb-4 group">
+                                    <textarea 
+                                    placeholder="Digite sua resposta..."
+                                    className="w-full h-[80px] md:h-[120px] bg-[#1a2233] border border-[#374151] rounded-xl p-3 md:p-4 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none transition-all placeholder:text-[#4b5563]"
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    onFocus={handleInteractionStart}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3">
+                                    <button className="px-3 md:px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all">
+                                    Anexar
+                                    </button>
+                                    <button 
+                                    onClick={handleSendMessage}
+                                    disabled={!replyText.trim()}
+                                    className="px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                    Enviar Resposta
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <div className="flex flex-col h-full overflow-hidden">
+                    {/* Filters */}
+                    <div className="p-4 border-b border-[#1f2937] flex gap-3 shrink-0 bg-[#111827]">
+                        <div className="relative flex-1">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">search</span>
+                            <input
+                                type="text"
+                                placeholder="Buscar no histórico..."
+                                value={historySearch}
+                                onChange={(e) => setHistorySearch(e.target.value)}
+                                className="w-full h-10 bg-[#1a2233] border border-[#374151] rounded-lg pl-10 pr-3 text-xs text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
+                            />
+                        </div>
+                        <select
+                            value={historyFilter}
+                            onChange={(e) => setHistoryFilter(e.target.value)}
+                            className="h-10 bg-[#1a2233] border border-[#374151] rounded-lg px-3 text-xs text-white focus:outline-none focus:border-primary transition-colors"
                         >
-                        Enviar Resposta
-                        </button>
+                            <option value="">Todos os tipos</option>
+                            <option value="Criação">Criação</option>
+                            <option value="Mensagem">Mensagem</option>
+                            <option value="Status">Status</option>
+                            <option value="Atribuição">Atribuição</option>
+                            <option value="Edição">Edição</option>
+                        </select>
                     </div>
-                  </>
-               )}
-            </div>
+                    {/* History List */}
+                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-0 relative">
+                        {filteredHistory.length > 0 ? (
+                            <>
+                                {filteredHistory.map((h, index) => (
+                                    <div key={h.id} className="flex gap-4 group">
+                                        {/* Timeline Line */}
+                                        <div className="flex flex-col items-center">
+                                            <div className={`size-8 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                                                h.changeType === 'Criação' ? 'border-green-500/20 bg-green-500/10 text-green-500' :
+                                                h.changeType === 'Status' ? 'border-blue-500/20 bg-blue-500/10 text-blue-500' :
+                                                h.changeType === 'Mensagem' ? 'border-purple-500/20 bg-purple-500/10 text-purple-500' :
+                                                'border-[#374151] bg-[#1f2937] text-gray-400'
+                                            }`}>
+                                                <span className="material-symbols-outlined text-[16px]">
+                                                    {h.changeType === 'Criação' ? 'add_circle' :
+                                                     h.changeType === 'Status' ? 'sync_alt' :
+                                                     h.changeType === 'Mensagem' ? 'chat' :
+                                                     h.changeType === 'Atribuição' ? 'person_add' : 'edit'}
+                                                </span>
+                                            </div>
+                                            {index < filteredHistory.length - 1 && (
+                                                <div className="w-px flex-1 bg-[#1f2937] group-hover:bg-[#374151] transition-colors my-1"></div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Content */}
+                                        <div className="flex-1 pb-8">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-white text-xs font-bold">{h.userName}</span>
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1f2937] text-text-muted border border-[#374151]">{h.changeType}</span>
+                                                </div>
+                                                <span className="text-[10px] text-text-muted">{h.createdAt}</span>
+                                            </div>
+                                            
+                                            <p className="text-xs text-gray-300 leading-relaxed mb-2">{h.details}</p>
+                                            
+                                            {(h.oldValue || h.newValue) && (
+                                                <div className="bg-[#1a2233] border border-[#374151] rounded-lg p-3 grid gap-2">
+                                                    {h.oldValue && (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Anterior</span>
+                                                            <span className="text-xs text-gray-400 line-through decoration-red-500/30">{h.oldValue}</span>
+                                                        </div>
+                                                    )}
+                                                    {h.newValue && (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider text-green-400">Novo</span>
+                                                            <span className="text-xs text-white">{h.newValue}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-text-muted gap-2 opacity-50">
+                                <span className="material-symbols-outlined text-4xl">history_toggle_off</span>
+                                <span className="text-xs">Nenhum registro encontrado no histórico.</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
           </div>
 
           {/* Sidebar Info */}
@@ -230,9 +466,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                     </div>
                         <div className="relative">
                             <button 
-                                onClick={() => setShowTransferList(!showTransferList)}
-                                className="text-primary hover:text-white transition-colors"
-                                title="Transferir Chamado"
+                                onClick={() => !isClient && setShowTransferList(!showTransferList)}
+                                disabled={isClient}
+                                className={`transition-colors ${isClient ? 'text-gray-600 cursor-not-allowed' : 'text-primary hover:text-white'}`}
+                                title={isClient ? 'Apenas usuários autorizados podem modificar este chamado' : 'Transferir Chamado'}
                             >
                                 <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
                             </button>
@@ -311,13 +548,49 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
             )}
 
              <div className="mt-auto pt-4">
+                {localTicket.status === TicketStatus.RESOLVED ? (
+                    isCreator && !localTicket.rating ? (
+                        <button 
+                            onClick={() => setShowRatingModal(true)}
+                            className="w-full h-11 border border-yellow-500/30 bg-yellow-500/10 text-yellow-500 text-[11px] font-bold rounded-xl hover:bg-yellow-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 animate-pulse"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">star</span>
+                            Avaliar Atendimento
+                        </button>
+                    ) : (
+                        canReopenTicket(localTicket.resolvedAt || localTicket.updatedAt) ? (
+                            isClient ? (
+                                <div className="w-full h-11 border border-red-500/30 bg-red-500/5 text-red-400 text-[11px] font-bold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed text-center px-2 leading-tight">
+                                    <span className="material-symbols-outlined text-[16px]">block</span>
+                                    Apenas o Responsável ou Admin podem reabrir
+                                </div>
+                            ) : (
+                                <button 
+                                    onClick={handleReopen}
+                                    className="w-full h-11 border border-yellow-500/30 bg-yellow-500/5 text-yellow-500 text-[11px] font-bold rounded-xl hover:bg-yellow-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">lock_open</span>
+                                    Reabrir Chamado
+                                </button>
+                            )
+                        ) : (
+                            <div className="w-full h-11 border border-gray-500/30 bg-gray-500/5 text-gray-500 text-[11px] font-bold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed">
+                                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                                Resolvido (Reabertura Expirada)
+                            </div>
+                        )
+                    )
+                ) : (
                   <button 
                     onClick={handleResolve}
-                    className="w-full h-11 border border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] text-[11px] font-bold rounded-xl hover:bg-[#10b981] hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                    disabled={isClient && !isCreator}
+                    title={isClient && !isCreator ? 'Apenas usuários autorizados podem modificar este chamado' : ''}
+                    className={`w-full h-11 border text-[11px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${isClient && !isCreator ? 'border-gray-500/30 bg-gray-500/5 text-gray-500 cursor-not-allowed' : 'border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] hover:bg-[#10b981] hover:text-white'}`}
                   >
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>
                     Marcar como Resolvido
                   </button>
+                )}
             </div>
 
           </div>
@@ -332,6 +605,68 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
               </button>
               <img src={selectedImage} alt="Full size" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
           </div>
+      )}
+
+      {/* Rating Modal Overlay */}
+      {showRatingModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+            <div className="bg-[#1a2233] border border-[#374151] w-full max-w-md rounded-2xl p-4 md:p-6 shadow-2xl flex flex-col gap-6 animate-slide-up">
+                <div className="flex justify-between items-start">
+                    <h3 className="text-white text-xl font-bold">Avaliação de Atendimento</h3>
+                    <button onClick={() => setShowRatingModal(false)} className="text-[#9ca3af] hover:text-white">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                
+                <div className="flex flex-col items-center gap-2">
+                    <p className="text-text-secondary text-sm text-center">Como você avalia o atendimento recebido?</p>
+                    <div className="flex gap-2 mt-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <button 
+                                key={star} 
+                                onClick={() => setRating(star)}
+                                className={`text-4xl transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400 filled' : 'text-[#4b5563]'}`}
+                            >
+                                <span className="material-symbols-outlined text-[40px]">{rating >= star ? 'star' : 'star_rate'}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <p className={`text-sm font-bold mt-2 h-5 ${
+                        rating === 1 ? 'text-red-500' : 
+                        rating === 2 ? 'text-orange-500' : 
+                        rating === 3 ? 'text-yellow-500' : 
+                        rating === 4 ? 'text-blue-400' : 
+                        rating === 5 ? 'text-green-500' : 'text-transparent'
+                    }`}>
+                        {rating === 1 ? 'Péssimo' : 
+                         rating === 2 ? 'Ruim' : 
+                         rating === 3 ? 'Bom' : 
+                         rating === 4 ? 'Ótimo' : 
+                         rating === 5 ? 'Excelente' : ''}
+                    </p>
+                </div>
+
+                {(rating > 0 && rating <= 2) && (
+                    <div className="flex flex-col gap-2 animate-fade-in">
+                        <label className="text-text-secondary text-xs font-bold uppercase">Motivo da insatisfação</label>
+                        <textarea 
+                            value={feedback} 
+                            onChange={(e) => setFeedback(e.target.value)}
+                            placeholder="Por favor, conte-nos brevemente o que houve..."
+                            className="w-full h-24 bg-[#111827] border border-[#374151] rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none"
+                        />
+                    </div>
+                )}
+
+                <button 
+                    onClick={submitResolution}
+                    disabled={rating === 0}
+                    className="w-full h-12 bg-[#135bec] text-white font-bold rounded-xl hover:bg-[#0f48bd] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+                >
+                    Confirmar e Resolver
+                </button>
+            </div>
+        </div>
       )}
     </div>
   );

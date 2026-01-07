@@ -5,6 +5,7 @@ import { mockUsers } from '../mockData';
 import { TicketService } from '../services/api';
 import TicketDetailModal from '../components/TicketDetailModal';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 
 interface TicketsProps {
   tickets: Ticket[];
@@ -12,6 +13,7 @@ interface TicketsProps {
 }
 
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
+  const { user } = useAuth();
   const { notifications } = useNotifications();
   const location = useLocation();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -21,6 +23,8 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const [newTicketsIds, setNewTicketsIds] = useState<Set<string>>(new Set());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<'Sistema' | 'Equipamento' | 'Concluído'>('Sistema');
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Ticket; direction: 'asc' | 'desc' } | null>(null);
 
   // Helper to check for unread messages related to ticket
   const hasUnreadMessages = (ticketId: string) => {
@@ -126,6 +130,38 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     return true;
   });
 
+  const sortedTickets = React.useMemo(() => {
+    if (!sortConfig) return filteredTickets;
+    const { key, direction } = sortConfig;
+    const dir = direction === 'asc' ? 1 : -1;
+    return [...filteredTickets].sort((a, b) => {
+      const av = (a as any)[key];
+      const bv = (b as any)[key];
+      if (key === 'createdAt') {
+        const ad = av ? new Date(av).getTime() : 0;
+        const bd = bv ? new Date(bv).getTime() : 0;
+        return (ad - bd) * dir;
+      }
+      if (key === 'rating') {
+        const ar = a.rating ?? 0;
+        const br = b.rating ?? 0;
+        return (ar - br) * dir;
+      }
+      const as = String(av ?? '').toLowerCase();
+      const bs = String(bv ?? '').toLowerCase();
+      return as.localeCompare(bs) * dir;
+    });
+  }, [filteredTickets, sortConfig]);
+
+  const handleSort = (key: keyof Ticket) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
   const getPriorityStyle = (priority: TicketPriority) => {
     switch (priority) {
       case TicketPriority.HIGH: return 'bg-red-500/10 text-red-500 border-red-500/20';
@@ -173,6 +209,8 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   };
 
   const technicians = mockUsers.filter(u => u.profile === 'Suporte Técnico' || u.profile === 'Administrador');
+
+  const showRating = activeTab === 'Concluído' && (user?.profile === 'Cliente' || user?.profile === 'Administrador');
 
   return (
     <div className="flex flex-col gap-6">
@@ -243,10 +281,34 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Status</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Relator</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Técnico</th>
+                <th 
+                    className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
+                    onClick={() => handleSort('createdAt')}
+                >
+                    <div className="flex items-center gap-1">
+                        Data de Criação
+                        <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">
+                            {sortConfig?.key === 'createdAt' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                    </div>
+                </th>
+                {showRating && (
+                  <th 
+                    className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
+                    onClick={() => handleSort('rating')}
+                  >
+                    <div className="flex items-center gap-1">
+                        Avaliação
+                        <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">
+                            {sortConfig?.key === 'rating' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                    </div>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-dark">
-              {filteredTickets.map((ticket) => (
+              {sortedTickets.map((ticket) => (
                 <tr 
                     key={ticket.id} 
                     className={`group transition-colors cursor-pointer ${newTicketsIds.has(ticket.id) ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-background-input/40'}`}
@@ -302,6 +364,32 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                       <span className="text-white text-xs font-medium">{ticket.technician || 'Ninguém'}</span>
                     </div>
                   </td>
+                  <td className="p-4">
+                    <span className="text-white text-xs font-mono">
+                      {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('pt-BR', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                      }) : '-'}
+                    </span>
+                  </td>
+                  {showRating && (
+                    <td className="p-4">
+                      {ticket.rating ? (
+                          <div className="flex gap-0.5" title={`${ticket.rating} estrelas`}>
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                  <span key={star} className={`material-symbols-outlined text-[16px] ${Number(ticket.rating) >= star ? 'filled text-yellow-400' : 'text-gray-600'}`}>
+                                      star
+                                  </span>
+                              ))}
+                          </div>
+                      ) : (
+                          <span className="text-text-muted text-[10px] italic">Não avaliado</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

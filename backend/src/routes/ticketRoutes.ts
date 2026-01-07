@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTickets, createTicket, updateTicket, getTicketById, addMessage } from '../controllers/ticketController';
+import { getTickets, createTicket, updateTicket, getTicketById, addMessage, getTicketHistory } from '../controllers/ticketController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -37,6 +37,26 @@ router.get('/', authenticateToken, getTickets);
  *         description: Detalhes do chamado
  */
 router.get('/:id', authenticateToken, getTicketById);
+
+/**
+ * @swagger
+ * /api/tickets/{id}/history:
+ *   get:
+ *     summary: Obtém histórico de alterações do chamado
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Histórico do chamado
+ */
+router.get('/:id/history', authenticateToken, getTicketHistory);
 
 /**
  * @swagger

@@ -56,6 +56,7 @@ const mapTicketFromApi = (data: any): Ticket => ({
   createdAt: new Date(data.created_at).toLocaleString(),
   createdAtIso: data.created_at,
   lastInteraction: new Date(data.updated_at || data.created_at).toLocaleString(),
+  resolvedAt: data.resolved_at,
   messages: data.messages ? data.messages.map(mapMessageFromApi) : [],
   creatorName: data.creator_name,
   creatorId: data.user_id,
@@ -74,7 +75,8 @@ const mapNotificationFromApi = (data: any): Notification => ({
   referenceId: data.reference_id,
   content: data.content,
   isRead: data.is_read,
-  createdAt: new Date(data.created_at).toLocaleString()
+  createdAt: new Date(data.created_at).toLocaleString(),
+  createdAtIso: data.created_at
 });
 
 const mapUserFromApi = (data: any): User => ({
@@ -163,6 +165,21 @@ export const TicketService = {
   addMessage: async (id: string, content: string, isInternal: boolean = false) => {
     const response = await api.post(`/tickets/${id}/messages`, { content, is_internal: isInternal });
     return mapMessageFromApi(response.data);
+  },
+  getHistory: async (id: string) => {
+    const response = await api.get(`/tickets/${id}/history`);
+    return response.data.map((h: any) => ({
+      id: h.id,
+      ticketId: h.ticket_id,
+      userId: h.user_id,
+      userName: h.user_name || 'Sistema',
+      userAvatar: h.user_avatar,
+      changeType: h.change_type,
+      oldValue: h.old_value,
+      newValue: h.new_value,
+      details: h.details,
+      createdAt: new Date(h.created_at).toLocaleString()
+    }));
   }
 };
 

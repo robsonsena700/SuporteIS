@@ -93,6 +93,7 @@ const App: React.FC = () => {
             user={user} 
             onChatSelect={setActiveChatUser} 
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onLogout={handleLogout}
           />
         )}
         <main className={`flex-1 overflow-y-auto ${(!isAuthPage && isAuthenticated) ? 'p-4 lg:p-8' : ''} transition-all`}>
