@@ -5,7 +5,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
-    const { period, status, userId } = req.query;
+    const { period, status, userId, myTickets } = req.query;
 
     let dateFilter = '';
     const params: any[] = [];
@@ -22,14 +22,29 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
     // Base query conditions based on Role
     let roleCondition = '';
-    if (user.role === 'Cliente') {
-        roleCondition = `AND t.client_name = $${paramIndex}`;
-        params.push(user.name);
-        paramIndex++;
-    } else if (user.role === 'Suporte Técnico') {
-        roleCondition = `AND t.technician_id = $${paramIndex}`;
+    if (user.role === 'Cliente' || user.profile === 'Cliente') {
+        // Use user_id for robust client filtering (instead of client_name)
+        roleCondition = `AND t.user_id = $${paramIndex}`;
         params.push(user.id);
         paramIndex++;
+    } else {
+        // For Admin and Support, filter if myTickets is true
+        // Frontend sends myTickets=true (string)
+        if (myTickets === 'true') {
+             // Support Technician logic
+             // Check profile OR role to be safe (profile is in JWT now, role is DB column)
+             if (user.profile === 'Suporte Técnico' || user.role === 'Suporte Técnico' || user.role === 'Técnico') {
+                 roleCondition = `AND t.technician_id = $${paramIndex}`;
+                 params.push(user.id);
+                 paramIndex++;
+             } 
+             // Admin logic - if they want to see "My Tickets", assume assigned to them
+             else if (user.role === 'Administrador' || user.profile === 'Administrador') {
+                 roleCondition = `AND t.technician_id = $${paramIndex}`;
+                 params.push(user.id);
+                 paramIndex++;
+             }
+        }
     }
 
     // Stats Query

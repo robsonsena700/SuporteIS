@@ -6,14 +6,15 @@ import { User } from '../types';
 interface SidebarProps {
   user: User | null;
   onLogout?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClose }) => {
   const location = useLocation();
   const allNavItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { label: 'Meus Chamados', path: '/tickets', icon: 'confirmation_number' },
-    { label: 'Equipamentos', path: '/equipments', icon: 'devices' },
     { label: 'Usuários', path: '/users', icon: 'group' },
     { label: 'Relatórios', path: '/reports', icon: 'analytics' },
     { label: 'Perfil', path: '/profile', icon: 'settings' },
@@ -27,24 +28,47 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
   });
 
   return (
-    <aside className="hidden lg:flex w-72 flex-col justify-between border-r border-border-dark bg-background-surface p-5 shrink-0 h-screen transition-all duration-300">
-      <div className="flex flex-col gap-8">
-        {/* Brand */}
-        <div className="flex gap-3 items-center">
-          <div className="flex flex-col overflow-hidden">
-            <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
-              <span className="text-primary">IS</span> Suporte
-            </h1>
-            <p className="text-text-secondary text-xs font-normal truncate">Sistema de Gerenciamento</p>
-          </div>
-        </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={onClose}
+        />
+      )}
 
-        {/* Navigation */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 flex flex-col justify-between border-r border-border-dark bg-background-surface p-5 shrink-0 h-screen transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
+        lg:static lg:translate-x-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex flex-col gap-8">
+          {/* Brand */}
+          <div className="flex gap-3 items-center justify-between">
+            <div className="flex gap-3 items-center">
+              <div className="flex flex-col overflow-hidden">
+                <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
+                  <span className="text-primary">IS</span> Suporte
+                </h1>
+                <p className="text-text-secondary text-xs font-normal truncate">Sistema de Gerenciamento</p>
+              </div>
+            </div>
+            {/* Mobile Close Button */}
+            <button 
+              onClick={onClose}
+              className="lg:hidden p-1 text-text-secondary hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          {/* Navigation */}
         <nav className="flex flex-col gap-1.5">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => onClose?.()}
               className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-3 rounded-lg transition-all group
                 ${isActive 
@@ -80,6 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
         </button>
       </div>
     </aside>
+    </>
   );
 };
 

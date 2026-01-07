@@ -9,9 +9,10 @@ import UserList from './UserList';
 interface HeaderProps {
   user: User | null;
   onChatSelect: (user: User) => void;
+  onToggleSidebar?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onChatSelect }) => {
+const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar }) => {
   const { unreadCount } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
@@ -43,9 +44,17 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect }) => {
   };
 
   return (
-    <header className="h-16 border-b border-border-dark bg-background-surface flex items-center justify-between px-8 shrink-0 relative z-40">
+    <header className="h-16 border-b border-border-dark bg-background-surface flex items-center justify-between px-4 lg:px-8 shrink-0 relative z-40">
       {/* Left side - Breadcrumbs or Title */}
       <div className="flex items-center gap-4">
+        {onToggleSidebar && (
+          <button 
+            onClick={onToggleSidebar}
+            className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-white"
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+        )}
         <h2 className="text-white font-bold text-lg">
            SupportTech Pro
         </h2>
@@ -53,25 +62,27 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect }) => {
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-4">
-        {/* Team / Users Dropdown */}
-        <div className="relative">
-          <button 
-            onClick={() => { setShowUserList(!showUserList); setShowNotifications(false); }}
-            className="size-10 rounded-xl bg-background-input hover:bg-background-card border border-border-dark flex items-center justify-center text-text-secondary hover:text-white transition-all relative"
-            title="Equipe & Chat"
-          >
-            <span className="material-symbols-outlined">group</span>
-          </button>
-          {showUserList && (
-            <UserList 
-              onClose={() => setShowUserList(false)} 
-              onSelectUser={(u) => {
-                onChatSelect(u);
-                setShowUserList(false);
-              }} 
-            />
-          )}
-        </div>
+        {/* Team / Users Dropdown - Only for non-clients */}
+        {user?.profile !== 'Cliente' && (
+          <div className="relative">
+            <button 
+              onClick={() => { setShowUserList(!showUserList); setShowNotifications(false); }}
+              className="size-10 rounded-xl bg-background-input hover:bg-background-card border border-border-dark flex items-center justify-center text-text-secondary hover:text-white transition-all relative"
+              title="Equipe & Chat"
+            >
+              <span className="material-symbols-outlined">group</span>
+            </button>
+            {showUserList && (
+              <UserList 
+                onClose={() => setShowUserList(false)} 
+                onSelectUser={(u) => {
+                  onChatSelect(u);
+                  setShowUserList(false);
+                }} 
+              />
+            )}
+          </div>
+        )}
 
         {/* Notifications */}
         <div className="relative">

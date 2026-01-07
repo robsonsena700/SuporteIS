@@ -178,8 +178,8 @@ const Users: React.FC<UsersProps> = () => {
 
       <div className="bg-background-card rounded-xl border border-border-dark overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-background-surface/30">
+          <table className="w-full text-left border-collapse block md:table">
+            <thead className="hidden md:table-header-group bg-background-surface/30">
               <tr>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase">Usuário</th>
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase">Perfil</th>
@@ -188,35 +188,41 @@ const Users: React.FC<UsersProps> = () => {
                 <th className="p-4 text-[10px] font-bold text-text-secondary uppercase text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-dark">
+            <tbody className="block md:table-row-group divide-y divide-border-dark">
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-background-input/40 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-full border border-border-dark bg-background-dark flex items-center justify-center text-text-secondary">
+                <tr key={u.id} className="block md:table-row mb-4 md:mb-0 border border-border-dark md:border-0 rounded-lg md:rounded-none bg-background-input/10 md:bg-transparent hover:bg-background-input/40 transition-colors">
+                  <td className="p-4 flex justify-between md:table-cell border-b border-border-dark md:border-0">
+                    <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Usuário</span>
+                    <div className="flex items-center gap-3 justify-end md:justify-start">
+                      <div className="size-10 rounded-full border border-border-dark bg-background-dark flex items-center justify-center text-text-secondary shrink-0">
                         {u.avatar ? <img src={u.avatar} className="size-10 rounded-full" alt="" /> : <span className="material-symbols-outlined">person</span>}
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col text-right md:text-left">
                         <span className="text-white text-sm font-bold">{u.name}</span>
-                        <span className="text-text-muted text-xs">{u.email}</span>
+                        <span className="text-text-muted text-xs break-all">{u.email}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 flex justify-between md:table-cell border-b border-border-dark md:border-0">
+                    <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Perfil</span>
                     <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${u.role === 'Administrador' ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' : 'text-blue-400 bg-blue-500/10 border-blue-500/20'}`}>
                       {u.role} ({u.profile})
                     </span>
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 flex justify-between md:table-cell border-b border-border-dark md:border-0">
+                    <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Status</span>
                     <button onClick={() => toggleStatus(u)} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                       <div className={`size-1.5 rounded-full ${u.status === 'Ativo' ? 'bg-success' : 'bg-red-400'}`}></div>
                       <span className={`text-xs font-bold ${u.status === 'Ativo' ? 'text-success' : 'text-red-400'}`}>{u.status}</span>
                     </button>
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 flex justify-between md:table-cell border-b border-border-dark md:border-0">
+                    <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Depto</span>
                     <span className="text-text-muted text-xs font-medium">{u.department || '-'}</span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 flex justify-between md:table-cell md:border-0">
+                    <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Ações</span>
+                    <div className="text-right w-full md:w-auto">
                     {currentUser?.role === 'Administrador' && (
                         <div className="flex justify-end gap-2">
                         <button onClick={() => openPasswordModal(u)} className="text-text-muted hover:text-white p-1.5 transition-colors" title="Alterar Senha">
@@ -230,6 +236,7 @@ const Users: React.FC<UsersProps> = () => {
                         </button>
                         </div>
                     )}
+                    </div>
                   </td>
                 </tr>
               ))}

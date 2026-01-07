@@ -218,6 +218,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
               >
                 <option value="">Selecione...</option>
                 <option value="Suporte Técnico TI">Suporte Técnico TI</option>
+                <option value="Cliente">Cliente</option>
                 <option value="Manutenção Geral">Manutenção Geral</option>
                 <option value="Operações">Operações</option>
                 <option value="Administrativo">Administrativo</option>
@@ -234,7 +235,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 mt-2">
+        <div className="flex flex-wrap justify-end gap-4 mt-2">
            <button 
              type="button" 
              onClick={() => window.history.back()}

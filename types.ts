@@ -51,6 +51,7 @@ export interface Ticket {
   assignedAt?: string;
   description: string;
   createdAt: string;
+  createdAtIso?: string;
   lastInteraction: string;
   messages: Message[];
   creatorName?: string;

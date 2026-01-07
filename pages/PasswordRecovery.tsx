@@ -13,13 +13,13 @@ const PasswordRecovery: React.FC = () => {
           <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
         </div>
 
-        <div className="px-10 pb-10 pt-4 flex flex-col gap-8">
+        <div className="px-6 md:px-10 pb-10 pt-4 flex flex-col gap-6 md:gap-8">
           <div className="text-center flex flex-col gap-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-2 text-primary">
               <span className="material-symbols-outlined text-4xl filled">lock_reset</span>
             </div>
-            <h1 className="text-4xl font-black text-white leading-tight tracking-tight">Recuperação de Senha</h1>
-            <p className="text-text-secondary text-base font-normal leading-relaxed max-w-sm mx-auto">
+            <h1 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tight">Recuperação de Senha</h1>
+            <p className="text-text-secondary text-sm md:text-base font-normal leading-relaxed max-w-sm mx-auto">
               Não se preocupe. Insira o e-mail associado à sua conta de suporte e enviaremos instruções para redefinir sua senha.
             </p>
           </div>

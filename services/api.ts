@@ -54,6 +54,7 @@ const mapTicketFromApi = (data: any): Ticket => ({
   assignedAt: data.assigned_at ? new Date(data.assigned_at).toLocaleString() : undefined,
   description: data.description,
   createdAt: new Date(data.created_at).toLocaleString(),
+  createdAtIso: data.created_at,
   lastInteraction: new Date(data.updated_at || data.created_at).toLocaleString(),
   messages: data.messages ? data.messages.map(mapMessageFromApi) : [],
   creatorName: data.creator_name,
@@ -201,8 +202,8 @@ export const UserService = {
 };
 
 export const DashboardService = {
-  getStats: async (period: string = 'week') => {
-    const response = await api.get('/dashboard', { params: { period } });
+  getStats: async (period: string = 'week', myTickets: boolean = false) => {
+    const response = await api.get(`/dashboard?period=${period}&myTickets=${myTickets}`);
     return response.data;
   }
 };

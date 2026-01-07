@@ -56,9 +56,15 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Senha incorreta. Tente novamente.' });
     }
 
+    // Update last_access
+    await pool.query('UPDATE users SET last_access = NOW() WHERE id = $1', [user.id]);
+    
+    // Fetch updated user with last_access (or use current time)
+    user.last_access = new Date().toISOString();
+
     // Create Token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, profile: user.profile },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '8h' } // Extended session
     );

@@ -8,6 +8,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('week');
   const [user, setUser] = useState<User | null>(null);
+  const [showMyTickets, setShowMyTickets] = useState(true); // Default to true
 
   useEffect(() => {
     const currentUser = AuthService.getCurrentUser();
@@ -17,43 +18,18 @@ const Dashboard: React.FC = () => {
     // Real-time polling
     const interval = setInterval(fetchStats, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, [period]);
+  }, [period, showMyTickets]); // Refetch when filter changes
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const data = await DashboardService.getStats(period);
+      const data = await DashboardService.getStats(period, showMyTickets);
       setStats(data);
     } catch (error) {
       console.error('Failed to fetch dashboard stats', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleExport = () => {
-    if (!stats) return;
-    
-    // Simple CSV Export
-    const headers = ['Métrica', 'Valor'];
-    const rows = [
-      ['Total Chamados', stats.totalTickets],
-      ['Resolvidos', stats.resolvedCount],
-      ...stats.byStatus.map(s => [`Status: ${s.status}`, s.count]),
-      ...stats.chartData.map(d => [`Dia: ${d.name}`, d.chamados])
-    ];
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_dashboard_${period}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   if (loading && !stats) return <div className="text-white p-8">Carregando dashboard...</div>;
@@ -85,7 +61,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       label: 'Em Andamento', 
-      value: stats.byStatus.find(s => s.status === 'Em Andamento')?.count || 0, 
+      value: (Number(stats.byStatus.find(s => s.status === 'Em Andamento')?.count || 0)) + (Number(stats.byStatus.find(s => s.status === 'Em Análise')?.count || 0)), 
       trend: 'Em tratativa', 
       trendType: 'neutral', 
       icon: 'trending_up', 
@@ -98,12 +74,12 @@ const Dashboard: React.FC = () => {
       {/* User Info & Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-white text-3xl font-black tracking-tight">Olá, {user?.name || 'Usuário'}</h1>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Olá, {user?.name || 'Usuário'}</h1>
           <p className="text-text-secondary">
-            {user?.role} | {user?.department || 'Geral'} | Último acesso: {user?.lastAccess ? new Date(user.lastAccess).toLocaleString() : 'Hoje'}
+            {user?.role} | {user?.department || 'Geral'} | Último acesso: {user?.lastAccess || 'Hoje'}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <select 
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
@@ -113,13 +89,23 @@ const Dashboard: React.FC = () => {
             <option value="week">Últimos 7 dias</option>
             <option value="month">Últimos 30 dias</option>
           </select>
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-hover transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">download</span>
-            Exportar CSV
-          </button>
+
+          {/* Toggle Meus Chamados - Only for non-clients */}
+          {user?.profile !== 'Cliente' && (
+            <button 
+              onClick={() => setShowMyTickets(!showMyTickets)}
+              className={`flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-bold transition-all border ${
+                showMyTickets 
+                ? 'bg-primary/20 text-primary border-primary' 
+                : 'bg-background-card text-text-secondary border-border-dark hover:text-white'
+              }`}
+            >
+               <span className="material-symbols-outlined text-[20px]">
+                  {showMyTickets ? 'person' : 'groups'}
+               </span>
+               Meus Chamados
+            </button>
+          )}
         </div>
       </div>
 

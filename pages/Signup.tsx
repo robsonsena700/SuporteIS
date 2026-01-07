@@ -125,10 +125,10 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
 
       {/* Right Panel - Form */}
       <div className="w-full lg:w-7/12 flex flex-col bg-background-dark overflow-y-auto">
-        <header className="flex items-center justify-between px-8 py-8 lg:px-20">
+        <header className="flex items-center justify-between px-6 py-6 lg:px-20 lg:py-8">
           <div className="lg:hidden flex items-center gap-2 text-white">
             <span className="material-symbols-outlined text-primary text-3xl">hub</span>
-            <span className="text-xl font-bold">SupportTech</span>
+            <span className="text-xl font-bold">SupportIS</span>
           </div>
           <p className="ml-auto text-sm font-medium text-text-secondary">
             Já tem uma conta? 
@@ -136,10 +136,10 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
           </p>
         </header>
 
-        <main className="flex-1 flex flex-col justify-center px-8 lg:px-24 max-w-2xl mx-auto w-full pb-10">
-          <div className="mb-10">
-            <h2 className="text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">Criar nova conta</h2>
-            <p className="text-text-secondary text-base">Inicie seu teste gratuito de 14 dias hoje mesmo.</p>
+        <main className="flex-1 flex flex-col justify-center px-6 lg:px-24 max-w-2xl mx-auto w-full pb-10">
+          <div className="mb-8 lg:mb-10">
+            <h2 className="text-3xl lg:text-5xl font-black text-white mb-3 tracking-tight">Criar nova conta</h2>
+            <p className="text-text-secondary text-sm lg:text-base">Inicie seu teste gratuito de 14 dias hoje mesmo.</p>
           </div>
 
           {error && (
@@ -258,10 +258,10 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
           </form>
         </main>
 
-        <footer className="p-8 px-8 lg:px-24 border-t border-border-dark/50">
+        <footer className="p-6 px-6 lg:px-24 border-t border-border-dark/50">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
-              © 2024 SupportTech Pro. Security Verified.
+            <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center sm:text-left">
+              © 2026 SupportIS. Security Verified.
             </p>
             <div className="flex gap-4">
               <span className="material-symbols-outlined text-text-muted text-[18px]">verified_user</span>

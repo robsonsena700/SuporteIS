@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { mockUsers } from './mockData'; // Keep mockUsers for now or replace later
 import { Ticket, User } from './types';
@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [activeChatUser, setActiveChatUser] = useState<User | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -77,12 +78,27 @@ const App: React.FC = () => {
   };
 
   const layout = (children: React.ReactNode) => (
-    <div className="flex h-screen w-full bg-background-dark overflow-hidden font-sans">
-      {!isAuthPage && isAuthenticated && <Sidebar user={user} onLogout={handleLogout} />}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {!isAuthPage && isAuthenticated && <Header user={user} onChatSelect={setActiveChatUser} />}
-        <main className={`flex-1 overflow-y-auto ${(!isAuthPage && isAuthenticated) ? 'p-4 lg:p-8' : ''}`}>
-          {children}
+    <div className="flex h-screen w-full bg-background-dark overflow-hidden font-sans relative">
+      {!isAuthPage && isAuthenticated && (
+        <Sidebar 
+          user={user} 
+          onLogout={handleLogout} 
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
+        {!isAuthPage && isAuthenticated && (
+          <Header 
+            user={user} 
+            onChatSelect={setActiveChatUser} 
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+        )}
+        <main className={`flex-1 overflow-y-auto ${(!isAuthPage && isAuthenticated) ? 'p-4 lg:p-8' : ''} transition-all`}>
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Carregando...</div>}>
+            {children}
+          </Suspense>
         </main>
         {activeChatUser && (
           <ChatWindow 

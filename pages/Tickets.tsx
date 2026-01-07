@@ -199,7 +199,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
       </div>
 
       <div className="bg-background-card rounded-xl border border-border-dark overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-border-dark flex gap-4">
+        <div className="p-4 border-b border-border-dark flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
             <input 

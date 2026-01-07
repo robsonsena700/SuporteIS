@@ -117,7 +117,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-8 pb-10">
       <div>
-        <h1 className="text-white text-4xl font-black tracking-tight mb-2">Abertura de Chamado</h1>
+        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">Abertura de Chamado</h1>
         <p className="text-text-secondary">Preencha os campos abaixo para solicitar manutenção corretiva ou preventiva.</p>
       </div>
 
@@ -238,7 +238,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 mt-4">
+        <div className="flex flex-wrap justify-end gap-4 mt-4">
           <button type="button" onClick={() => navigate('/tickets')} className="px-6 h-12 border border-border-dark text-white font-bold rounded-lg hover:bg-background-input transition-all">
             Cancelar
           </button>

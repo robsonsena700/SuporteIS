@@ -62,7 +62,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ recipient, onClose }) => {
   };
 
   return (
-    <div className="fixed bottom-0 right-4 w-80 h-[400px] bg-background-surface border border-border-dark rounded-t-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+    <div className="fixed bottom-0 right-0 sm:right-4 w-full sm:w-80 h-[400px] bg-background-surface border-t border-x sm:border border-border-dark rounded-t-xl shadow-2xl z-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-primary/10 border-b border-border-dark p-3 flex justify-between items-center cursor-pointer" onClick={onClose}>
         <div className="flex items-center gap-3">
