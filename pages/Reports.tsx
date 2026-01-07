@@ -3,6 +3,7 @@ import { TicketService, AuthService } from '../services/api';
 import { Ticket, User } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Reports: React.FC = () => {
     const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -11,6 +12,8 @@ const Reports: React.FC = () => {
     const [endDate, setEndDate] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
+    const [filterText, setFilterText] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
@@ -21,50 +24,18 @@ const Reports: React.FC = () => {
     const fetchReport = async () => {
         setLoading(true);
         try {
-            // Ideally backend should support date range filters.
-            // For now, fetching all and filtering client-side or we can enhance backend later.
-            // Assuming getTickets returns all tickets.
-            const allTickets = await TicketService.getAll();
-            
-            let filtered = allTickets;
+            const filters = {
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                status: filterStatus || undefined,
+                priority: filterPriority || undefined,
+                search: filterText || undefined,
+                category: filterCategory || undefined
+            };
 
-            // Client Isolation: Only show tickets where clientName matches current user
-            if (currentUser?.profile === 'Cliente') {
-                filtered = filtered.filter(t => t.clientName === currentUser.name);
-            }
-
-            if (startDate) {
-                const [y, m, d] = startDate.split('-').map(Number);
-                const start = new Date(y, m - 1, d); // Local midnight
-                filtered = filtered.filter(t => {
-                    // Use ISO date if available, otherwise fallback to parsing (risky but fallback)
-                    // If t.createdAt is "DD/MM/YYYY HH:mm:ss", new Date() might fail.
-                    // But we added createdAtIso to API and Types, so it should be there for new fetches.
-                    const dateStr = t.createdAtIso || t.createdAt;
-                    // If dateStr is "DD/MM/YYYY...", new Date() might still be invalid.
-                    // But we assume createdAtIso is present now.
-                    return new Date(dateStr) >= start;
-                });
-            }
-
-            if (endDate) {
-                const [y, m, d] = endDate.split('-').map(Number);
-                const end = new Date(y, m - 1, d, 23, 59, 59, 999); // Local end of day
-                filtered = filtered.filter(t => {
-                    const dateStr = t.createdAtIso || t.createdAt;
-                    return new Date(dateStr) <= end;
-                });
-            }
-
-            if (filterStatus) {
-                filtered = filtered.filter(t => t.status === filterStatus);
-            }
-
-            if (filterPriority) {
-                filtered = filtered.filter(t => t.priority === filterPriority);
-            }
-
-            setTickets(filtered);
+            // Fetch filtered data directly from backend
+            const data = await TicketService.getAll(filters);
+            setTickets(data);
         } catch (error) {
             console.error('Failed to fetch report', error);
         } finally {
@@ -74,7 +45,29 @@ const Reports: React.FC = () => {
 
     const exportPDF = () => {
         const doc = new jsPDF();
-        doc.text("Relatório de Chamados", 14, 16);
+        
+        // Header
+        doc.setFillColor(19, 91, 236); // Primary Color
+        doc.rect(0, 0, 210, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.text("Relatório de Chamados", 14, 13);
+        
+        // Metadata
+        doc.setTextColor(100);
+        doc.setFontSize(10);
+        let filterDesc = `Gerado em: ${new Date().toLocaleString()}`;
+        if (startDate || endDate) {
+            filterDesc += ` | Período: ${startDate ? new Date(startDate).toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString() : 'Hoje'}`;
+        }
+        if (filterCategory) filterDesc += ` | Categoria: ${filterCategory}`;
+        if (filterStatus) filterDesc += ` | Status: ${filterStatus}`;
+        if (filterPriority) filterDesc += ` | Prioridade: ${filterPriority}`;
+        if (filterText) filterDesc += ` | Busca: "${filterText}"`;
+        
+        // Split long text
+        const splitFilterText = doc.splitTextToSize(filterDesc, 180);
+        doc.text(splitFilterText, 14, 28);
         
         const isClient = currentUser?.profile === 'Cliente';
 
@@ -101,9 +94,11 @@ const Reports: React.FC = () => {
         autoTable(doc, {
             head: tableHeaders,
             body: tableData,
-            startY: 20,
-            styles: { fontSize: 7 },
-            headStyles: { fillColor: [19, 91, 236] }
+            startY: 35,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [19, 91, 236], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { top: 35 }
         });
 
         doc.save(`relatorio_chamados_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -111,42 +106,71 @@ const Reports: React.FC = () => {
 
     const exportExcel = () => {
         const isClient = currentUser?.profile === 'Cliente';
+
+        // Metadata rows
+        const metadata = [
+            ['Relatório de Chamados'],
+            [`Gerado em: ${new Date().toLocaleString()}`]
+        ];
         
-        // Simple CSV Export
-        const headers = isClient
-            ? ['Código', 'Assunto', 'Equipamento', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação']
-            : ['Código', 'Assunto', 'Equipamento', 'Cliente', 'Prioridade', 'Status', 'Data', 'Técnico', 'Avaliação'];
-
-        const csvContent = [
-            headers.join(','),
-            ...tickets.map(t => {
-                const row = [
-                    t.code || t.id.slice(0, 8),
-                    `"${t.subject}"`,
-                    `"${t.equipment}"`,
-                    // Client Name only if not client
-                    ...(isClient ? [] : [`"${t.clientName}"`]),
-                    t.priority,
-                    t.status,
-                    t.createdAt,
-                    t.technician || '-',
-                    t.rating || '-'
-                ];
-                return row.join(',');
-            })
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `relatorio_chamados_${new Date().toISOString().slice(0,10)}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        if (startDate || endDate) {
+            metadata.push([`Período: ${startDate ? new Date(startDate).toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString() : 'Hoje'}`]);
         }
+        if (filterCategory) metadata.push([`Categoria: ${filterCategory}`]);
+        if (filterStatus) metadata.push([`Status: ${filterStatus}`]);
+        if (filterPriority) metadata.push([`Prioridade: ${filterPriority}`]);
+        if (filterText) metadata.push([`Busca: "${filterText}"`]);
+        metadata.push([]); // Empty row spacing
+
+        // Headers
+        const headers = [
+            'Código', 
+            'Assunto', 
+            'Equipamento', 
+            ...(!isClient ? ['Cliente'] : []), 
+            'Prioridade', 
+            'Status', 
+            'Data Criação', 
+            'Técnico', 
+            'Avaliação', 
+            'Descrição'
+        ];
+
+        // Data rows
+        const rows = tickets.map(t => [
+            t.code || t.id.slice(0, 8),
+            t.subject,
+            t.equipment,
+            ...(!isClient ? [t.clientName] : []),
+            t.priority,
+            t.status,
+            t.createdAt,
+            t.technician || '-',
+            t.rating || '-',
+            t.description
+        ]);
+
+        const wsData = [...metadata, headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        
+        // Adjust column widths
+        const wscols = [
+            {wch: 10}, // Code
+            {wch: 30}, // Subject
+            {wch: 20}, // Equipment
+            ...(!isClient ? [{wch: 20}] : []), // Client
+            {wch: 10}, // Priority
+            {wch: 15}, // Status
+            {wch: 20}, // Date
+            {wch: 20}, // Technician
+            {wch: 10}, // Rating
+            {wch: 50}  // Description
+        ];
+        ws['!cols'] = wscols;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+        XLSX.writeFile(wb, `relatorio_chamados_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
     return (
@@ -157,7 +181,29 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="bg-background-card p-6 rounded-xl border border-border-dark flex flex-col gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                        <label className="text-white text-sm font-bold">Busca</label>
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por assunto, ID, técnico..."
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            value={filterText}
+                            onChange={e => setFilterText(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-white text-sm font-bold">Categoria</label>
+                        <select 
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            value={filterCategory}
+                            onChange={e => setFilterCategory(e.target.value)}
+                        >
+                            <option value="">Todas</option>
+                            <option value="Sistema">Sistema</option>
+                            <option value="Equipamento">Equipamento</option>
+                        </select>
+                    </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-white text-sm font-bold">Data Inicial</label>
                         <input 
@@ -215,23 +261,28 @@ const Reports: React.FC = () => {
                     <div className="text-center text-text-muted py-10">Carregando dados...</div>
                 ) : (
                     <>
-                        <div className="flex flex-wrap justify-end gap-3">
-                            <button 
-                                onClick={exportExcel}
-                                disabled={tickets.length === 0}
-                                className="flex items-center gap-2 px-4 py-2 border border-green-600/50 text-green-500 hover:bg-green-600/10 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined">table_view</span>
-                                Exportar Excel
-                            </button>
-                            <button 
-                                onClick={exportPDF}
-                                disabled={tickets.length === 0}
-                                className="flex items-center gap-2 px-4 py-2 border border-red-500/50 text-red-500 hover:bg-red-500/10 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined">picture_as_pdf</span>
-                                Exportar PDF
-                            </button>
+                        <div className="flex flex-wrap justify-between items-center gap-3">
+                            <div className="text-white font-bold">
+                                Total de chamados encontrados: <span className="text-primary">{tickets.length}</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={exportExcel}
+                                    disabled={tickets.length === 0}
+                                    className="flex items-center gap-2 px-4 py-2 border border-green-600/50 text-green-500 hover:bg-green-600/10 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
+                                >
+                                    <span className="material-symbols-outlined">table_view</span>
+                                    Exportar Excel
+                                </button>
+                                <button 
+                                    onClick={exportPDF}
+                                    disabled={tickets.length === 0}
+                                    className="flex items-center gap-2 px-4 py-2 border border-red-500/50 text-red-500 hover:bg-red-500/10 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
+                                >
+                                    <span className="material-symbols-outlined">picture_as_pdf</span>
+                                    Exportar PDF
+                                </button>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto border border-border-dark rounded-lg">

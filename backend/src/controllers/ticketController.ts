@@ -52,7 +52,10 @@ export const getTicketHistory = async (req: AuthRequest, res: Response) => {
 };
 
 export const getTickets = async (req: AuthRequest, res: Response) => {
+  console.log('GET /tickets called with query:', req.query);
   try {
+    const { startDate, endDate, status, priority, search, category } = req.query;
+
     let queryText = `
       SELECT t.*, 
              tech.name as technician_name, tech.avatar as technician_avatar,
@@ -60,13 +63,74 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
       FROM tickets t
       LEFT JOIN users tech ON t.technician_id = tech.id
       LEFT JOIN users creator ON t.user_id = creator.id
+      WHERE 1=1
     `;
     
     const queryParams: any[] = [];
+    let paramIndex = 1;
 
+    // Role-based filtering
     if (req.user?.role === 'Cliente') {
-        queryText += ` WHERE t.user_id = $1`;
+        queryText += ` AND t.user_id = $${paramIndex}`;
         queryParams.push(req.user.id);
+        paramIndex++;
+    }
+
+    // Date Range Filtering
+    if (startDate) {
+        queryText += ` AND t.created_at >= $${paramIndex}`;
+        queryParams.push(startDate); // Expecting YYYY-MM-DD or ISO
+        paramIndex++;
+    }
+    if (endDate) {
+        queryText += ` AND t.created_at <= $${paramIndex}`;
+        // Add time to end date to be inclusive of the day
+        queryParams.push(`${endDate} 23:59:59.999`);
+        paramIndex++;
+    }
+
+    // Status Filtering
+    if (status) {
+        queryText += ` AND t.status = $${paramIndex}`;
+        queryParams.push(status);
+        paramIndex++;
+    }
+
+    // Priority Filtering
+    if (priority) {
+        queryText += ` AND t.priority = $${paramIndex}`;
+        queryParams.push(priority);
+        paramIndex++;
+    }
+
+    // Search Filter (Subject, Description, ID, Code, Technician, Creator)
+    if (search) {
+        queryText += ` AND (
+            t.subject ILIKE $${paramIndex} OR 
+            t.description ILIKE $${paramIndex} OR
+            t.id::text ILIKE $${paramIndex} OR
+            t.code ILIKE $${paramIndex} OR
+            tech.name ILIKE $${paramIndex} OR
+            creator.name ILIKE $${paramIndex}
+        )`;
+        queryParams.push(`%${search}%`);
+        paramIndex++;
+    }
+
+    // Category Filter (Sistema vs Equipamento)
+    if (category && (category === 'Sistema' || category === 'Equipamento')) {
+        const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
+        const regexPattern = keywords.join('|');
+        
+        if (category === 'Sistema') {
+            queryText += ` AND (COALESCE(t.equipment, '') || ' ' || t.subject) ~* $${paramIndex}`;
+            queryParams.push(regexPattern);
+            paramIndex++;
+        } else if (category === 'Equipamento') {
+             queryText += ` AND (COALESCE(t.equipment, '') || ' ' || t.subject) !~* $${paramIndex}`;
+            queryParams.push(regexPattern);
+            paramIndex++;
+        }
     }
 
     queryText += ` ORDER BY t.created_at DESC`;
@@ -282,7 +346,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
 
 export const addMessage = async (req: AuthRequest, res: Response) => {
   const { id } = req.params; // Ticket ID or Code
-  const { content, is_internal } = req.body;
+  const { content, is_internal, attachment } = req.body;
   
   try {
       // Resolve ID if code provided
@@ -309,8 +373,8 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
 
       // Insert Message
       const newMessage = await pool.query(
-          'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4) RETURNING *, (SELECT name FROM users WHERE id = $2) as sender_name',
-          [ticketId, req.user?.id, content, is_internal || false]
+          'INSERT INTO messages (ticket_id, sender_id, content, is_internal, attachment) VALUES ($1, $2, $3, $4, $5) RETURNING *, (SELECT name FROM users WHERE id = $2) as sender_name',
+          [ticketId, req.user?.id, content, is_internal || false, attachment || null]
       );
 
       // Log History

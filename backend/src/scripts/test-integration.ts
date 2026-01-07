@@ -106,13 +106,15 @@ async function testIntegration() {
         description: 'This is a test ticket',
         equipment: 'Printer X',
         client_name: 'Client Y',
-        priority: 'Alta'
+        priority: 'Alta',
+        attachment: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
         })
     });
 
     if (createRes.ok) {
         const ticket = await createRes.json();
         console.log('✅ Ticket created:', ticket.code);
+        if (ticket.attachment) console.log('✅ Ticket has attachment');
 
         // 5. Get ticket details
         console.log('\n5. Fetching ticket details...');
@@ -126,8 +128,8 @@ async function testIntegration() {
             console.error('❌ Failed to fetch details');
         }
 
-        // 6. Add a message
-        console.log('\n6. Adding a message...');
+        // 6. Add a message with attachment
+        console.log('\n6. Adding a message with attachment...');
         const msgRes = await fetch(`${BASE_URL}/tickets/${ticket.id}/messages`, {
             method: 'POST',
             headers: { 
@@ -135,15 +137,30 @@ async function testIntegration() {
                 'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify({
-                content: 'This is a test message',
-                is_internal: false
+                content: 'This is a test message with attachment',
+                is_internal: false,
+                attachment: 'data:text/plain;base64,SGVsbG8gV29ybGQ='
             })
         });
         if (msgRes.ok) {
             const msg = await msgRes.json();
             console.log('✅ Message added:', msg.content);
+            if (msg.attachment) console.log('✅ Message has attachment');
         } else {
             console.error('❌ Failed to add message');
+        }
+
+        // 6.5 Get History
+        console.log('\n6.5 Fetching History...');
+        const historyRes = await fetch(`${BASE_URL}/tickets/${ticket.id}/history`, {
+             headers: { Authorization: `Bearer ${token}` }
+        });
+        if (historyRes.ok) {
+            const history = await historyRes.json();
+            console.log(`✅ History fetched: ${history.length} items`);
+            history.forEach((h: any) => console.log(`   - ${h.change_type}: ${h.details || ''}`));
+        } else {
+            console.error('❌ Failed to fetch history');
         }
 
         // 7. List tickets

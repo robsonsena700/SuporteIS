@@ -35,6 +35,7 @@ export interface Message {
   content: string;
   timestamp: string;
   isInternal?: boolean;
+  attachment?: string;
 }
 
 export interface Ticket {

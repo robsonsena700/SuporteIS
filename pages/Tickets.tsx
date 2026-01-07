@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
 import { mockUsers } from '../mockData';
 import { TicketService } from '../services/api';
@@ -13,6 +14,7 @@ interface TicketsProps {
 }
 
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { notifications } = useNotifications();
   const location = useLocation();
@@ -120,11 +122,15 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     if (t.status === TicketStatus.RESOLVED) return false;
 
     if (activeTab === 'Sistema') {
-        return t.equipment.toLowerCase().includes('sistema') || t.equipment.toLowerCase().includes('software');
+        const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
+        const textToCheck = (t.equipment + ' ' + t.subject).toLowerCase();
+        return keywords.some(k => textToCheck.includes(k));
     }
     
     if (activeTab === 'Equipamento') {
-        return !t.equipment.toLowerCase().includes('sistema') && !t.equipment.toLowerCase().includes('software');
+        const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
+        const textToCheck = (t.equipment + ' ' + t.subject).toLowerCase();
+        return !keywords.some(k => textToCheck.includes(k));
     }
 
     return true;
@@ -212,6 +218,17 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
   const showRating = activeTab === 'Concluído' && (user?.profile === 'Cliente' || user?.profile === 'Administrador');
 
+  useEffect(() => {
+    if (selectedTicket) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedTicket]);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -219,7 +236,15 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
           <h1 className="text-white text-3xl font-black">Central de Atendimento</h1>
           <p className="text-text-secondary">Gerenciamento de fila de suporte técnico</p>
         </div>
-        <div className="flex gap-2 bg-background-card p-1 rounded-lg border border-border-dark">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/new-ticket')}
+            className="h-10 px-4 rounded-lg text-xs font-bold uppercase tracking-wider bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 border border-primary/30 transition-all active:scale-95"
+            title="Abrir novo chamado"
+          >
+            + Novo Chamado
+          </button>
+          <div className="flex gap-2 bg-background-card p-1 rounded-lg border border-border-dark">
             {['Sistema', 'Equipamento', 'Concluído'].map((tab) => (
                 <button
                     key={tab}
@@ -233,6 +258,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                     {tab}
                 </button>
             ))}
+          </div>
         </div>
       </div>
 
@@ -397,13 +423,14 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
         </div>
       </div>
 
-      {selectedTicket && (
-          <TicketDetailModal 
-            ticket={selectedTicket}
-            technicians={technicians}
-            onClose={() => setSelectedTicket(null)}
-            onUpdate={handleModalUpdate}
-          />
+      {selectedTicket && createPortal(
+        <TicketDetailModal 
+          ticket={selectedTicket}
+          technicians={technicians}
+          onClose={() => setSelectedTicket(null)}
+          onUpdate={handleModalUpdate}
+        />,
+        document.body
       )}
     </div>
   );

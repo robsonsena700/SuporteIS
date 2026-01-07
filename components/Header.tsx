@@ -113,6 +113,15 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
           )}
         </div>
 
+        {/* New Ticket */}
+        <button
+          onClick={() => navigate('/new-ticket')}
+          className="h-10 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 border border-primary/30 transition-all active:scale-95"
+          title="Abrir novo chamado"
+        >
+          + Novo Chamado
+        </button>
+
         <div className="h-8 w-px bg-border-dark mx-2"></div>
 
         {/* User Profile Summary */}

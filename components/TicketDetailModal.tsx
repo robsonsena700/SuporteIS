@@ -28,10 +28,45 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const [historyFilter, setHistoryFilter] = useState('');
   const [historySearch, setHistorySearch] = useState('');
 
+  const [selectedAttachment, setSelectedAttachment] = useState<{ name: string, content: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Sync with prop updates
   useEffect(() => {
     setLocalTicket(ticket);
   }, [ticket]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  // Polling for new messages
+  useEffect(() => {
+    if (activeTab !== 'messages') return;
+
+    const pollMessages = async () => {
+        try {
+            const freshTicket = await TicketService.getById(localTicket.id);
+            // Simple check: if message count differs, update. 
+            // Better: Compare last message ID or timestamp.
+            const currentCount = localTicket.messages?.length || 0;
+            const newCount = freshTicket.messages?.length || 0;
+            
+            if (newCount !== currentCount) {
+                 setLocalTicket(prev => ({ ...prev, messages: freshTicket.messages }));
+            }
+        } catch (e) {
+            console.error('Polling error', e);
+        }
+    };
+
+    const interval = setInterval(pollMessages, 5000); // 5 seconds
+    return () => clearInterval(interval);
+  }, [activeTab, localTicket.id, localTicket.messages?.length]);
 
   // Fetch History on Tab Change
   useEffect(() => {
@@ -61,6 +96,24 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         } catch (error) {
             console.error('Failed to auto-assign ticket', error);
         }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setSelectedAttachment({
+            name: file.name,
+            content: event.target.result as string
+          });
+        }
+      };
+      
+      reader.readAsDataURL(file);
     }
   };
 
@@ -195,8 +248,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#111827] border border-[#1f2937] w-full h-full lg:h-[90vh] lg:max-w-[1200px] lg:rounded-2xl rounded-none flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="bg-[#111827] border border-[#1f2937] w-full h-full lg:h-[90vh] lg:max-w-[1200px] lg:rounded-2xl rounded-none flex flex-col shadow-2xl overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <header className="p-3 md:p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827] shrink-0">
@@ -310,6 +363,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                         ) : (
                             <>
                                 <div className="relative mb-4 group">
+                                    {selectedAttachment && (
+                                        <div className="absolute bottom-full left-0 mb-2 bg-[#1f2937] border border-[#374151] rounded-lg p-2 flex items-center gap-2 text-xs text-white animate-fade-in">
+                                            <span className="material-symbols-outlined text-[16px]">attach_file</span>
+                                            <span className="max-w-[200px] truncate">{selectedAttachment.name}</span>
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedAttachment(null);
+                                                    if (fileInputRef.current) fileInputRef.current.value = '';
+                                                }}
+                                                className="hover:text-red-400"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">close</span>
+                                            </button>
+                                        </div>
+                                    )}
                                     <textarea 
                                     placeholder="Digite sua resposta..."
                                     className="w-full h-[80px] md:h-[120px] bg-[#1a2233] border border-[#374151] rounded-xl p-3 md:p-4 text-sm text-white focus:ring-1 focus:ring-primary outline-none resize-none transition-all placeholder:text-[#4b5563]"
@@ -319,12 +387,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3">
-                                    <button className="px-3 md:px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all">
-                                    Anexar
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        onChange={handleFileSelect}
+                                    />
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={`px-3 md:px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all flex items-center gap-2 ${selectedAttachment ? 'bg-primary/20 border-primary/50' : ''}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">attach_file</span>
+                                        Anexar
                                     </button>
                                     <button 
                                     onClick={handleSendMessage}
-                                    disabled={!replyText.trim()}
+                                    disabled={!replyText.trim() && !selectedAttachment}
                                     className="px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                     Enviar Resposta

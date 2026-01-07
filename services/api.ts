@@ -130,8 +130,17 @@ export const AuthService = {
 };
 
 export const TicketService = {
-  getAll: async () => {
-    const response = await api.get('/tickets');
+  getAll: async (filters?: { startDate?: string; endDate?: string; status?: string; priority?: string; search?: string; category?: string }) => {
+    const params: any = {};
+    if (filters) {
+        if (filters.startDate) params.startDate = filters.startDate;
+        if (filters.endDate) params.endDate = filters.endDate;
+        if (filters.status) params.status = filters.status;
+        if (filters.priority) params.priority = filters.priority;
+        if (filters.search) params.search = filters.search;
+        if (filters.category) params.category = filters.category;
+    }
+    const response = await api.get('/tickets', { params });
     return response.data.map(mapTicketFromApi);
   },
   getById: async (id: string) => {
@@ -162,8 +171,8 @@ export const TicketService = {
     const response = await api.put(`/tickets/${id}`, payload);
     return mapTicketFromApi(response.data);
   },
-  addMessage: async (id: string, content: string, isInternal: boolean = false) => {
-    const response = await api.post(`/tickets/${id}/messages`, { content, is_internal: isInternal });
+  addMessage: async (id: string, content: string, isInternal: boolean = false, attachment?: string) => {
+    const response = await api.post(`/tickets/${id}/messages`, { content, is_internal: isInternal, attachment });
     return mapMessageFromApi(response.data);
   },
   getHistory: async (id: string) => {
