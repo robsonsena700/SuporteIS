@@ -5,6 +5,7 @@ import { HashRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ToastProvider } from './context/ToastContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error("Could not find root element");
@@ -14,9 +15,11 @@ root.render(
   <React.StrictMode>
     <AuthProvider>
       <NotificationProvider>
-        <HashRouter>
-          <App />
-        </HashRouter>
+        <ToastProvider>
+          <HashRouter>
+            <App />
+          </HashRouter>
+        </ToastProvider>
       </NotificationProvider>
     </AuthProvider>
   </React.StrictMode>

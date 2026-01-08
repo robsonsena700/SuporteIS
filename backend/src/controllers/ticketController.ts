@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+// Helper to log ticket history
 const logTicketHistory = async (
+  dbClient: any,
   ticketId: string,
   userId: string | undefined,
   changeType: string,
@@ -11,7 +13,7 @@ const logTicketHistory = async (
   details: string | null
 ) => {
   try {
-    await pool.query(
+    await dbClient.query(
       `INSERT INTO ticket_history (ticket_id, user_id, change_type, old_value, new_value, details)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [ticketId, userId || null, changeType, oldValue, newValue, details]
@@ -21,12 +23,40 @@ const logTicketHistory = async (
   }
 };
 
+// Helper to generate next code
+const getNextCode = async (prefix: string) => {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const pattern = `${prefix}-${year}%`;
+    
+    // Order by created_at desc to find the last one created
+    const res = await pool.query(
+        `SELECT code FROM tickets WHERE code LIKE $1 ORDER BY created_at DESC LIMIT 1`,
+        [pattern]
+    );
+    
+    let sequence = 1;
+    if (res.rows.length > 0) {
+        const lastCode = res.rows[0].code; // e.g., SUP-260005
+        const parts = lastCode.split('-');
+        if (parts.length === 2) {
+            const numPart = parts[1]; // 260005
+            if (numPart.startsWith(year)) {
+                const seqStr = numPart.substring(2);
+                const seq = parseInt(seqStr, 10);
+                if (!isNaN(seq)) sequence = seq + 1;
+            }
+        }
+    }
+    
+    return `${prefix}-${year}${String(sequence).padStart(4, '0')}`;
+};
+
 export const getTicketHistory = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
-    // Resolve ID if code provided (handle CH- prefix)
+    // Resolve ID if code provided (handle CH- prefix or new prefixes)
     let ticketId = id;
-    if (id.startsWith('CH-')) {
+    if (id.includes('-') && !id.match(/^[0-9a-fA-F-]{36}$/)) { // Simple UUID check
        const t = await pool.query('SELECT id FROM tickets WHERE code = $1', [id]);
        if (t.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
        ticketId = t.rows[0].id;
@@ -52,17 +82,19 @@ export const getTicketHistory = async (req: AuthRequest, res: Response) => {
 };
 
 export const getTickets = async (req: AuthRequest, res: Response) => {
-  console.log('GET /tickets called with query:', req.query);
+  // console.log('GET /tickets called with query:', req.query);
   try {
     const { startDate, endDate, status, priority, search, category } = req.query;
 
     let queryText = `
       SELECT t.*, 
              tech.name as technician_name, tech.avatar as technician_avatar,
-             creator.name as creator_name
+             creator.name as creator_name,
+             td.model, td.serial_number, td.warranty_info
       FROM tickets t
       LEFT JOIN users tech ON t.technician_id = tech.id
       LEFT JOIN users creator ON t.user_id = creator.id
+      LEFT JOIN ticket_details td ON t.id = td.ticket_id
       WHERE 1=1
     `;
     
@@ -103,7 +135,7 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
         paramIndex++;
     }
 
-    // Search Filter (Subject, Description, ID, Code, Technician, Creator)
+    // Search Filter (Subject, Description, ID, Code, Technician, Creator, Equipment, Serial)
     if (search) {
         queryText += ` AND (
             t.subject ILIKE $${paramIndex} OR 
@@ -111,7 +143,8 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
             t.id::text ILIKE $${paramIndex} OR
             t.code ILIKE $${paramIndex} OR
             tech.name ILIKE $${paramIndex} OR
-            creator.name ILIKE $${paramIndex}
+            creator.name ILIKE $${paramIndex} OR
+            td.serial_number ILIKE $${paramIndex}
         )`;
         queryParams.push(`%${search}%`);
         paramIndex++;
@@ -138,7 +171,7 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
     const result = await pool.query(queryText, queryParams);
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
+    console.error('Get Tickets Error:', error);
     res.status(500).json({ message: 'Erro ao buscar chamados' });
   }
 };
@@ -149,10 +182,12 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
     const ticketResult = await pool.query(`
       SELECT t.*, 
              tech.name as technician_name, tech.avatar as technician_avatar,
-             creator.name as creator_name
+             creator.name as creator_name,
+             td.model, td.serial_number, td.warranty_info
       FROM tickets t
       LEFT JOIN users tech ON t.technician_id = tech.id
       LEFT JOIN users creator ON t.user_id = creator.id
+      LEFT JOIN ticket_details td ON t.id = td.ticket_id
       WHERE t.id::text = $1 OR t.code = $1
     `, [id]);
 
@@ -181,55 +216,110 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
 };
 
 export const createTicket = async (req: AuthRequest, res: Response) => {
-  const { subject, description, equipment, client_name, priority, status, attachment } = req.body;
-  const code = 'CH-' + Math.floor(Math.random() * 10000); // Simple code generation
+  const { subject, description, equipment, client_name, priority, status, attachment, equipmentDetails } = req.body;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'Usuário não autenticado' });
+  }
 
   try {
-    const newTicket = await pool.query(
-      'INSERT INTO tickets (code, subject, description, equipment, client_name, priority, status, attachment, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [code, subject, description, equipment, client_name, priority, status || 'Aberto', attachment || null, req.user?.id]
-    );
+    // Determine prefix
+    const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
+    const isSystem = keywords.some(k => (equipment || '').toLowerCase().includes(k) || (subject || '').toLowerCase().includes(k));
+    const prefix = isSystem ? 'SUP' : 'EQP';
     
-    // Create initial message
-    if (description && req.user) {
-        // Need to ensure req.user.id is available. AuthMiddleware should provide it.
-        // Assuming current user is the creator (or client). 
-        // If client is creating, sender_id is req.user.id.
-        await pool.query(
-            'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4)',
-            [newTicket.rows[0].id, req.user.id, description, false]
+    console.log(`Generating code for ticket. Subject: "${subject}", Equipment: "${equipment}". Detected Prefix: ${prefix}`);
+
+    const code = await getNextCode(prefix);
+
+    // Start transaction
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const result = await client.query(
+          `INSERT INTO tickets (code, subject, equipment, description, priority, attachment, user_id, client_name, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [code, subject, equipment, description, priority, attachment, userId, client_name, status || 'Aberto']
         );
+        
+        const ticket = result.rows[0];
+
+        // Insert details if provided or basic equipment info
+        if (equipment || equipmentDetails) {
+            await client.query(
+                `INSERT INTO ticket_details (ticket_id, model, serial_number, warranty_info)
+                 VALUES ($1, $2, $3, $4)`,
+                [
+                    ticket.id, 
+                    equipmentDetails?.model || equipment, 
+                    equipmentDetails?.serialNumber || null, 
+                    equipmentDetails?.warranty || null
+                ]
+            );
+        }
+
+        // Create initial message if description is provided
+        if (description) {
+             await client.query(
+                'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4)',
+                [ticket.id, userId, description, false]
+            );
+        }
+
+        // Log creation
+        await logTicketHistory(client, ticket.id, userId, 'CREATE', null, 'Aberto', 'Chamado criado');
+
+        await client.query('COMMIT');
+        
+        // Return full ticket with mixed details
+        const fullTicket = {
+            ...ticket,
+            model: equipmentDetails?.model || equipment,
+            serial_number: equipmentDetails?.serialNumber || null,
+            warranty_info: equipmentDetails?.warranty || null
+        };
+        
+        res.status(201).json(fullTicket);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
     }
-
-    // Log History
-    await logTicketHistory(newTicket.rows[0].id, req.user?.id, 'CREATE', null, null, 'Chamado criado');
-
-    res.status(201).json(newTicket.rows[0]);
   } catch (error) {
-    console.error(error);
+    console.error('Create Ticket Error:', error);
     res.status(500).json({ message: 'Erro ao criar chamado' });
   }
 };
 
 export const updateTicket = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { status, priority, technician_id, rating, feedback } = req.body;
+  const { status, priority, technician_id, rating, feedback, equipment, serial_number, description } = req.body;
+  const userId = req.user?.id;
 
   try {
-    // Fetch current ticket to validate rules
-    const currentTicketRes = await pool.query('SELECT * FROM tickets WHERE id::text = $1 OR code = $1', [id]);
-    if (currentTicketRes.rows.length === 0) {
-        return res.status(404).json({ message: 'Chamado não encontrado' });
+    // Get current ticket
+    const currentRes = await pool.query(`
+        SELECT t.*, td.serial_number 
+        FROM tickets t 
+        LEFT JOIN ticket_details td ON t.id = td.ticket_id 
+        WHERE t.id::text = $1 OR t.code = $1`, [id]);
+        
+    if (currentRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Chamado não encontrado' });
     }
-    const currentTicket = currentTicketRes.rows[0];
+    const currentTicket = currentRes.rows[0];
 
-    // Permission Check: Clients cannot update tickets directly (Except Reopen)
+    // Permission Check: Clients cannot update tickets directly (Except Reopen/Rating)
     if (req.user?.role === 'Cliente') {
-        // Allow if adding rating (Client is Creator)
         const isRating = currentTicket.status === 'Resolvido' && rating;
+        const isReopen = currentTicket.status === 'Resolvido' && status && status !== 'Resolvido';
 
-        if (!isRating) {
-            return res.status(403).json({ message: 'Permissão negada. Apenas Responsável ou Admin podem reabrir chamados.' });
+        if (!isRating && !isReopen) {
+            return res.status(403).json({ message: 'Permissão negada. Apenas Responsável ou Admin podem modificar chamados.' });
         }
     }
 
@@ -238,108 +328,136 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
         const resolvedAt = new Date(currentTicket.resolved_at || currentTicket.updated_at);
         const now = new Date();
         const diffHours = (now.getTime() - resolvedAt.getTime()) / (1000 * 60 * 60);
-        
         const REOPEN_WINDOW_HOURS = 24; 
 
         if (diffHours > REOPEN_WINDOW_HOURS) {
-            // Log rejected attempt
-            await logTicketHistory(currentTicket.id, req.user?.id, 'REOPEN_ATTEMPT', 'Resolvido', status, `Tentativa de reabertura rejeitada (> ${REOPEN_WINDOW_HOURS}h)`);
+            await logTicketHistory(pool, currentTicket.id, userId, 'REOPEN_ATTEMPT', 'Resolvido', status, `Tentativa de reabertura rejeitada (> ${REOPEN_WINDOW_HOURS}h)`);
             return res.status(400).json({ message: 'Este chamado foi resolvido há mais de 24 horas. Por favor, abra um novo chamado.' });
         }
-        
-        // Log successful reopen
-        await logTicketHistory(currentTicket.id, req.user?.id, 'REOPEN', 'Resolvido', status, 'Chamado reaberto');
+        await logTicketHistory(pool, currentTicket.id, userId, 'REOPEN', 'Resolvido', status, 'Chamado reaberto');
     }
 
-    // Prepare dynamic update parts
-    let additionalUpdates = '';
-    if (technician_id) additionalUpdates += ', assigned_at = NOW()';
-    if (status === 'Resolvido' && currentTicket.status !== 'Resolvido') {
-        additionalUpdates += ', resolved_at = NOW()';
-        
-        // Notify Creator if resolved by someone else
-        if (req.user?.id !== currentTicket.user_id) {
+    // Validate Technician on Resolve/Complete
+    if ((status === 'Resolvido' || status === 'Concluído') && status !== currentTicket.status) {
+        const nextTechId = technician_id !== undefined ? technician_id : currentTicket.technician_id;
+        if (!nextTechId) {
+             return res.status(400).json({ message: 'Não é possível encerrar o chamado sem um Responsável Técnico definido.' });
+        }
+    }
+
+    // Build update query
+    let updateQuery = 'UPDATE tickets SET updated_at = NOW()';
+    const params = [currentTicket.id]; // Use ID for update
+    let paramIndex = 2;
+    let historyLogs: Promise<any>[] = [];
+
+    if (status && status !== currentTicket.status) {
+      updateQuery += `, status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+      
+      if (status === 'Em Andamento' && !currentTicket.assigned_at) {
+          updateQuery += `, assigned_at = NOW()`;
+      }
+      if (status === 'Resolvido' && !currentTicket.resolved_at) {
+          updateQuery += `, resolved_at = NOW()`;
+          
+          // Notify Creator
+          if (userId !== currentTicket.user_id) {
              try {
                  await pool.query(
                      'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
                      [currentTicket.user_id, 'status_change', currentTicket.id, 'Seu chamado foi resolvido. Por favor, avalie o atendimento.']
                  );
              } catch (e) { console.warn('Notification failed', e); }
+          }
+      }
+      
+      historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'STATUS', currentTicket.status, status, `Status alterado para ${status}`));
+    }
+
+    if (priority && priority !== currentTicket.priority) {
+      updateQuery += `, priority = $${paramIndex}`;
+      params.push(priority);
+      paramIndex++;
+      historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'PRIORITY', currentTicket.priority, priority, `Prioridade alterada para ${priority}`));
+    }
+
+    if (technician_id && technician_id !== currentTicket.technician_id) {
+      updateQuery += `, technician_id = $${paramIndex}`;
+      if (!currentTicket.assigned_at) {
+          updateQuery += `, assigned_at = NOW()`;
+      }
+      params.push(technician_id);
+      paramIndex++;
+      
+      historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'ASSIGNMENT', currentTicket.technician_id, technician_id, `Atribuído a novo técnico`));
+    }
+    
+    if (equipment && equipment !== currentTicket.equipment) {
+        updateQuery += `, equipment = $${paramIndex}`;
+        params.push(equipment);
+        paramIndex++;
+        historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'EQUIPMENT', currentTicket.equipment, equipment, `Equipamento alterado`));
+    }
+
+    if (rating !== undefined) {
+       updateQuery += `, rating = $${paramIndex}`;
+       params.push(rating);
+       paramIndex++;
+       historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'RATING', currentTicket.rating ? String(currentTicket.rating) : null, String(rating), `Avaliação: ${rating} estrelas`));
+    }
+    if (feedback !== undefined) {
+       updateQuery += `, feedback = $${paramIndex}`;
+       params.push(feedback);
+       paramIndex++;
+       historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'FEEDBACK', currentTicket.feedback, feedback, 'Feedback atualizado'));
+    }
+
+    // Execute Ticket Update
+    if (params.length > 1) { 
+        updateQuery += ` WHERE id = $1 RETURNING *`;
+        await pool.query(updateQuery, params);
+    }
+    
+    // Update Ticket Details (Serial Number & Model)
+    if (serial_number !== undefined || equipment !== undefined) {
+        const newSerial = serial_number !== undefined ? serial_number : currentTicket.serial_number;
+        const newModel = equipment !== undefined ? equipment : (currentTicket.model || currentTicket.equipment);
+
+        if (newSerial !== currentTicket.serial_number || newModel !== currentTicket.model) {
+            // Upsert ticket_details
+            await pool.query(`
+                INSERT INTO ticket_details (ticket_id, serial_number, model)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (ticket_id) 
+                DO UPDATE SET serial_number = EXCLUDED.serial_number, model = EXCLUDED.model
+            `, [currentTicket.id, newSerial, newModel]);
+            
+            if (serial_number !== undefined && serial_number !== currentTicket.serial_number) {
+                historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'SERIAL_NUMBER', currentTicket.serial_number, serial_number, 'Serial Number / Tombamento atualizado'));
+            }
         }
     }
 
-    // Rating Logic: Only Creator can rate
-    const canRate = req.user?.id === currentTicket.user_id;
-    const ratingToUpdate = canRate ? rating : null;
-    const feedbackToUpdate = canRate ? feedback : null;
+    await Promise.all(historyLogs);
 
-    const params = [
-        status ?? null, 
-        priority ?? null, 
-        technician_id ?? null, 
-        ratingToUpdate ?? null,
-        feedbackToUpdate ?? null,
-        id
-    ];
-    
-    let query = `
-        UPDATE tickets 
-        SET 
-            status = COALESCE($1, status), 
-            priority = COALESCE($2, priority), 
-            technician_id = COALESCE($3, technician_id), 
-            rating = COALESCE($4, rating),
-            feedback = COALESCE($5, feedback),
-            updated_at = NOW()
-            ${additionalUpdates}
-        WHERE id::text = $6 OR code = $6 
-        RETURNING *
-    `;
+    // Fetch updated ticket to return
+    const result = await pool.query(`
+      SELECT t.*, 
+             tech.name as technician_name, tech.avatar as technician_avatar,
+             creator.name as creator_name,
+             td.model, td.serial_number, td.warranty_info
+      FROM tickets t
+      LEFT JOIN users tech ON t.technician_id = tech.id
+      LEFT JOIN users creator ON t.user_id = creator.id
+      LEFT JOIN ticket_details td ON t.id = td.ticket_id
+      WHERE t.id = $1
+    `, [currentTicket.id]);
 
-    console.log(`[Ticket] Updating ticket ${id}:`, { status, priority, technician_id, rating: ratingToUpdate });
-
-    const updatedTicket = await pool.query(query, params);
-    const newTicketData = updatedTicket.rows[0];
-
-    // --- Log History for Changes ---
-    
-    // Status Change
-    if (status && status !== currentTicket.status) {
-        await logTicketHistory(newTicketData.id, req.user?.id, 'STATUS', currentTicket.status, status, `Status alterado para ${status}`);
-    }
-
-    // Priority Change
-    if (priority && priority !== currentTicket.priority) {
-        await logTicketHistory(newTicketData.id, req.user?.id, 'PRIORITY', currentTicket.priority, priority, `Prioridade alterada para ${priority}`);
-    }
-
-    // Technician Assignment
-    if (technician_id && technician_id !== currentTicket.technician_id) {
-        // Fetch tech name for better details
-        let techName = technician_id;
-        try {
-            const techRes = await pool.query('SELECT name FROM users WHERE id = $1', [technician_id]);
-            if (techRes.rows.length > 0) techName = techRes.rows[0].name;
-        } catch (e) {}
-        
-        await logTicketHistory(newTicketData.id, req.user?.id, 'ASSIGNMENT', currentTicket.technician_id, technician_id, `Atribuído a ${techName}`);
-    }
-
-    // Rating
-    if (ratingToUpdate && (!currentTicket.rating || ratingToUpdate !== currentTicket.rating)) {
-        await logTicketHistory(newTicketData.id, req.user?.id, 'RATING', currentTicket.rating ? String(currentTicket.rating) : null, String(ratingToUpdate), `Avaliação: ${ratingToUpdate} estrelas`);
-        // Keep audit log for backward compatibility if needed, or just rely on history.
-        // The previous code had audit log, we can keep it or replace it. I'll replace it with history as it serves the same purpose but better.
-    }
-    
-    // Feedback
-    if (feedbackToUpdate && (!currentTicket.feedback || feedbackToUpdate !== currentTicket.feedback)) {
-         await logTicketHistory(newTicketData.id, req.user?.id, 'FEEDBACK', currentTicket.feedback, feedbackToUpdate, 'Feedback de avaliação atualizado');
-    }
-
-    res.json(newTicketData);
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
+    console.error('Update Ticket Error:', error);
     res.status(500).json({ message: 'Erro ao atualizar chamado' });
   }
 };
@@ -353,7 +471,7 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
       let ticketId = id;
       let ticketResult;
       
-      if (id.startsWith('CH-')) {
+      if (id.startsWith('CH-') || id.startsWith('SUP-') || id.startsWith('EQP-')) { // Updated prefix check
           ticketResult = await pool.query('SELECT id, technician_id, user_id, code, status FROM tickets WHERE code = $1', [id]);
       } else {
           ticketResult = await pool.query('SELECT id, technician_id, user_id, code, status FROM tickets WHERE id = $1', [id]);
@@ -369,7 +487,6 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
       ticketId = ticketResult.rows[0].id;
       const currentTechnicianId = ticketResult.rows[0].technician_id;
       const ticketOwnerId = ticketResult.rows[0].user_id;
-      const ticketCode = ticketResult.rows[0].code || 'CH-???';
 
       // Insert Message
       const newMessage = await pool.query(
@@ -378,18 +495,16 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
       );
 
       // Log History
-      await logTicketHistory(ticketId, req.user?.id, 'MESSAGE', null, content, 'Nova mensagem adicionada');
+      await logTicketHistory(pool, ticketId, req.user?.id, 'MESSAGE', null, content, 'Nova mensagem adicionada');
 
       // Notification Logic (Non-blocking)
       try {
         const senderId = req.user?.id;
         if (senderId && !is_internal) {
-            // Fetch sender name
             const senderRes = await pool.query('SELECT name FROM users WHERE id = $1', [senderId]);
             const senderName = senderRes.rows[0]?.name || 'Usuário';
 
             if (senderId === ticketOwnerId) {
-                // Client sent message -> Notify Technician
                 if (currentTechnicianId) {
                     await pool.query(
                         'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
@@ -397,7 +512,6 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
                     );
                 }
             } else {
-                // Technician/Admin sent message -> Notify Client
                 if (ticketOwnerId) {
                     await pool.query(
                         'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
@@ -408,38 +522,24 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
         }
       } catch (notifError) {
           console.error('Error sending notification:', notifError);
-          // Do not fail the request
       }
 
-      // Auto-assign Logic (Non-blocking)
+      // Auto-assign Logic
       try {
         if (
             (currentTechnicianId === null || currentTechnicianId === undefined) && 
             req.user && 
             (req.user.role === 'Técnico' || req.user.role === 'Administrador')
         ) {
-            console.log(`Auto-assigning ticket ${ticketId} to user ${req.user.id} (${req.user.role})`);
             await pool.query(
                 'UPDATE tickets SET technician_id = $1, assigned_at = NOW(), updated_at = NOW(), last_interaction = NOW(), status = $3 WHERE id = $2',
                 [req.user.id, ticketId, 'Em Andamento']
             );
-
-            // Audit Log (Optional)
-            try {
-                await pool.query(
-                    'INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)',
-                    ['AUTO_ASSIGN', ticketId, req.user.id, 'Técnico atribuído automaticamente na primeira resposta']
-                );
-            } catch (auditError) {
-                console.warn('Audit log failed (table might be missing):', auditError);
-            }
         } else {
-            // Just update last_interaction
             await pool.query('UPDATE tickets SET updated_at = NOW(), last_interaction = NOW() WHERE id = $1', [ticketId]);
         }
       } catch (assignError) {
           console.error('Error in auto-assign logic:', assignError);
-          // Do not fail the request
       }
       
       res.status(201).json(newMessage.rows[0]);

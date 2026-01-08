@@ -61,10 +61,10 @@ const mapTicketFromApi = (data: any): Ticket => ({
   creatorName: data.creator_name,
   creatorId: data.user_id,
   attachment: data.attachment,
-  equipmentDetails: { // Placeholder or map if available
-    model: data.equipment,
-    serialNumber: 'N/A',
-    warranty: 'N/A'
+  equipmentDetails: {
+    model: data.model || data.equipment,
+    serialNumber: data.serial_number || 'N/A',
+    warranty: data.warranty_info || 'N/A'
   }
 });
 
@@ -155,7 +155,8 @@ export const TicketService = {
       client_name: ticket.clientName, // Map to snake_case
       priority: ticket.priority,
       status: ticket.status,
-      attachment: ticket.attachment
+      attachment: ticket.attachment,
+      equipmentDetails: ticket.equipmentDetails
     };
     const response = await api.post('/tickets', payload);
     return mapTicketFromApi(response.data);
@@ -168,6 +169,11 @@ export const TicketService = {
     // Legacy support if 'technician' is passed as ID (should avoid this ambiguity, but keeping for safety if used elsewhere)
     if (updates.technician && !updates.technicianId) payload.technician_id = updates.technician;
     
+    // Map serial number from equipmentDetails
+    if (updates.equipmentDetails?.serialNumber) {
+        payload.serial_number = updates.equipmentDetails.serialNumber;
+    }
+
     const response = await api.put(`/tickets/${id}`, payload);
     return mapTicketFromApi(response.data);
   },

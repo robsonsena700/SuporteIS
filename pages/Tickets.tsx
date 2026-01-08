@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Ticket, TicketStatus, TicketPriority, User, Message } from '../types';
-import { mockUsers } from '../mockData';
-import { TicketService } from '../services/api';
+import { TicketService, UserService } from '../services/api';
 import TicketDetailModal from '../components/TicketDetailModal';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +26,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const [activeTab, setActiveTab] = useState<'Sistema' | 'Equipamento' | 'Concluído'>('Sistema');
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Ticket; direction: 'asc' | 'desc' } | null>(null);
+  const [technicians, setTechnicians] = useState<User[]>([]);
 
   // Helper to check for unread messages related to ticket
   const hasUnreadMessages = (ticketId: string) => {
@@ -36,6 +36,20 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   useEffect(() => {
     setLocalTickets(tickets);
   }, [tickets]);
+
+  // Fetch Technicians
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      try {
+        const users = await UserService.getAll();
+        const techUsers = users.filter(u => u.profile === 'Suporte Técnico' || u.profile === 'Administrador');
+        setTechnicians(techUsers);
+      } catch (error) {
+        console.error('Failed to fetch technicians', error);
+      }
+    };
+    fetchTechnicians();
+  }, []);
 
   // Handle auto-open from notification
   useEffect(() => {
@@ -123,13 +137,17 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
     if (activeTab === 'Sistema') {
         const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
-        const textToCheck = (t.equipment + ' ' + t.subject).toLowerCase();
+        const equipment = t.equipment || '';
+        const subject = t.subject || '';
+        const textToCheck = (equipment + ' ' + subject).toLowerCase();
         return keywords.some(k => textToCheck.includes(k));
     }
     
     if (activeTab === 'Equipamento') {
         const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
-        const textToCheck = (t.equipment + ' ' + t.subject).toLowerCase();
+        const equipment = t.equipment || '';
+        const subject = t.subject || '';
+        const textToCheck = (equipment + ' ' + subject).toLowerCase();
         return !keywords.some(k => textToCheck.includes(k));
     }
 
@@ -213,8 +231,6 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
       onUpdate(updatedTicket); // Propagate up if needed
       setSelectedTicket(updatedTicket);
   };
-
-  const technicians = mockUsers.filter(u => u.profile === 'Suporte Técnico' || u.profile === 'Administrador');
 
   const showRating = activeTab === 'Concluído' && (user?.profile === 'Cliente' || user?.profile === 'Administrador');
 
@@ -334,6 +350,16 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-dark">
+              {sortedTickets.length === 0 && (
+                <tr>
+                  <td colSpan={showRating ? 8 : 7} className="px-6 py-8 text-center text-text-muted">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="material-symbols-outlined text-3xl">inbox</span>
+                      <p>Nenhum chamado encontrado nesta categoria.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {sortedTickets.map((ticket) => (
                 <tr 
                     key={ticket.id} 
@@ -423,14 +449,13 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
         </div>
       </div>
 
-      {selectedTicket && createPortal(
-        <TicketDetailModal 
+      {selectedTicket && (
+        <TicketDetailModal
           ticket={selectedTicket}
           technicians={technicians}
           onClose={() => setSelectedTicket(null)}
           onUpdate={handleModalUpdate}
-        />,
-        document.body
+        />
       )}
     </div>
   );

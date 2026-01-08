@@ -34,13 +34,14 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
              // Support Technician logic
              // Check profile OR role to be safe (profile is in JWT now, role is DB column)
              if (user.profile === 'Suporte Técnico' || user.role === 'Suporte Técnico' || user.role === 'Técnico') {
-                 roleCondition = `AND t.technician_id = $${paramIndex}`;
+                 // Show tickets assigned to them OR created by them
+                 roleCondition = `AND (t.technician_id = $${paramIndex} OR t.user_id = $${paramIndex})`;
                  params.push(user.id);
                  paramIndex++;
              } 
-             // Admin logic - if they want to see "My Tickets", assume assigned to them
+             // Admin logic - if they want to see "My Tickets", assume assigned to them or created by them
              else if (user.role === 'Administrador' || user.profile === 'Administrador') {
-                 roleCondition = `AND t.technician_id = $${paramIndex}`;
+                 roleCondition = `AND (t.technician_id = $${paramIndex} OR t.user_id = $${paramIndex})`;
                  params.push(user.id);
                  paramIndex++;
              }

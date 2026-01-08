@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, TicketPriority, User, Message, TicketHistory } from '../types';
+import { Ticket, TicketStatus, TicketPriority, User, TicketHistory } from '../types';
 import { TicketService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { canReopenTicket } from '../utils/dateUtils';
 
 interface TicketDetailModalProps {
@@ -14,6 +15,7 @@ interface TicketDetailModalProps {
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicians, onClose, onUpdate }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const [replyText, setReplyText] = useState('');
   const [showTransferList, setShowTransferList] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -21,19 +23,41 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // History State
   const [history, setHistory] = useState<TicketHistory[]>([]);
-  const [activeTab, setActiveTab] = useState<'messages' | 'history'>('messages');
+  const [activeTab, setActiveTab] = useState<'messages' | 'history' | 'details'>('messages');
   const [historyFilter, setHistoryFilter] = useState('');
   const [historySearch, setHistorySearch] = useState('');
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (modalRef.current) {
+      modalRef.current.focus();
+    }
+  }, []);
 
   const [selectedAttachment, setSelectedAttachment] = useState<{ name: string, content: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    priority: ticket.priority,
+    status: ticket.status,
+    model: ticket.equipmentDetails?.model || ticket.equipment || '',
+    serialNumber: ticket.equipmentDetails?.serialNumber || ''
+  });
+
   // Sync with prop updates
   useEffect(() => {
     setLocalTicket(ticket);
+    setEditForm({
+      priority: ticket.priority,
+      status: ticket.status,
+      model: ticket.equipmentDetails?.model || ticket.equipment || '',
+      serialNumber: ticket.equipmentDetails?.serialNumber || ''
+    });
   }, [ticket]);
 
   useEffect(() => {
@@ -99,6 +123,42 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
     }
   };
 
+  const handleSaveEdit = async () => {
+      try {
+          const updates: any = {};
+          if (editForm.priority !== localTicket.priority) updates.priority = editForm.priority;
+          if (editForm.status !== localTicket.status) updates.status = editForm.status;
+          
+          const currentModel = localTicket.equipmentDetails?.model || localTicket.equipment;
+          const currentSerial = localTicket.equipmentDetails?.serialNumber;
+
+          if (editForm.model !== currentModel || editForm.serialNumber !== currentSerial) {
+              updates.equipmentDetails = {
+                  model: editForm.model,
+                  serialNumber: editForm.serialNumber
+              };
+              // Also update legacy equipment field if model changed
+              if (editForm.model !== currentModel) {
+                  updates.equipment = editForm.model;
+              }
+          }
+
+          if (Object.keys(updates).length === 0) {
+              setIsEditing(false);
+              return;
+          }
+
+          const updated = await TicketService.update(localTicket.id, updates);
+          setLocalTicket(updated);
+          onUpdate(updated);
+          setIsEditing(false);
+          toast.success('Detalhes do chamado atualizados.');
+      } catch (error: any) {
+          console.error('Failed to update ticket details', error);
+          toast.error('Erro ao atualizar detalhes do chamado.');
+      }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -118,13 +178,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   };
 
   const handleSendMessage = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || isSubmitting) return;
 
     // Ensure assignment before sending if needed
     if (!localTicket.technicianId && user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador')) {
         await handleInteractionStart();
     }
 
+    setIsSubmitting(true);
     try {
       const newMessage = await TicketService.addMessage(localTicket.id, replyText, false);
       
@@ -137,7 +198,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
     } catch (error: any) {
       console.error('Failed to send message', error);
       const errorMessage = error.response?.data?.message || 'Erro ao enviar mensagem. Tente novamente.';
-      alert(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -149,14 +212,16 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         setLocalTicket(refreshed);
         onUpdate(refreshed);
         setShowTransferList(false);
+        toast.success(`Chamado transferido para ${technician.name}.`);
     } catch (error: any) {
         console.error('Failed to transfer ticket', error);
         const errorMessage = error.response?.data?.message || 'Erro ao transferir chamado.';
-        alert(errorMessage);
+        toast.error(errorMessage);
     }
   };
 
   const isClient = user?.profile === 'Cliente';
+  const canEdit = user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador';
 
   const filteredHistory = history.filter(h => {
       if (historyFilter && h.changeType !== historyFilter) return false;
@@ -179,14 +244,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         const updated = await TicketService.update(localTicket.id, { status: TicketStatus.OPEN });
         onUpdate(updated);
         setLocalTicket(updated);
+        toast.success('Chamado reaberto com sucesso.');
     } catch (error: any) {
         console.error('Failed to reopen ticket', error);
         const errorMessage = error.response?.data?.message || 'Erro ao reabrir chamado.';
-        alert(errorMessage);
+        toast.error(errorMessage);
     }
   };
 
   const handleResolve = async () => {
+    // Check if technician is assigned
+    if (!localTicket.technicianId) {
+        toast.warning('Não é possível encerrar o chamado sem um Responsável Técnico definido. Por favor, atribua um técnico antes de resolver.');
+        return;
+    }
+
     // If Creator, show rating modal
     if (isCreator) {
         setShowRatingModal(true);
@@ -199,10 +271,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
             const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
             onUpdate(updated);
             setLocalTicket(updated);
-            alert('Chamado resolvido com sucesso.');
+            toast.success('Chamado resolvido com sucesso.');
         } catch (error: any) {
             console.error('Failed to resolve ticket', error);
-            alert('Erro ao resolver chamado.');
+            toast.error('Erro ao resolver chamado.');
         }
     }
   };
@@ -210,7 +282,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const submitResolution = async () => {
     if (rating === 0) return;
     if (rating <= 2 && !feedback.trim()) {
-        alert('Por favor, informe o motivo da insatisfação.');
+        toast.warning('Por favor, informe o motivo da insatisfação.');
         return;
     }
 
@@ -224,10 +296,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         onUpdate(updated);
         setLocalTicket(updated);
         setShowRatingModal(false);
+        toast.success('Chamado avaliado e resolvido com sucesso.');
     } catch (error: any) {
         console.error('Failed to resolve ticket', error);
         const errorMessage = error.response?.data?.message || 'Erro ao resolver chamado.';
-        alert(errorMessage);
+        toast.error(errorMessage);
     }
   };
 
@@ -248,8 +321,19 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="bg-[#111827] border border-[#1f2937] w-full h-full lg:h-[90vh] lg:max-w-[1200px] lg:rounded-2xl rounded-none flex flex-col shadow-2xl overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+    <div 
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm" 
+        onClick={onClose} 
+        role="dialog" 
+        aria-modal="true"
+        aria-labelledby="modal-title"
+    >
+      <div 
+        ref={modalRef}
+        tabIndex={-1}
+        className="bg-[#111827] border border-[#1f2937] w-full h-full lg:h-[90vh] lg:max-w-[1200px] lg:rounded-2xl rounded-none flex flex-col shadow-2xl overflow-hidden outline-none" 
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <header className="p-3 md:p-6 border-b border-[#1f2937] flex justify-between items-start bg-[#111827] shrink-0">
@@ -259,7 +343,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
               <div className={`size-2 rounded-full shadow-[0_0_8px] ${localTicket.status === TicketStatus.RESOLVED ? 'bg-success shadow-success/50' : 'bg-primary shadow-primary/80'}`}></div>
             </div>
             <div>
-              <h2 className="text-white text-lg font-bold leading-tight line-clamp-1">{localTicket.subject}</h2>
+              <h2 id="modal-title" className="text-white text-lg font-bold leading-tight line-clamp-1">{localTicket.subject}</h2>
               <p className="text-text-muted text-xs">{localTicket.clientName} • Criado em {localTicket.createdAt}</p>
             </div>
           </div>
@@ -294,7 +378,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px]">
           
           {/* Chat/History Section */}
-          <div className="flex flex-col h-full bg-[#111827] border-r border-[#1f2937] min-h-0">
+          <div className={`flex flex-col h-full bg-[#111827] border-r border-[#1f2937] min-h-0 ${activeTab === 'details' ? 'hidden lg:flex' : 'flex'}`}>
             
             {/* Tabs */}
             <div className="flex items-center gap-6 px-6 border-b border-[#1f2937] shrink-0 bg-[#111827]">
@@ -316,7 +400,17 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                     : 'border-transparent text-text-secondary hover:text-white'
                 }`}
               >
-                Tudo
+                Histórico
+              </button>
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`lg:hidden h-12 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'details'
+                    ? 'border-primary text-white'
+                    : 'border-transparent text-text-secondary hover:text-white'
+                }`}
+              >
+                Detalhes
               </button>
             </div>
 
@@ -326,7 +420,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                         {/* Messages */}
                         <div className="flex flex-col gap-5">
                             {localTicket.messages && localTicket.messages.map((msg, i) => (
-                            <div key={i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
+                            <div key={msg.id || i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
                                 <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
                                 {msg.senderName ? msg.senderName[0] : '?'}
                                 </div>
@@ -402,10 +496,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                                     </button>
                                     <button 
                                     onClick={handleSendMessage}
-                                    disabled={!replyText.trim() && !selectedAttachment}
-                                    className="px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={(!replyText.trim() && !selectedAttachment) || isSubmitting}
+                                    className={`px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
-                                    Enviar Resposta
+                                    {isSubmitting ? 'Enviando...' : 'Enviar Resposta'}
                                     </button>
                                 </div>
                             </>
@@ -509,21 +603,84 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
           </div>
 
           {/* Sidebar Info */}
-          <div className="hidden lg:flex flex-col h-full bg-[#111827] p-6 gap-6 overflow-y-auto border-l border-[#1f2937]">
+          <div className={`flex-col h-full bg-[#111827] p-6 gap-6 overflow-y-auto border-l border-[#1f2937] ${activeTab === 'details' ? 'flex' : 'hidden lg:flex'}`}>
             
+            <div className="flex justify-between items-center">
+                 <h3 className="text-white text-sm font-bold">Detalhes</h3>
+                 {canEdit && (
+                     !isEditing ? (
+                        <button 
+                            onClick={() => setIsEditing(true)}
+                            className="text-primary text-xs hover:text-white transition-colors"
+                        >
+                            Editar
+                        </button>
+                     ) : (
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={handleSaveEdit}
+                                className="text-green-500 text-xs hover:text-white transition-colors font-bold"
+                            >
+                                Salvar
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    // Reset form
+                                    setEditForm({
+                                        priority: localTicket.priority,
+                                        status: localTicket.status,
+                                        model: localTicket.equipmentDetails?.model || localTicket.equipment || '',
+                                        serialNumber: localTicket.equipmentDetails?.serialNumber || ''
+                                    });
+                                }}
+                                className="text-red-500 text-xs hover:text-white transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                     )
+                 )}
+            </div>
+
             {/* Status Card */}
             <div className="bg-[#1a2233]/40 border border-[#374151] rounded-xl p-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                     <span className="text-[#9ca3af] text-[11px]">Prioridade</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${localTicket.priority === TicketPriority.HIGH ? 'text-red-400 bg-red-400/10' : 'text-blue-400 bg-blue-400/10'}`}>
-                        {localTicket.priority}
-                    </span>
+                    {isEditing ? (
+                        <select
+                            value={editForm.priority}
+                            onChange={(e) => setEditForm({...editForm, priority: e.target.value as TicketPriority})}
+                            className="bg-[#111827] border border-[#374151] rounded text-[10px] text-white px-1 py-0.5 outline-none focus:border-primary"
+                        >
+                            <option value={TicketPriority.LOW}>{TicketPriority.LOW}</option>
+                            <option value={TicketPriority.MEDIUM}>{TicketPriority.MEDIUM}</option>
+                            <option value={TicketPriority.HIGH}>{TicketPriority.HIGH}</option>
+                        </select>
+                    ) : (
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${localTicket.priority === TicketPriority.HIGH ? 'text-red-400 bg-red-400/10' : 'text-blue-400 bg-blue-400/10'}`}>
+                            {localTicket.priority}
+                        </span>
+                    )}
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-[#9ca3af] text-[11px]">Status</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${localTicket.status === TicketStatus.RESOLVED ? 'text-green-400 bg-green-400/10' : 'text-primary bg-primary/10'}`}>
-                        {localTicket.status}
-                    </span>
+                    {isEditing ? (
+                        <select
+                            value={editForm.status}
+                            onChange={(e) => setEditForm({...editForm, status: e.target.value as TicketStatus})}
+                            className="bg-[#111827] border border-[#374151] rounded text-[10px] text-white px-1 py-0.5 outline-none focus:border-primary"
+                        >
+                            <option value={TicketStatus.OPEN}>{TicketStatus.OPEN}</option>
+                            <option value={TicketStatus.IN_ANALYSIS}>{TicketStatus.IN_ANALYSIS}</option>
+                            <option value={TicketStatus.IN_PROGRESS}>{TicketStatus.IN_PROGRESS}</option>
+                            <option value={TicketStatus.RESOLVED}>{TicketStatus.RESOLVED}</option>
+                        </select>
+                    ) : (
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${localTicket.status === TicketStatus.RESOLVED ? 'text-green-400 bg-green-400/10' : 'text-primary bg-primary/10'}`}>
+                            {localTicket.status}
+                        </span>
+                    )}
                 </div>
                 
                 <div className="h-px bg-[#374151] my-1"></div>
@@ -580,11 +737,31 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                 <div className="bg-[#1a2233]/40 border border-[#374151] rounded-xl p-4 flex flex-col gap-3">
                     <div>
                         <span className="text-[#6b7280] text-[9px] uppercase font-bold tracking-wider block mb-1">Equipamento</span>
-                        <span className="text-white text-[11px] font-bold">{localTicket.equipmentDetails?.model || localTicket.equipment}</span>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={editForm.model}
+                                onChange={(e) => setEditForm({...editForm, model: e.target.value})}
+                                className="w-full bg-[#111827] border border-[#374151] rounded text-[10px] text-white px-2 py-1 outline-none focus:border-primary"
+                                placeholder="Modelo do equipamento"
+                            />
+                        ) : (
+                            <span className="text-white text-[11px] font-bold">{localTicket.equipmentDetails?.model || localTicket.equipment}</span>
+                        )}
                     </div>
                      <div>
                         <span className="text-[#6b7280] text-[9px] uppercase font-bold tracking-wider block mb-1">Serial Number</span>
-                        <span className="text-white text-[11px] font-mono">{localTicket.equipmentDetails?.serialNumber || 'N/A'}</span>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={editForm.serialNumber}
+                                onChange={(e) => setEditForm({...editForm, serialNumber: e.target.value})}
+                                className="w-full bg-[#111827] border border-[#374151] rounded text-[10px] text-white px-2 py-1 outline-none focus:border-primary font-mono"
+                                placeholder="Número de Série"
+                            />
+                        ) : (
+                            <span className="text-white text-[11px] font-mono">{localTicket.equipmentDetails?.serialNumber || 'N/A'}</span>
+                        )}
                     </div>
                 </div>
             </div>
