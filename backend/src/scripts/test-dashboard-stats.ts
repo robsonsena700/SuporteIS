@@ -1,6 +1,12 @@
 
 import { pool } from '../config/database';
-import { TicketStatus } from '../../../types';
+
+enum TicketStatus {
+  OPEN = 'Aberto',
+  IN_ANALYSIS = 'Em Análise',
+  IN_PROGRESS = 'Em Andamento',
+  RESOLVED = 'Resolvido'
+}
 
 // Mock types for local test
 interface MockUser {

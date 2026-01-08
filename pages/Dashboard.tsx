@@ -68,7 +68,7 @@ const Dashboard: React.FC = () => {
       color: 'text-blue-400' 
     },
     { 
-      label: 'Satisfação Média', 
+      label: 'Média Satisfação', 
       value: stats.averageRating, 
       trend: 'Avaliação', 
       trendType: Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down', 

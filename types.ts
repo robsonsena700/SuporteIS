@@ -9,7 +9,8 @@ export enum TicketStatus {
 export enum TicketPriority {
   LOW = 'Baixa',
   MEDIUM = 'Média',
-  HIGH = 'Alta'
+  HIGH = 'Alta',
+  CRITICAL = 'Crítica'
 }
 
 export interface User {
@@ -44,6 +45,9 @@ export interface Ticket {
   subject: string;
   equipment: string;
   clientName: string;
+  unit?: string;
+  municipality?: string;
+  uf?: string;
   priority: TicketPriority;
   status: TicketStatus;
   technician?: string;

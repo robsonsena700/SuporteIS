@@ -20,8 +20,8 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' })); // Increase limit for Base64 images
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' })); // Increase limit for Base64 images
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Rate Limiting
 const limiter = rateLimit({

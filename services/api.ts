@@ -46,6 +46,9 @@ const mapTicketFromApi = (data: any): Ticket => ({
   subject: data.subject,
   equipment: data.equipment,
   clientName: data.client_name,
+  unit: data.unit,
+  municipality: data.municipality,
+  uf: data.uf,
   priority: data.priority as TicketPriority,
   status: data.status as TicketStatus,
   technician: data.technician_name,
@@ -61,6 +64,8 @@ const mapTicketFromApi = (data: any): Ticket => ({
   creatorName: data.creator_name,
   creatorId: data.user_id,
   attachment: data.attachment,
+  rating: data.rating,
+  feedback: data.feedback,
   equipmentDetails: {
     model: data.model || data.equipment,
     serialNumber: data.serial_number || 'N/A',
@@ -153,6 +158,9 @@ export const TicketService = {
       description: ticket.description,
       equipment: ticket.equipment,
       client_name: ticket.clientName, // Map to snake_case
+      unit: ticket.unit,
+      municipality: ticket.municipality,
+      uf: ticket.uf,
       priority: ticket.priority,
       status: ticket.status,
       attachment: ticket.attachment,

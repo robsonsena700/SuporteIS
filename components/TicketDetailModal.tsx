@@ -321,6 +321,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
   return (
+    <>
     <div 
         className="fixed inset-0 z-[9999] flex items-center justify-center p-0 lg:p-4 bg-black/70 backdrop-blur-sm" 
         onClick={onClose} 
@@ -851,6 +852,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
           </div>
         </div>
       </div>
+    </div>
 
       {/* Image Lightbox */}
       {selectedImage && (
@@ -864,8 +866,17 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
 
       {/* Rating Modal Overlay */}
       {showRatingModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-            <div className="bg-[#1a2233] border border-[#374151] w-full max-w-md rounded-2xl p-4 md:p-6 shadow-2xl flex flex-col gap-6 animate-slide-up">
+        <div 
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+            onClick={(e) => {
+                e.stopPropagation();
+                setShowRatingModal(false);
+            }}
+        >
+            <div 
+                className="bg-[#1a2233] border border-[#374151] w-full max-w-md rounded-2xl p-4 md:p-6 shadow-2xl flex flex-col gap-6 animate-slide-up"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-start">
                     <h3 className="text-white text-xl font-bold">Avaliação de Atendimento</h3>
                     <button onClick={() => setShowRatingModal(false)} className="text-[#9ca3af] hover:text-white">
@@ -879,10 +890,15 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
                         {[1, 2, 3, 4, 5].map((star) => (
                             <button 
                                 key={star} 
-                                onClick={() => setRating(star)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setRating(star);
+                                }}
                                 className={`text-4xl transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400 filled' : 'text-[#4b5563]'}`}
+                                type="button"
                             >
-                                <span className="material-symbols-outlined text-[40px]">{rating >= star ? 'star' : 'star_rate'}</span>
+                                <span className="material-symbols-outlined text-[40px] pointer-events-none">{rating >= star ? 'star' : 'star_rate'}</span>
                             </button>
                         ))}
                     </div>
@@ -923,7 +939,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
             </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

@@ -216,7 +216,7 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
 };
 
 export const createTicket = async (req: AuthRequest, res: Response) => {
-  const { subject, description, equipment, client_name, priority, status, attachment, equipmentDetails } = req.body;
+  const { subject, description, equipment, client_name, priority, status, attachment, equipmentDetails, unit, municipality, uf } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -239,10 +239,10 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
         await client.query('BEGIN');
 
         const result = await client.query(
-          `INSERT INTO tickets (code, subject, equipment, description, priority, attachment, user_id, client_name, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO tickets (code, subject, equipment, description, priority, attachment, user_id, client_name, status, unit, municipality, uf)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING *`,
-          [code, subject, equipment, description, priority, attachment, userId, client_name, status || 'Aberto']
+          [code, subject, equipment, description, priority, attachment, userId, client_name, status || 'Aberto', unit, municipality, uf]
         );
         
         const ticket = result.rows[0];
@@ -317,9 +317,18 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     if (req.user?.role === 'Cliente') {
         const isRating = currentTicket.status === 'Resolvido' && rating;
         const isReopen = currentTicket.status === 'Resolvido' && status && status !== 'Resolvido';
+        const isResolveAndRate = status === 'Resolvido' && rating; // Allow Client to Resolve AND Rate
 
-        if (!isRating && !isReopen) {
+        if (!isRating && !isReopen && !isResolveAndRate) {
             return res.status(403).json({ message: 'Permissão negada. Apenas Responsável ou Admin podem modificar chamados.' });
+        }
+    }
+
+    // Validation
+    if (rating !== undefined) {
+        const ratingNum = Number(rating);
+        if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+            return res.status(400).json({ message: 'Avaliação deve ser um número entre 1 e 5.' });
         }
     }
 
