@@ -24,31 +24,32 @@ const logTicketHistory = async (
 };
 
 // Helper to generate next code
-const getNextCode = async (prefix: string) => {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const pattern = `${prefix}-${year}%`;
+export const getNextCode = async (prefix: string) => {
+    // New format requested: PREFIX-0000000001 (10 digits padding)
+    // Previous format was: PREFIX-YYXXXX (Year + 4 digits)
+    // To reset count and use new format, we filter by the new pattern length (14 chars)
+    // This allows keeping old tickets while starting new sequence from 1
     
-    // Order by created_at desc to find the last one created
     const res = await pool.query(
-        `SELECT code FROM tickets WHERE code LIKE $1 ORDER BY created_at DESC LIMIT 1`,
-        [pattern]
+        `SELECT code FROM tickets 
+         WHERE code LIKE $1 
+         AND LENGTH(code) = 14 
+         ORDER BY code DESC LIMIT 1`,
+        [`${prefix}-%`]
     );
     
     let sequence = 1;
     if (res.rows.length > 0) {
-        const lastCode = res.rows[0].code; // e.g., SUP-260005
+        const lastCode = res.rows[0].code;
         const parts = lastCode.split('-');
         if (parts.length === 2) {
-            const numPart = parts[1]; // 260005
-            if (numPart.startsWith(year)) {
-                const seqStr = numPart.substring(2);
-                const seq = parseInt(seqStr, 10);
-                if (!isNaN(seq)) sequence = seq + 1;
-            }
+            const seqStr = parts[1];
+            const seq = parseInt(seqStr, 10);
+            if (!isNaN(seq)) sequence = seq + 1;
         }
     }
     
-    return `${prefix}-${year}${String(sequence).padStart(4, '0')}`;
+    return `${prefix}-${String(sequence).padStart(10, '0')}`;
 };
 
 export const getTicketHistory = async (req: AuthRequest, res: Response) => {

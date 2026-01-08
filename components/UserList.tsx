@@ -26,6 +26,16 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
         // Always hide clients from this list, as requested: "remover automaticamente usuários com perfil de cliente"
         filteredUsers = filteredUsers.filter((u: User) => u.profile !== 'Cliente');
 
+        // Hide offline users if current user is NOT Admin
+        if (currentUser?.profile !== 'Administrador') {
+          filteredUsers = filteredUsers.filter((u: User) => {
+             const isOnline = u.calculatedStatus === 'online';
+             const isBusy = u.chatStatus === 'busy';
+             // Keep if online or busy. If offline (neither), filter out.
+             return isOnline || isBusy;
+          });
+        }
+
         setUsers(filteredUsers);
       } catch (error) {
         console.error('Failed to fetch users', error);

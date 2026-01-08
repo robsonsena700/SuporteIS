@@ -340,7 +340,7 @@ const Users: React.FC<UsersProps> = () => {
                     </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-text-secondary uppercase">Cargo</label>
+                    <label className="text-xs font-bold text-text-secondary uppercase">Cargo / Função</label>
                     <input 
                     value={formData.profile} 
                     onChange={e => setFormData({...formData, profile: e.target.value})}

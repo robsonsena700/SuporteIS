@@ -2,12 +2,13 @@
 import { pool } from '../config/database';
 
 const getNextCode = async (prefix: string) => {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const pattern = `${prefix}-${year}%`;
-    
+    // New format requested: PREFIX-0000000001
     const res = await pool.query(
-        `SELECT code FROM tickets WHERE code LIKE $1 ORDER BY created_at DESC LIMIT 1`,
-        [pattern]
+        `SELECT code FROM tickets 
+         WHERE code LIKE $1 
+         AND LENGTH(code) = 14 
+         ORDER BY code DESC LIMIT 1`,
+        [`${prefix}-%`]
     );
     
     let sequence = 1;
@@ -15,16 +16,13 @@ const getNextCode = async (prefix: string) => {
         const lastCode = res.rows[0].code;
         const parts = lastCode.split('-');
         if (parts.length === 2) {
-            const numPart = parts[1];
-            if (numPart.startsWith(year)) {
-                const seqStr = numPart.substring(2);
-                const seq = parseInt(seqStr, 10);
-                if (!isNaN(seq)) sequence = seq + 1;
-            }
+            const seqStr = parts[1];
+            const seq = parseInt(seqStr, 10);
+            if (!isNaN(seq)) sequence = seq + 1;
         }
     }
     
-    return `${prefix}-${year}${String(sequence).padStart(4, '0')}`;
+    return `${prefix}-${String(sequence).padStart(10, '0')}`;
 };
 
 async function testDirectCreate() {

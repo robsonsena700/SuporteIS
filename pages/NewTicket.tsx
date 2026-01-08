@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket, TicketStatus, TicketPriority } from '../types';
-import { TicketService } from '../services/api';
+import { Ticket, TicketStatus, TicketPriority, User } from '../types';
+import { TicketService, UserService } from '../services/api';
 import { useToast } from '../context/ToastContext';
-// @ts-ignore
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { useAuth } from '../context/AuthContext';
 
 interface NewTicketProps {
   onAdd: (ticket: Ticket) => void;
@@ -23,8 +21,11 @@ const EQUIPMENT_OPTIONS = [
 const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   const navigate = useNavigate();
   const { success, error, warning } = useToast();
+  const { user } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [ticketType, setTicketType] = useState<'Sistema' | 'Equipamento'>('Sistema');
+  const [clientUsers, setClientUsers] = useState<User[]>([]);
   
   // Attachments state (up to 3)
   const [attachments, setAttachments] = useState<{data: string, name: string}[]>([]);
@@ -38,8 +39,29 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
     municipality: '',
     uf: '',
     priority: TicketPriority.MEDIUM,
-    description: '', // Rich text content
+    description: '',
   });
+
+  useEffect(() => {
+    if (user) {
+      if (user.profile === 'Cliente') {
+        // Se for cliente, preenche automaticamente e bloqueia edição (via UI condicional)
+        setFormData(prev => ({
+          ...prev,
+          clientName: user.name,
+          unit: user.company || prev.unit
+        }));
+      } else if (user.profile === 'Suporte Técnico' || user.profile === 'Administrador') {
+        // Se for suporte/admin, carrega lista de clientes
+        UserService.getAll()
+          .then(users => {
+            const clients = users.filter(u => u.profile === 'Cliente');
+            setClientUsers(clients);
+          })
+          .catch(err => console.error('Failed to load users', err));
+      }
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -49,6 +71,19 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
         const formatted = value.slice(0, 2).toUpperCase();
         setFormData(prev => ({ ...prev, [name]: formatted }));
         return;
+    }
+
+    if (name === 'clientName' && (user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador')) {
+        // Ao selecionar um cliente, tentar preencher outros dados se disponíveis
+        const selectedUser = clientUsers.find(u => u.name === value);
+        if (selectedUser) {
+             setFormData(prev => ({
+                 ...prev,
+                 [name]: value,
+                 unit: selectedUser.company || prev.unit
+             }));
+             return;
+        }
     }
 
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -81,11 +116,6 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
 
         const reader = new FileReader();
         reader.onloadend = () => {
-             // For images, we could compress here as in original code, but keeping it simple for multi-upload
-             // If compression is strictly needed, we can re-add the canvas logic.
-             // Given "reduzir e minimizar as informações", we assume UI minimization, not necessarily compression unless specified.
-             // Original code had compression. Let's try to preserve it for images if possible, or just accept base64.
-             // For brevity in this complex refactor, using direct base64.
              setAttachments(prev => [...prev, { data: reader.result as string, name: file.name }]);
         };
         reader.readAsDataURL(file);
@@ -99,7 +129,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.description || formData.description === '<p><br></p>') {
+    if (!formData.description) {
       warning('Por favor, descreva o problema.');
       return;
     }
@@ -131,46 +161,11 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
               finalEquipment = `Outros: ${formData.otherEquipment}`;
           }
       } else {
-          // System type: equipment might be "Sistema" or user input subject? 
-          // Current backend logic uses equipment or subject keywords to detect system.
-          // Let's set equipment to "Sistema" or keep it empty if subject covers it.
-          // But user form for System doesn't have "Equipment" field explicitly requested, 
-          // just "Cliente / Unidade / Município" and "UF".
-          // However, the DB needs `equipment` column not null? 
-          // Schema: equipment VARCHAR(255) NOT NULL.
-          // So for System tickets, we should probably set it to "Sistema" or the Subject.
           finalEquipment = 'Sistema';
       }
 
-      // Backend expects single attachment string. 
-      // We will serialize the array to JSON string if possible, or just send the first one if backend is strict.
-      // Since we modified backend to accept TEXT, it should hold a long JSON string.
-      // Wait, backend 'attachment' column is TEXT.
       const attachmentPayload = JSON.stringify(attachments);
 
-      const newTicketData = {
-        subject: formData.subject,
-        description: formData.description, // HTML content
-        equipment: finalEquipment,
-        client_name: formData.clientName, // Using snake_case keys for API? types.ts has clientName (camelCase).
-        // Service likely maps it. Let's check TicketService.create.
-        // It usually takes Ticket object.
-        // Actually, backend controller expects snake_case in req.body?
-        // Controller: const { subject, description, equipment, client_name ... } = req.body;
-        // Frontend TicketService usually maps camel to snake?
-        // Let's pass the object as expected by Service.
-        unit: formData.unit,
-        municipality: formData.municipality,
-        uf: formData.uf,
-        priority: formData.priority,
-        status: TicketStatus.OPEN,
-        attachment: attachmentPayload // sending JSON string
-      };
-
-      // We need to adapt TicketService to pass these new fields if it filters them.
-      // Assuming TicketService passes ...ticketData.
-      
-      // Mapped object for API (Service maps to snake_case)
       const apiPayload: any = {
                 subject: formData.subject,
                 description: formData.description,
@@ -201,6 +196,8 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
       setLoading(false);
     }
   };
+
+  const canSelectClient = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico';
 
   return (
     <div className="max-w-4xl mx-auto pb-10">
@@ -237,15 +234,31 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                     <label className="text-white text-sm font-medium">Cliente *</label>
-                    <input
-                        type="text"
-                        name="clientName"
-                        value={formData.clientName}
-                        onChange={handleChange}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                        placeholder="Nome do Cliente"
-                        required
-                    />
+                    {canSelectClient ? (
+                        <select
+                            name="clientName"
+                            value={formData.clientName}
+                            onChange={handleChange}
+                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                            required
+                        >
+                            <option value="">Selecione um cliente...</option>
+                            {clientUsers.map(u => (
+                                <option key={u.id} value={u.name}>{u.name}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <input
+                            type="text"
+                            name="clientName"
+                            value={formData.clientName}
+                            onChange={handleChange}
+                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all opacity-70 cursor-not-allowed"
+                            placeholder="Nome do Cliente"
+                            required
+                            readOnly
+                        />
+                    )}
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-white text-sm font-medium">Unidade *</label>
@@ -375,7 +388,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                 <label className="text-white text-sm font-medium">Descrição Detalhada *</label>
                 <textarea
                     value={formData.description}
-                    onChange={handleDescriptionChange}
+                    onChange={(e) => handleDescriptionChange(e.target.value)}
                     className="w-full h-[200px] bg-white text-black p-4 rounded-lg outline-none focus:ring-2 focus:ring-primary resize-y"
                     placeholder="Descreva o problema detalhadamente..."
                     required
@@ -425,22 +438,32 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                         {file.data.startsWith('data:image') ? (
                             <img src={file.data} alt="preview" className="h-12 object-contain" />
                         ) : (
-                            <span className="material-symbols-outlined text-3xl text-red-400">picture_as_pdf</span>
+                            <span className="material-symbols-outlined text-3xl text-text-secondary">description</span>
                         )}
-                        <span className="text-[10px] text-text-secondary truncate w-full text-center">{file.name}</span>
+                        <span className="text-xs text-text-muted truncate w-full text-center" title={file.name}>{file.name}</span>
                      </div>
                  ))}
             </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-4 mt-4">
-          <button type="button" onClick={() => navigate('/tickets')} className="px-6 h-12 border border-border-dark text-white font-bold rounded-lg hover:bg-background-input transition-all">
-            Cancelar
-          </button>
-          <button type="submit" disabled={loading} className="px-10 h-12 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover shadow-xl shadow-primary/30 transition-all flex items-center gap-2 disabled:opacity-50">
-            {loading ? <span className="material-symbols-outlined animate-spin">refresh</span> : <span className="material-symbols-outlined text-[20px]">send</span>}
-            {loading ? 'Enviando...' : 'Enviar Chamado'}
-          </button>
+        <div className="flex justify-end pt-4">
+            <button
+                type="submit"
+                disabled={loading}
+                className="bg-primary hover:bg-primary-dark text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                {loading ? (
+                    <>
+                        <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                        Enviando...
+                    </>
+                ) : (
+                    <>
+                        <span className="material-symbols-outlined">send</span>
+                        Abrir Chamado
+                    </>
+                )}
+            </button>
         </div>
       </form>
     </div>
