@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Platform, Alert } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/api';
 import { Ticket, TicketStatus } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Search, Filter, ArrowUpDown } from 'lucide-react-native';
+import { Plus, Search, Filter, ArrowUpDown, AlertCircle, RefreshCw } from 'lucide-react-native';
 import { useResponsive } from '../hooks/useResponsive';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -24,14 +24,20 @@ const STATUS_FILTERS = [
     { label: 'Resolvidos', value: TicketStatus.RESOLVED },
 ];
 
+import { Header } from '../components/Header';
+
 export const TicketsScreen = () => {
   const navigation = useNavigation<TicketsScreenNavigationProp>();
   const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { isTablet, isLandscape, screenWidth } = useResponsive();
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'Sistema' | 'Equipamento' | 'Concluído'>('Sistema');
+  const [showMyTicketsOnly, setShowMyTicketsOnly] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -41,8 +47,9 @@ export const TicketsScreen = () => {
   const numColumns = isTablet || isLandscape ? 2 : 1;
   const cardWidth = (screenWidth - 40 - (numColumns - 1) * 16) / numColumns;
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     try {
+      setError(null);
       const response = await api.get('/tickets');
       
       const mappedTickets = response.data.map((data: any) => ({
@@ -53,29 +60,65 @@ export const TicketsScreen = () => {
         priority: data.priority,
         clientName: data.client_name,
         technician: data.technician_name,
-        createdAt: new Date(data.created_at).toLocaleDateString(),
-        // Store raw date for sorting if needed, but here using mapped string
+        technicianId: data.technician_id,
+        equipment: data.equipment,
+        createdAt: new Date(data.created_at).toLocaleDateString('pt-BR'),
+        // Store raw date for sorting
         rawDate: new Date(data.created_at).getTime()
       }));
       
       setTickets(mappedTickets);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível carregar os chamados. Verifique sua conexão.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    fetchTickets();
   }, []);
 
   useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  const processedTickets = useMemo(() => {
       let result = [...tickets];
 
-      // 1. Status Filter
-      if (statusFilter !== 'ALL') {
+      // 0. Tab Filter
+      if (activeTab === 'Concluído') {
+        result = result.filter(t => t.status === TicketStatus.RESOLVED);
+      } else {
+        // Exclude resolved from other tabs
+        result = result.filter(t => t.status !== TicketStatus.RESOLVED);
+        
+        if (activeTab === 'Equipamento') {
+           // Filter for Equipment tickets
+           result = result.filter(t => 
+             (t.equipment && t.equipment.trim() !== '') || 
+             t.subject.toLowerCase().includes('impressora') || 
+             t.subject.toLowerCase().includes('equipamento') ||
+             t.subject.toLowerCase().includes('toner')
+           );
+        } else {
+           // Sistema (System) - default for others
+           // Exclude equipment tickets
+           result = result.filter(t => !(
+             (t.equipment && t.equipment.trim() !== '') || 
+             t.subject.toLowerCase().includes('impressora') || 
+             t.subject.toLowerCase().includes('equipamento') ||
+             t.subject.toLowerCase().includes('toner')
+           ));
+        }
+      }
+
+      // 0.5 My Tickets Filter (Support/Admin only)
+      if (showMyTicketsOnly && user) {
+        result = result.filter(t => t.technicianId === user.id);
+      }
+
+      // 1. Status Filter (Chips)
+      // Only apply if not in 'Concluído' tab (where status is fixed)
+      if (activeTab !== 'Concluído' && statusFilter !== 'ALL') {
           result = result.filter(t => t.status === statusFilter);
       }
 
@@ -90,14 +133,12 @@ export const TicketsScreen = () => {
       }
 
       // 3. Sorting (Date)
-      result.sort((a: any, b: any) => {
+      return result.sort((a: any, b: any) => {
           return sortOrder === 'desc' 
               ? b.rawDate - a.rawDate 
               : a.rawDate - b.rawDate;
       });
-
-      setFilteredTickets(result);
-  }, [tickets, statusFilter, searchQuery, sortOrder]);
+  }, [tickets, statusFilter, searchQuery, sortOrder, activeTab, showMyTicketsOnly, user]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -135,18 +176,65 @@ export const TicketsScreen = () => {
     </TouchableOpacity>
   );
 
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <AlertCircle size={48} color="#ef4444" style={{ marginBottom: 16 }} />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchTickets}>
+          <RefreshCw size={20} color="#fff" />
+          <Text style={styles.retryText}>Tentar Novamente</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+
+  const EmptyState = () => (
+    <View style={styles.center}>
+      <Filter size={48} color="#374151" style={{ marginBottom: 16 }} />
+      <Text style={styles.emptyTitle}>Nenhum chamado encontrado</Text>
+      <Text style={styles.emptyText}>
+        {searchQuery 
+          ? `Não encontramos resultados para "${searchQuery}"`
+          : 'Tente ajustar os filtros para ver mais resultados'}
+      </Text>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chamados</Text>
-        {user?.profile !== 'Suporte Técnico' && (
+    <View style={styles.container}>
+      <Header 
+        title="Chamados" 
+        rightAction={
+          user?.profile !== 'Suporte Técnico' ? (
             <TouchableOpacity 
                 style={styles.addButton} 
                 onPress={() => navigation.navigate('NewTicket')}
             >
                 <Plus color="#fff" size={24} />
             </TouchableOpacity>
-        )}
+          ) : null
+        }
+      />
+
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        {(['Sistema', 'Equipamento', 'Concluído'] as const).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            onPress={() => {
+              setActiveTab(tab);
+              setStatusFilter('ALL'); // Reset status filter on tab change
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Search Bar */}
@@ -169,25 +257,38 @@ export const TicketsScreen = () => {
           </TouchableOpacity>
       </View>
 
-      {/* Filter Chips */}
+      {/* Filters: My Tickets Toggle & Status Chips */}
       <View style={styles.filtersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContent}>
-              {STATUS_FILTERS.map((filter) => (
-                  <TouchableOpacity
-                    key={filter.value}
-                    style={[
-                        styles.chip,
-                        statusFilter === filter.value && styles.activeChip
-                    ]}
-                    onPress={() => setStatusFilter(filter.value)}
-                  >
-                      <Text style={[
-                          styles.chipText,
-                          statusFilter === filter.value && styles.activeChipText
-                      ]}>{filter.label}</Text>
-                  </TouchableOpacity>
-              ))}
-          </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContent}>
+            {/* My Tickets Toggle (Support only) */}
+            {(user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador') && (
+               <TouchableOpacity
+                  style={[styles.chip, showMyTicketsOnly && styles.activeChip]}
+                  onPress={() => setShowMyTicketsOnly(!showMyTicketsOnly)}
+               >
+                 <Text style={[styles.chipText, showMyTicketsOnly && styles.activeChipText]}>
+                   Meus Chamados
+                 </Text>
+               </TouchableOpacity>
+            )}
+
+            {/* Status Chips (Only if not in Concluído tab) */}
+            {activeTab !== 'Concluído' && STATUS_FILTERS.map((filter) => (
+                <TouchableOpacity
+                  key={filter.value}
+                  style={[
+                      styles.chip,
+                      statusFilter === filter.value && styles.activeChip
+                  ]}
+                  onPress={() => setStatusFilter(filter.value)}
+                >
+                    <Text style={[
+                        styles.chipText,
+                        statusFilter === filter.value && styles.activeChipText
+                    ]}>{filter.label}</Text>
+                </TouchableOpacity>
+            ))}
+        </ScrollView>
       </View>
 
       {loading ? (
@@ -196,7 +297,7 @@ export const TicketsScreen = () => {
         </View>
       ) : (
         <FlatList
-          data={filteredTickets}
+          data={processedTickets}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
@@ -212,7 +313,7 @@ export const TicketsScreen = () => {
           key={numColumns} // Force re-render on orientation change
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -221,18 +322,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111827',
   },
-  header: {
-    padding: 24,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   addButton: {
     width: 40,
     height: 40,
@@ -240,6 +329,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    marginHorizontal: 24,
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: '#3b82f6',
+  },
+  tabText: {
+    color: '#9ca3af',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  activeTabText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   searchContainer: {
       paddingHorizontal: 24,
@@ -353,9 +468,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  emptyTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   emptyText: {
     color: '#9ca3af',
     fontSize: 16,
+    textAlign: 'center',
+  },
+  activeTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: '40%',
+    height: 3,
+    backgroundColor: '#3b82f6',
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
   },
 });

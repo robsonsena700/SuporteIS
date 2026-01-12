@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Header } from '../components/Header';
 
 export const ReportsScreen = () => (
-  <SafeAreaView style={styles.container}>
+  <View style={styles.container}>
+    <Header title="Relatórios" />
     <View style={styles.content}>
-      <Text style={styles.title}>Relatórios</Text>
       <Text style={styles.subtitle}>Em breve</Text>
     </View>
-  </SafeAreaView>
+  </View>
 );
 
 const styles = StyleSheet.create({
@@ -20,12 +20,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,

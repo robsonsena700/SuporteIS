@@ -78,7 +78,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <form className="flex flex-col gap-5" onSubmit={handleLoginSubmit}>
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest">E-mail Corporativo</label>
+              <label className="text-white text-xs font-bold uppercase tracking-widest">E-mail ou Usuário</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-muted text-[20px]">mail</span>
                 <input 

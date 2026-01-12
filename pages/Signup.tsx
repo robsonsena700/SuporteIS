@@ -175,7 +175,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">E-mail Corporativo</label>
+              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">E-mail ou Usuário</label>
               <input 
                 required
                 type="email" 

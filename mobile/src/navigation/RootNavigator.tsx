@@ -6,6 +6,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
+import { SignupScreen } from '../screens/SignupScreen';
+import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { TicketsScreen } from '../screens/TicketsScreen';
 import { UsersScreen } from '../screens/UsersScreen';
@@ -59,7 +61,7 @@ const MainTabNavigator = () => {
       />
       
       {/* Conditionally render Users tab based on role */}
-      {user?.profile !== 'Cliente' && (
+      {user?.role !== 'Cliente' && (
         <Tab.Screen 
           name="UsersTab" 
           component={UsersScreen} 
@@ -105,7 +107,11 @@ export const RootNavigator = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />

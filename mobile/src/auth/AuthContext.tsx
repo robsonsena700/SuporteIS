@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Platform } from 'react-native';
-import { api } from '../api/api';
+import { api, setUnauthorizedCallback } from '../api/api';
 import { User } from '../types';
 import { setStorageItem, getStorageItem, removeStorageItem } from '../utils/storage';
 
@@ -8,7 +8,9 @@ interface AuthContextData {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (data: any) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -35,6 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     loadStorageData();
+
+    // Register callback for 401 Unauthorized responses
+    setUnauthorizedCallback(async () => {
+      await signOut();
+    });
   }, []);
 
   async function signIn(email: string, password: string) {
@@ -80,14 +87,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  async function signUp(data: any) {
+    try {
+      console.log('Sending register payload:', data);
+      await api.post('/auth/register', data);
+      // Automatically log in after sign up
+      await signIn(data.email, data.password);
+    } catch (error: any) {
+      console.error('SignUp Error:', error);
+      if (error.response) {
+        console.error('SignUp Response Error:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
   async function signOut() {
     await removeStorageItem('token');
     await removeStorageItem('user');
+    api.defaults.headers.common['Authorization'] = '';
     setUser(null);
   }
 
+  async function updateUser(userData: Partial<User>) {
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    
+    // Don't store avatar in SecureStore to avoid size limits
+    const userToStore = { ...updatedUser, avatar: null };
+    await setStorageItem('user', JSON.stringify(userToStore));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

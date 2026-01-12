@@ -16,13 +16,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'Administrador' | 'Técnico' | 'Cliente' | string;
   avatar: string;
-  status: 'Ativo' | 'Inativo';
+  status: 'Ativo' | 'Inativo' | string;
   chatStatus?: 'online' | 'busy' | 'offline';
   calculatedStatus?: 'online' | 'offline';
   lastAccess: string;
-  profile: 'Administrador' | 'Suporte Técnico' | 'Cliente';
+  profile: string;
   company?: string;
   phone?: string;
   department?: string;

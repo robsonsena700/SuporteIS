@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 
 export const LoginScreen = () => {
+  const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn } = useAuth();
 
@@ -60,9 +63,23 @@ export const LoginScreen = () => {
               placeholderTextColor="#6b7280"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
             />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+              {showPassword ? (
+                <EyeOff color="#9ca3af" size={20} />
+              ) : (
+                <Eye color="#9ca3af" size={20} />
+              )}
+            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity 
+            style={styles.forgotPasswordContainer}
+            onPress={() => navigation.navigate('ForgotPassword' as never)}
+          >
+            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.button} 
@@ -75,6 +92,13 @@ export const LoginScreen = () => {
               <Text style={styles.buttonText}>Entrar</Text>
             )}
           </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Não tem uma conta?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup' as never)}>
+              <Text style={styles.signupText}>Crie agora</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -121,6 +145,9 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: 12,
   },
+  eyeIcon: {
+    padding: 4,
+  },
   input: {
     flex: 1,
     color: '#fff',
@@ -137,6 +164,29 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+  },
+  forgotPasswordText: {
+    color: '#3b82f6',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
+  },
+  footerText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  signupText: {
+    color: '#3b82f6',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

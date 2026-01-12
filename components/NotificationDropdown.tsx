@@ -43,6 +43,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose, on
                 onClick={toggleSound} 
                 className={`text-xs flex items-center gap-1 ${soundEnabled ? 'text-primary' : 'text-text-secondary'}`}
                 title={soundEnabled ? 'Som ativado' : 'Som desativado'}
+                aria-label={soundEnabled ? 'Desativar som' : 'Ativar som'}
             >
                 <span className="material-symbols-outlined text-[16px]">{soundEnabled ? 'volume_up' : 'volume_off'}</span>
             </button>
@@ -51,6 +52,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose, on
           <button 
             onClick={markAllAsRead}
             className="text-[10px] text-primary hover:text-primary-hover font-bold uppercase tracking-wider transition-colors"
+            aria-label="Marcar todas as notificações como lidas"
           >
             Marcar todas como lidas
           </button>

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] - 2026-01-12
+
+### Added
+- **Mobile**: Added Floating Action Button (FAB) to Dashboard screen for quick ticket creation.
+- **Mobile**: Implemented ticket categorization tabs (Sistema, Equipamento, Concluído) in Tickets screen to match web version.
+- **Mobile**: Enhanced filtering logic for ticket categories.
+- **Mobile**: Added previous/next navigation controls to TicketDetailModal for better navigation.
+- **Mobile**: Implemented full Users Management screen (`UsersScreen`) with List, Search, Sort, and CRUD operations.
+- **Mobile**: Added Role-based access control for Users screen and actions (Admin only for edits).
+- **Mobile**: Added `UserModal` and `PasswordModal` for managing users.
+
+### Fixed
+- **Mobile**: Fixed `styles` declaration conflict in ProfileScreen.
+- **Mobile**: Fixed `filteredTickets` declaration conflict in TicketsScreen.
+- **Mobile**: Removed duplicate "Dados da Conta" section from ProfileScreen.
+- **Mobile**: Updated `NotificationDropdown` for WCAG accessibility (aria-labels).
+- **Mobile**: Corrected `User` type definition and usage of `role` vs `profile` across the app for better permission handling.
+
 ## [Unreleased] - 2026-01-08
 
 ### Fixed

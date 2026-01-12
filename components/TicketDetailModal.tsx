@@ -8,12 +8,25 @@ import { canReopenTicket } from '../utils/dateUtils';
 
 interface TicketDetailModalProps {
   ticket: Ticket;
-  technicians: User[];
+  technicians?: User[]; // Optional now as it might not be passed sometimes
   onClose: () => void;
   onUpdate: (updatedTicket: Ticket) => void;
+  onNext?: () => void;
+  onPrev?: () => void;
+  hasNext?: boolean;
+  hasPrev?: boolean;
 }
 
-const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicians, onClose, onUpdate }) => {
+const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ 
+    ticket, 
+    technicians = [], 
+    onClose, 
+    onUpdate,
+    onNext,
+    onPrev,
+    hasNext,
+    hasPrev
+}) => {
   const { user } = useAuth();
   const toast = useToast();
   const [replyText, setReplyText] = useState('');
@@ -349,6 +362,30 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, technicia
             </div>
           </div>
           <div className="flex items-center gap-3">
+             {/* Navigation */}
+             {(hasPrev !== undefined || hasNext !== undefined) && (
+                 <div className="hidden md:flex items-center bg-[#1f2937] rounded-lg border border-[#374151] mr-2">
+                     <button 
+                        onClick={onPrev} 
+                        disabled={!hasPrev}
+                        className="p-1.5 hover:bg-[#374151] disabled:opacity-30 disabled:hover:bg-transparent transition-colors rounded-l-lg border-r border-[#374151] flex items-center justify-center"
+                        title="Chamado Anterior"
+                        aria-label="Chamado Anterior"
+                     >
+                         <span className="material-symbols-outlined text-[20px] text-white">chevron_left</span>
+                     </button>
+                     <button 
+                        onClick={onNext} 
+                        disabled={!hasNext}
+                        className="p-1.5 hover:bg-[#374151] disabled:opacity-30 disabled:hover:bg-transparent transition-colors rounded-r-lg flex items-center justify-center"
+                        title="Próximo Chamado"
+                        aria-label="Próximo Chamado"
+                     >
+                         <span className="material-symbols-outlined text-[20px] text-white">chevron_right</span>
+                     </button>
+                 </div>
+             )}
+
              {localTicket.status === TicketStatus.RESOLVED && isCreator && !localTicket.rating ? (
                  <button 
                     onClick={() => setShowRatingModal(true)}

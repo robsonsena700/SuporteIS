@@ -455,6 +455,20 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
           technicians={technicians}
           onClose={() => setSelectedTicket(null)}
           onUpdate={handleModalUpdate}
+          onNext={() => {
+             const currentIndex = sortedTickets.findIndex(t => t.id === selectedTicket.id);
+             if (currentIndex < sortedTickets.length - 1) {
+                 handleTicketClick(sortedTickets[currentIndex + 1]);
+             }
+          }}
+          onPrev={() => {
+             const currentIndex = sortedTickets.findIndex(t => t.id === selectedTicket.id);
+             if (currentIndex > 0) {
+                 handleTicketClick(sortedTickets[currentIndex - 1]);
+             }
+          }}
+          hasNext={sortedTickets.findIndex(t => t.id === selectedTicket.id) < sortedTickets.length - 1}
+          hasPrev={sortedTickets.findIndex(t => t.id === selectedTicket.id) > 0}
         />
       )}
     </div>

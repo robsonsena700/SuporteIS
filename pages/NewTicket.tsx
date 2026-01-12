@@ -213,13 +213,13 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
           onClick={() => setTicketType('Sistema')}
           className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Sistema' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
         >
-          Chamado de Sistema
+          Serviço
         </button>
         <button
           onClick={() => setTicketType('Equipamento')}
           className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Equipamento' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
         >
-          Chamado de Equipamento
+          Equipamento
         </button>
       </div>
 
