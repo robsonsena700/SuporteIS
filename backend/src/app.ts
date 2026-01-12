@@ -17,7 +17,7 @@ const app = express();
 // Security Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: true, // Allow any origin in development
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for Base64 images

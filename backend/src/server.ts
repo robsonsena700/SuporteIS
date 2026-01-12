@@ -17,20 +17,28 @@ const startServer = async () => {
     console.log('✅ Connected to PostgreSQL Database');
     client.release();
 
-    const certPath = path.join(__dirname, '../certs');
-    const httpsOptions = {
-        key: fs.readFileSync(path.join(certPath, 'server.key')),
-        cert: fs.readFileSync(path.join(certPath, 'server.cert'))
-    };
+    if (process.env.USE_HTTP === 'true') {
+      const http = require('http');
+      const server = http.createServer(app).listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`🚀 Server running on port ${PORT} (HTTP)`);
+        console.log(`📄 Documentation available at http://localhost:${PORT}/api-docs`);
+      });
+    } else {
+      const certPath = path.join(__dirname, '../certs');
+      const httpsOptions = {
+          key: fs.readFileSync(path.join(certPath, 'server.key')),
+          cert: fs.readFileSync(path.join(certPath, 'server.cert'))
+      };
 
-    const server = https.createServer(httpsOptions, app).listen(PORT, () => {
-      console.log(`🚀 Secure Server running on port ${PORT} (HTTPS)`);
-      console.log(`📄 Documentation available at https://localhost:${PORT}/api-docs`);
-    });
-
-    server.on('close', () => {
-        console.log('Server closed');
-    });
+      const server = https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`🚀 Secure Server running on port ${PORT} (HTTPS)`);
+        console.log(`📄 Documentation available at https://localhost:${PORT}/api-docs`);
+      });
+      
+      server.on('close', () => {
+          console.log('Server closed');
+      });
+    }
 
   } catch (error) {
     console.error('❌ Failed to start server:', error);
