@@ -29,7 +29,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
           <View style={styles.header}>
             <Text style={styles.title}>Avaliar Atendimento</Text>
             <TouchableOpacity onPress={onClose} disabled={loading}>
-              <X color="#9ca3af" size={24} />
+              <X stroke="#9ca3af" size={24} />
             </TouchableOpacity>
           </View>
 

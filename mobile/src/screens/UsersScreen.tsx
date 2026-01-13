@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Image, ActivityIndicator, Modal, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Image, ActivityIndicator, Modal, ScrollView, Platform, RefreshControl } from 'react-native';
 import { Header } from '../components/Header';
 import { UserService } from '../services/userService';
 import { User } from '../types';
@@ -229,14 +229,14 @@ const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit:
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Alterar Senha</Text>
             <TouchableOpacity onPress={onClose}>
-              <X color="#9ca3af" size={24} />
+              <X stroke="#9ca3af" size={24} />
             </TouchableOpacity>
           </View>
           <View style={styles.modalBody}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nova Senha</Text>
               <View style={styles.inputContainer}>
-                <Key size={20} color="#6b7280" style={styles.inputIcon} />
+                <Key size={20} stroke="#6b7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={password}
@@ -302,8 +302,8 @@ export const UsersScreen = () => {
       Alert.alert('Sucesso', 'Usuário criado com sucesso');
       setUserModalVisible(false);
       fetchUsers();
-    } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.message || 'Erro ao criar usuário');
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível criar o usuário');
     } finally {
       setActionLoading(false);
     }
@@ -316,68 +316,46 @@ export const UsersScreen = () => {
       await UserService.update(selectedUser.id, data);
       Alert.alert('Sucesso', 'Usuário atualizado com sucesso');
       setUserModalVisible(false);
-      setSelectedUser(null);
       fetchUsers();
-    } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.message || 'Erro ao atualizar usuário');
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar o usuário');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleDelete = (user: User) => {
-    Alert.alert(
-      'Excluir Usuário',
-      `Tem certeza que deseja excluir ${user.name}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Excluir', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await UserService.delete(user.id);
-              setUsers(prev => prev.filter(u => u.id !== user.id));
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir o usuário');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handlePasswordChange = async (password: string) => {
+  const handleChangePassword = async (password: string) => {
     if (!selectedUser) return;
     try {
       setActionLoading(true);
       await UserService.updatePassword(selectedUser.id, password);
-      Alert.alert('Sucesso', 'Senha atualizada com sucesso');
+      Alert.alert('Sucesso', 'Senha alterada com sucesso');
       setPasswordModalVisible(false);
-      setSelectedUser(null);
     } catch (error) {
-      Alert.alert('Erro', 'Erro ao atualizar senha');
+      Alert.alert('Erro', 'Não foi possível alterar a senha');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const toggleStatus = async (user: User) => {
-    if (currentUser?.role !== 'Administrador') return;
-    const newStatus = user.status === 'Ativo' ? 'Inativo' : 'Ativo';
+  const handleDelete = async (user: User) => {
     Alert.alert(
-      'Alterar Status',
-      `Deseja alterar o status de ${user.name} para ${newStatus}?`,
+      'Confirmar Exclusão',
+      `Tem certeza que deseja excluir o usuário ${user.name}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Confirmar',
+          text: 'Excluir',
+          style: 'destructive',
           onPress: async () => {
             try {
-              await UserService.update(user.id, { status: newStatus });
-              setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+              setLoading(true);
+              await UserService.delete(user.id);
+              Alert.alert('Sucesso', 'Usuário excluído');
+              fetchUsers();
             } catch (error) {
-              Alert.alert('Erro', 'Erro ao alterar status');
+              Alert.alert('Erro', 'Não foi possível excluir o usuário');
+              setLoading(false);
             }
           }
         }
@@ -388,14 +366,12 @@ export const UsersScreen = () => {
   const filteredUsers = useMemo(() => {
     let result = users.filter(u => 
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.department && u.department.toLowerCase().includes(searchQuery.toLowerCase()))
+      u.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     result.sort((a, b) => {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
-      return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      if (sortOrder === 'asc') return a.name.localeCompare(b.name);
+      return b.name.localeCompare(a.name);
     });
 
     return result;
@@ -405,123 +381,115 @@ export const UsersScreen = () => {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.userInfo}>
-          {item.avatar ? (
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <UserIcon size={24} color="#9ca3af" />
-            </View>
-          )}
+          <View style={styles.avatarPlaceholder}>
+            {item.avatar ? (
+                <Image source={{uri: item.avatar}} style={styles.avatar} />
+            ) : (
+                <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+            )}
+          </View>
           <View>
             <Text style={styles.userName}>{item.name}</Text>
             <Text style={styles.userEmail}>{item.email}</Text>
+            <View style={styles.badges}>
+                <View style={[styles.badge, { backgroundColor: '#3b82f620' }]}>
+                    <Text style={[styles.badgeText, { color: '#3b82f6' }]}>{item.role}</Text>
+                </View>
+                {item.status !== 'Ativo' && (
+                    <View style={[styles.badge, { backgroundColor: '#ef444420' }]}>
+                        <Text style={[styles.badgeText, { color: '#ef4444' }]}>{item.status}</Text>
+                    </View>
+                )}
+            </View>
           </View>
         </View>
-        <TouchableOpacity onPress={() => toggleStatus(item)} disabled={currentUser?.role !== 'Administrador'}>
-          <View style={[styles.statusBadge, item.status === 'Ativo' ? styles.statusActive : styles.statusInactive]}>
-            <Text style={[styles.statusText, item.status === 'Ativo' ? styles.statusTextActive : styles.statusTextInactive]}>
-              {item.status}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.cardDetails}>
-        <View style={styles.detailRow}>
-          <Shield size={14} color="#6b7280" />
-          <Text style={styles.detailText}>{item.role} • {item.profile}</Text>
-        </View>
-        {item.department && (
-          <View style={styles.detailRow}>
-            <Building size={14} color="#6b7280" />
-            <Text style={styles.detailText}>{item.department}</Text>
-          </View>
-        )}
-      </View>
-
-      {currentUser?.role === 'Administrador' && (
-        <View style={styles.cardActions}>
+        <View style={styles.actions}>
           <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => { setSelectedUser(item); setPasswordModalVisible(true); }}
+            style={styles.actionButton}
+            onPress={() => {
+              setSelectedUser(item);
+              setUserModalVisible(true);
+            }}
           >
-            <Key size={18} color="#9ca3af" />
+            <Edit2 stroke="#9ca3af" size={20} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => { setSelectedUser(item); setUserModalVisible(true); }}
+            onPress={() => {
+              setSelectedUser(item);
+              setPasswordModalVisible(true);
+            }}
           >
-            <Edit2 size={18} color="#3b82f6" />
+            <Key stroke="#9ca3af" size={20} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.actionButton}
             onPress={() => handleDelete(item)}
           >
-            <Trash2 size={18} color="#ef4444" />
+            <Trash2 stroke="#ef4444" size={20} />
           </TouchableOpacity>
         </View>
-      )}
+      </View>
+      
+      <View style={styles.cardDetails}>
+          <Text style={styles.detailText}>
+              <Shield size={14} color="#6b7280" /> {item.profile}
+          </Text>
+          {item.department && (
+              <Text style={styles.detailText}>
+                  <Building size={14} color="#6b7280" /> {item.department}
+              </Text>
+          )}
+      </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Header 
-        title="Usuários" 
-        rightAction={
-          currentUser?.role === 'Administrador' ? (
-            <TouchableOpacity 
-              style={styles.addButton} 
-              onPress={() => { setSelectedUser(null); setUserModalVisible(true); }}
-            >
-              <Plus color="#fff" size={24} />
-            </TouchableOpacity>
-          ) : null
-        }
-      />
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
+      <Header title="Gerenciar Usuários" />
+      
+      <View style={styles.toolbar}>
+        <View style={styles.searchContainer}>
           <Search color="#9ca3af" size={20} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar usuários..."
-            placeholderTextColor="#6b7280"
+            placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
         <TouchableOpacity 
-          style={styles.sortButton}
-          onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+          style={styles.addButton}
+          onPress={() => {
+            setSelectedUser(null);
+            setUserModalVisible(true);
+          }}
         >
-          <Filter color={sortOrder === 'asc' ? "#9ca3af" : "#3b82f6"} size={20} />
+          <Plus color="#fff" size={24} />
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3b82f6" />
-        </View>
-      ) : (
-        <FlatList
-          data={filteredUsers}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.list}
-          refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); fetchUsers(); }}
-          ListEmptyComponent={
-            <View style={styles.center}>
+      <FlatList
+        data={filteredUsers}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUsers(); }} tintColor="#fff" />
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.emptyState}>
               <Text style={styles.emptyText}>Nenhum usuário encontrado</Text>
             </View>
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
-      <UserModal 
-        visible={userModalVisible} 
-        onClose={() => setUserModalVisible(false)} 
+      <UserModal
+        visible={userModalVisible}
+        onClose={() => setUserModalVisible(false)}
         onSubmit={selectedUser ? handleUpdate : handleCreate}
         user={selectedUser}
         loading={actionLoading}
@@ -530,7 +498,7 @@ export const UsersScreen = () => {
       <PasswordModal
         visible={passwordModalVisible}
         onClose={() => setPasswordModalVisible(false)}
-        onSubmit={handlePasswordChange}
+        onSubmit={handleChangePassword}
         loading={actionLoading}
       />
     </View>
@@ -542,23 +510,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111827',
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  list: {
-    padding: 20,
-    gap: 16,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
+  toolbar: {
     flexDirection: 'row',
+    padding: 16,
     gap: 12,
   },
-  searchInputContainer: {
+  searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -566,52 +523,39 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
-    gap: 8,
   },
   searchInput: {
     flex: 1,
+    marginLeft: 8,
     color: '#fff',
-    height: '100%',
-  },
-  sortButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#1f2937',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 16,
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
     backgroundColor: '#3b82f6',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  list: {
+    padding: 16,
+    paddingTop: 0,
   },
   card: {
     backgroundColor: '#1f2937',
     borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#374151',
+    marginBottom: 12,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   userInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     flex: 1,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
   },
   avatarPlaceholder: {
     width: 48,
@@ -620,75 +564,78 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+  },
+  avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   userName: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    marginBottom: 2,
   },
   userEmail: {
-    fontSize: 12,
     color: '#9ca3af',
+    fontSize: 14,
+    marginBottom: 6,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+  badges: {
+      flexDirection: 'row',
+      gap: 8,
   },
-  statusActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+  badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
   },
-  statusInactive: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+  badgeText: {
+      fontSize: 10,
+      fontWeight: '600',
+      textTransform: 'uppercase',
   },
-  statusText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  statusTextActive: {
-    color: '#10b981',
-  },
-  statusTextInactive: {
-    color: '#ef4444',
-  },
-  cardDetails: {
-    gap: 4,
-    marginBottom: 12,
-  },
-  detailRow: {
+  actions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    color: '#9ca3af',
-    fontSize: 13,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
     gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    paddingTop: 12,
   },
   actionButton: {
     padding: 8,
+    backgroundColor: '#374151',
     borderRadius: 8,
-    backgroundColor: '#111827',
+  },
+  cardDetails: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: '#374151',
+      flexDirection: 'row',
+      gap: 16,
+  },
+  detailText: {
+      color: '#9ca3af',
+      fontSize: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
   },
   emptyText: {
-    color: '#9ca3af',
+    color: '#6b7280',
     fontSize: 16,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -706,9 +653,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#374151',
   },
   modalTitle: {
+    color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
   },
   modalBody: {
     padding: 20,
@@ -724,11 +671,13 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
   },
+  row: {
+      flexDirection: 'row',
+  },
   label: {
-    fontSize: 14,
     color: '#9ca3af',
+    fontSize: 14,
     marginBottom: 8,
-    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -748,30 +697,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  row: {
-    flexDirection: 'row',
-  },
   cancelButton: {
     flex: 1,
-    padding: 16,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#374151',
-    alignItems: 'center',
   },
   cancelButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    height: 56,
     backgroundColor: '#3b82f6',
+    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 12,
   },
   saveButtonText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

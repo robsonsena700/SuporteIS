@@ -10,6 +10,10 @@
 - **Mobile**: Implemented full Users Management screen (`UsersScreen`) with List, Search, Sort, and CRUD operations.
 - **Mobile**: Added Role-based access control for Users screen and actions (Admin only for edits).
 - **Mobile**: Added `UserModal` and `PasswordModal` for managing users.
+- **Mobile**: Implemented complete Notification System parity with Web version.
+- **Mobile**: Added `NotificationContext` for global state management and synchronization.
+- **Mobile**: Added vibration alerts for new notifications with toggle control.
+- **Mobile**: Updated `Header` and `NotificationModal` to use the new context.
 
 ### Fixed
 - **Mobile**: Fixed `styles` declaration conflict in ProfileScreen.

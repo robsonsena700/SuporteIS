@@ -70,8 +70,12 @@ export const TicketDetailScreen = () => {
             equipment: data.equipment // simplistic mapping
         });
       }
-    } catch (error) {
-      console.error('Failed to load ticket', error);
+    } catch (error: any) {
+      console.error('Failed to load ticket', error.message || error);
+      if (error.response) {
+          console.error('Response status:', error.response.status);
+          console.error('Response data:', error.response.data);
+      }
     } finally {
       setLoading(false);
     }
@@ -94,6 +98,15 @@ export const TicketDetailScreen = () => {
 
     setSending(true);
     try {
+      // Auto-assign logic: If no technician and user is tech support/admin
+      if (ticket && !ticket.technicianId && user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador')) {
+        try {
+            await TicketService.update(ticket.id, { technicianId: user.id });
+        } catch (err) {
+            console.error('Failed to auto-assign', err);
+        }
+      }
+
       await TicketService.addMessage(ticketId, replyText);
       setReplyText('');
       await fetchTicket();
@@ -285,11 +298,12 @@ export const TicketDetailScreen = () => {
                             {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </Text>
                     </View>
-                    <Text style={styles.messageText}>{item.content}</Text>
+                    <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
+                      {item.content}
+                    </Text>
                   </View>
                 );
               }}
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             />
             
             {!isResolved && (
@@ -303,121 +317,137 @@ export const TicketDetailScreen = () => {
                     multiline
                 />
                 <TouchableOpacity 
-                    style={[styles.sendButton, !replyText.trim() && styles.disabledSend]} 
+                    style={[styles.sendButton, !replyText.trim() && styles.sendButtonDisabled]} 
                     onPress={handleSend}
                     disabled={!replyText.trim() || sending}
                 >
-                    {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
+                    {sending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                    <Send color="#fff" size={20} />
+                    )}
                 </TouchableOpacity>
                 </View>
             )}
           </KeyboardAvoidingView>
         ) : activeTab === 'details' ? (
-          <ScrollView contentContainerStyle={styles.detailsContent}>
-            {isEditing && canEdit ? (
-                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                     <Text style={[styles.sectionTitle, { width: '100%' }]}>Editar Chamado</Text>
-                     <CustomPicker
-                        label="Status"
-                        value={editForm.status || ticket.status}
-                        options={[
-                            { label: 'Aberto', value: TicketStatus.OPEN },
-                            { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
-                            { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
-                            { label: 'Resolvido', value: TicketStatus.RESOLVED },
-                        ]}
-                        onSelect={(val) => setEditForm(prev => ({...prev, status: val as TicketStatus}))}
-                        containerStyle={halfWidth}
-                     />
-                     <CustomPicker
+          <ScrollView style={styles.detailsContainer}>
+            {isEditing ? (
+                <View style={styles.formSection}>
+                    <CustomPicker
                         label="Prioridade"
-                        value={editForm.priority || ticket.priority}
+                        value={editForm.priority || TicketPriority.LOW}
                         options={[
                             { label: 'Baixa', value: TicketPriority.LOW },
                             { label: 'Média', value: TicketPriority.MEDIUM },
                             { label: 'Alta', value: TicketPriority.HIGH },
                             { label: 'Crítica', value: TicketPriority.CRITICAL },
                         ]}
-                        onSelect={(val) => setEditForm(prev => ({...prev, priority: val as TicketPriority}))}
-                        containerStyle={halfWidth}
-                     />
-                     <TouchableOpacity style={[styles.saveButton, { width: '100%' }]} onPress={handleUpdate}>
-                         <Text style={styles.saveButtonText}>Salvar Alterações</Text>
-                     </TouchableOpacity>
-                 </View>
+                        onSelect={(v) => setEditForm(p => ({...p, priority: v as TicketPriority}))}
+                    />
+
+                    <CustomPicker
+                        label="Status"
+                        value={editForm.status || TicketStatus.OPEN}
+                        options={[
+                            { label: 'Aberto', value: TicketStatus.OPEN },
+                            { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
+                            { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
+                            { label: 'Resolvido', value: TicketStatus.RESOLVED },
+                        ]}
+                        onSelect={(v) => setEditForm(p => ({...p, status: v as TicketStatus}))}
+                    />
+
+                    <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
+                        <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+                    </TouchableOpacity>
+                </View>
             ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: isWide ? 0 : 20 }}>
-                    <View style={[styles.detailItem, { width: '100%', marginBottom: isWide ? 16 : 0 }]}>
-                    <Text style={styles.detailLabel}>Assunto</Text>
-                    <Text style={styles.detailValue}>{ticket.subject}</Text>
+                <View style={styles.infoSection}>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Equipamento:</Text>
+                        <Text style={styles.infoValue}>{ticket.equipment}</Text>
                     </View>
                     
-                    <View style={[styles.detailItem, { width: '100%', marginBottom: isWide ? 16 : 0 }]}>
-                    <Text style={styles.detailLabel}>Descrição</Text>
-                    <Text style={styles.detailValue}>{ticket.description}</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Cliente:</Text>
+                        <Text style={styles.infoValue}>{ticket.clientName}</Text>
                     </View>
 
-                    <View style={[styles.detailItem, halfWidth, { marginBottom: isWide ? 16 : 0 }]}>
-                        <Text style={styles.detailLabel}>Equipamento</Text>
-                        <Text style={styles.detailValue}>{ticket.equipment}</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Departamento:</Text>
+                        <Text style={styles.infoValue}>{ticket.municipality || 'N/A'}</Text>
                     </View>
-                    <View style={[styles.detailItem, halfWidth, { marginBottom: isWide ? 16 : 0 }]}>
-                        <Text style={styles.detailLabel}>Prioridade</Text>
-                        <Text style={[styles.detailValue, {color: ticket.priority === 'Crítica' ? '#ef4444' : '#fff'}]}>
-                            {ticket.priority}
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Técnico:</Text>
+                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Prioridade:</Text>
+                        <Text style={[styles.infoValue, { 
+                            color: ticket.priority === TicketPriority.CRITICAL ? '#ef4444' : '#fff' 
+                        }]}>
+                            {ticket.priority === TicketPriority.CRITICAL ? 'Crítica' :
+                             ticket.priority === TicketPriority.HIGH ? 'Alta' :
+                             ticket.priority === TicketPriority.MEDIUM ? 'Média' : 'Baixa'}
                         </Text>
                     </View>
+                </View>
+            )}
 
-                    <View style={[styles.detailItem, halfWidth, { marginBottom: isWide ? 16 : 0 }]}>
-                        <Text style={styles.detailLabel}>Cliente</Text>
-                        <Text style={styles.detailValue}>{ticket.clientName} - {ticket.unit}</Text>
+            <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>Descrição do Problema</Text>
+                <View style={styles.descriptionBox}>
+                    <Text style={styles.descriptionText}>{ticket.description}</Text>
+                </View>
+            </View>
+
+            {ticket.rating && (
+                <View style={styles.ratingSection}>
+                    <Text style={styles.ratingLabel}>Avaliação do Cliente</Text>
+                    <View style={styles.ratingBox}>
+                        <View style={{flexDirection:'row', marginBottom: 8}}>
+                             {[1,2,3,4,5].map(s => (
+                                 <Text key={s} style={{fontSize: 20, color: s <= ticket.rating! ? '#eab308' : '#4b5563'}}>★</Text>
+                             ))}
+                        </View>
+                        {ticket.feedback && <Text style={styles.feedbackText}>{ticket.feedback}</Text>}
                     </View>
+                </View>
+            )}
 
-                    <View style={[styles.detailItem, halfWidth]}>
-                        <Text style={styles.detailLabel}>Localização</Text>
-                        <Text style={styles.detailValue}>{ticket.municipality} - {ticket.uf}</Text>
-                    </View>
-
-                    {ticket.technician && (
-                        <View style={[styles.detailItem, { width: '100%', marginTop: 16 }]}>
-                            <Text style={styles.detailLabel}>Técnico Responsável</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                                    <UserIcon size={20} color="#9ca3af" />
-                                </View>
-                                <Text style={styles.detailValue}>{ticket.technician}</Text>
+          </ScrollView>
+        ) : (
+          <View style={styles.historyContainer}>
+              {loadingHistory ? (
+                  <ActivityIndicator color="#3b82f6" />
+              ) : (
+                  <FlatList
+                    data={history}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <View style={styles.historyItem}>
+                            <View style={styles.historyIcon}>
+                                <Clock size={16} color="#9ca3af" />
+                            </View>
+                            <View style={styles.historyContent}>
+                                <Text style={styles.historyAction}>{item.action}</Text>
+                                <Text style={styles.historyDetails}>
+                                    {item.userName} • {new Date(item.timestamp).toLocaleString()}
+                                </Text>
+                                {item.details && <Text style={styles.historyMeta}>{item.details}</Text>}
                             </View>
                         </View>
                     )}
-                </View>
-            )}
-          </ScrollView>
-        ) : (
-            <FlatList
-                data={history}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.historyList}
-                renderItem={({ item }) => (
-                    <View style={styles.historyItem}>
-                        <View style={styles.historyIconContainer}>
-                            <HistoryIcon size={16} color="#9ca3af" />
-                        </View>
-                        <View style={styles.historyContent}>
-                            <Text style={styles.historyText}>{item.details || `Alteração de ${item.changeType}`}</Text>
-                            <Text style={styles.historyTime}>{new Date(item.createdAt).toLocaleString()}</Text>
-                        </View>
-                    </View>
-                )}
-                ListEmptyComponent={
-                    <View style={styles.emptyHistory}>
-                        <Text style={styles.emptyHistoryText}>Nenhum histórico disponível.</Text>
-                    </View>
-                }
-            />
+                  />
+              )}
+          </View>
         )}
       </View>
 
-      <RatingModal 
+      <RatingModal
         visible={showRatingModal}
         onClose={() => setShowRatingModal(false)}
         onSubmit={confirmResolution}
@@ -442,36 +472,39 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
-    gap: 12,
+    backgroundColor: '#111827',
   },
   backButton: {
+    marginRight: 16,
     padding: 4,
   },
   headerInfo: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginTop: 4,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   headerActions: {
       flexDirection: 'row',
       gap: 12,
   },
   actionButton: {
-      padding: 4,
+      padding: 8,
+      backgroundColor: '#1f2937',
+      borderRadius: 8,
   },
   tabs: {
     flexDirection: 'row',
@@ -480,7 +513,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
@@ -490,7 +523,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: '#9ca3af',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   activeTabText: {
     color: '#3b82f6',
@@ -503,19 +536,20 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   messageBubble: {
-    padding: 12,
-    borderRadius: 12,
     maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 8,
   },
   myMessage: {
-    backgroundColor: '#3b82f6',
     alignSelf: 'flex-end',
-    borderBottomRightRadius: 2,
+    backgroundColor: '#3b82f6',
+    borderBottomRightRadius: 4,
   },
   otherMessage: {
-    backgroundColor: '#374151',
     alignSelf: 'flex-start',
-    borderBottomLeftRadius: 2,
+    backgroundColor: '#1f2937',
+    borderBottomLeftRadius: 4,
   },
   messageHeader: {
     flexDirection: 'row',
@@ -524,118 +558,163 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   senderName: {
-    color: '#fff',
-    fontWeight: 'bold',
     fontSize: 12,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.7)',
   },
   timestamp: {
-    color: 'rgba(255,255,255,0.7)',
     fontSize: 10,
+    color: 'rgba(255,255,255,0.5)',
   },
   messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  myMessageText: {
     color: '#fff',
   },
+  otherMessageText: {
+    color: '#e5e7eb',
+  },
   inputContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
     flexDirection: 'row',
-    gap: 12,
+    padding: 16,
+    backgroundColor: '#1f2937',
     alignItems: 'flex-end',
-    backgroundColor: '#111827',
+    gap: 12,
   },
   input: {
     flex: 1,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#374151',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    paddingRight: 16,
     color: '#fff',
     maxHeight: 100,
   },
   sendButton: {
+    backgroundColor: '#3b82f6',
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  disabledSend: {
-    backgroundColor: '#374151',
+  sendButtonDisabled: {
+    backgroundColor: '#4b5563',
+    opacity: 0.5,
   },
-  detailsContent: {
-    padding: 24,
+  detailsContainer: {
+    padding: 20,
   },
-  detailItem: {
-    marginBottom: 24,
+  infoSection: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    gap: 12,
   },
-  detailLabel: {
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  infoLabel: {
     color: '#9ca3af',
-    fontSize: 12,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 14,
   },
-  detailValue: {
+  infoValue: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '500',
+    maxWidth: '60%',
+    textAlign: 'right',
   },
-  sectionTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
+  descriptionSection: {
+      marginBottom: 20,
+  },
+  descriptionLabel: {
+      color: '#9ca3af',
+      fontSize: 14,
+      marginBottom: 8,
+      fontWeight: '500',
+  },
+  descriptionBox: {
+      backgroundColor: '#1f2937',
+      borderRadius: 16,
+      padding: 16,
+  },
+  descriptionText: {
+      color: '#e5e7eb',
+      fontSize: 15,
+      lineHeight: 22,
+  },
+  historyContainer: {
+      padding: 20,
+  },
+  historyItem: {
+      flexDirection: 'row',
+      marginBottom: 24,
+  },
+  historyIcon: {
+      marginRight: 16,
+      alignItems: 'center',
+  },
+  historyContent: {
+      flex: 1,
+  },
+  historyAction: {
       color: '#fff',
-      marginBottom: 16,
+      fontWeight: 'bold',
+      fontSize: 14,
+      marginBottom: 4,
+  },
+  historyDetails: {
+      color: '#9ca3af',
+      fontSize: 12,
+      marginBottom: 2,
+  },
+  historyMeta: {
+      color: '#6b7280',
+      fontSize: 12,
+      fontStyle: 'italic',
+  },
+  formSection: {
+      gap: 16,
+      marginBottom: 20,
   },
   saveButton: {
       backgroundColor: '#3b82f6',
       padding: 16,
-      borderRadius: 8,
+      borderRadius: 12,
       alignItems: 'center',
-      marginTop: 16,
+      marginTop: 8,
   },
   saveButtonText: {
       color: '#fff',
       fontWeight: 'bold',
+      fontSize: 16,
   },
-  historyList: {
+  ratingSection: {
+      marginTop: 10,
+  },
+  ratingLabel: {
+      color: '#9ca3af',
+      fontSize: 14,
+      marginBottom: 8,
+      fontWeight: '500',
+  },
+  ratingBox: {
+      backgroundColor: '#1f2937',
+      borderRadius: 16,
       padding: 16,
   },
-  historyItem: {
-      flexDirection: 'row',
-      marginBottom: 16,
-      gap: 12,
-  },
-  historyIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: '#1f2937',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: '#374151',
-  },
-  historyContent: {
-      flex: 1,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: '#1f2937',
-  },
-  historyText: {
-      color: '#fff',
-      fontSize: 14,
-      marginBottom: 4,
-  },
-  historyTime: {
-      color: '#9ca3af',
-      fontSize: 12,
-  },
-  emptyHistory: {
-      alignItems: 'center',
-      marginTop: 40,
-  },
-  emptyHistoryText: {
-      color: '#6b7280',
+  feedbackText: {
+      color: '#e5e7eb',
+      fontStyle: 'italic',
   }
 });

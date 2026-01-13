@@ -1,0 +1,251 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowLeft, Send } from 'lucide-react-native';
+import { ChatService } from '../services/chatService';
+import { UserService } from '../services/userService';
+import { useAuth } from '../auth/AuthContext';
+import { ChatMessage, User } from '../types';
+
+type RootStackParamList = {
+  Chat: { userId: string; userName?: string };
+};
+
+type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
+
+export const ChatScreen = () => {
+  const route = useRoute<ChatScreenRouteProp>();
+  const navigation = useNavigation();
+  const { userId, userName: initialUserName } = route.params;
+  const { user: currentUser } = useAuth();
+  const insets = useSafeAreaInsets();
+  
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [inputText, setInputText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [chatUser, setChatUser] = useState<User | null>(null);
+  
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    fetchChatUser();
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000); // Poll every 3s
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  const fetchChatUser = async () => {
+    if (initialUserName) return;
+    try {
+      const userData = await UserService.getById(userId);
+      setChatUser(userData);
+    } catch (error) {
+      console.error('Failed to fetch chat user', error);
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const data = await ChatService.getMessages(userId);
+      setMessages(data);
+      // Mark as read
+      await ChatService.markAsRead(userId);
+    } catch (error) {
+      console.error('Failed to fetch messages', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!inputText.trim()) return;
+    
+    const tempText = inputText;
+    setInputText(''); // Optimistic clear
+    setSending(true);
+
+    try {
+      await ChatService.sendMessage(userId, tempText);
+      await fetchMessages();
+    } catch (error) {
+      console.error('Failed to send message', error);
+      setInputText(tempText); // Restore on error
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: ChatMessage }) => {
+    const isMe = item.senderId === currentUser?.id;
+    return (
+      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.otherMessage]}>
+        <Text style={styles.messageText}>{item.content}</Text>
+        <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.otherTimestamp]}>
+          {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ArrowLeft color="#fff" size={24} />
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>{chatUser?.name || initialUserName || 'Chat'}</Text>
+          <Text style={styles.headerSubtitle}>{chatUser?.profile || 'Usuário'}</Text>
+        </View>
+      </View>
+
+      <View style={[styles.content, { paddingBottom: insets.bottom }]}>
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.list}
+            inverted={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          />
+        )}
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Digite sua mensagem..."
+              placeholderTextColor="#6b7280"
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || sending) && styles.disabledSend]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || sending}
+            >
+              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+    gap: 12,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  content: {
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    padding: 16,
+    gap: 12,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 12,
+    maxWidth: '80%',
+    marginBottom: 4,
+  },
+  myMessage: {
+    backgroundColor: '#3b82f6',
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 2,
+  },
+  otherMessage: {
+    backgroundColor: '#374151',
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 2,
+  },
+  messageText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  timestamp: {
+    fontSize: 10,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  myTimestamp: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  otherTimestamp: {
+    color: '#9ca3af',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    backgroundColor: '#111827',
+    gap: 12,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    color: '#fff',
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disabledSend: {
+    opacity: 0.5,
+  },
+});

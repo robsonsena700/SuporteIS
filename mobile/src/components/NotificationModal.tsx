@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import { X, Bell, MessageSquare, CheckCircle, Info } from 'lucide-react-native';
+import { X, Bell, BellOff, MessageSquare, CheckCircle, Info } from 'lucide-react-native';
 import { Notification } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,8 +10,11 @@ interface NotificationModalProps {
   onClose: () => void;
   notifications: Notification[];
   loading: boolean;
+  alertEnabled: boolean;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onToggleAlert: () => void;
+  onNotificationClick: (notification: Notification) => void;
 }
 
 export const NotificationModal = ({
@@ -19,8 +22,11 @@ export const NotificationModal = ({
   onClose,
   notifications,
   loading,
+  alertEnabled,
   onMarkAsRead,
-  onMarkAllAsRead
+  onMarkAllAsRead,
+  onToggleAlert,
+  onNotificationClick
 }: NotificationModalProps) => {
   const getIcon = (type: string) => {
     switch (type) {
@@ -37,7 +43,10 @@ export const NotificationModal = ({
   const renderItem = ({ item }: { item: Notification }) => (
     <TouchableOpacity 
       style={[styles.item, !item.isRead && styles.unreadItem]} 
-      onPress={() => onMarkAsRead(item.id)}
+      onPress={() => {
+        onMarkAsRead(item.id);
+        onNotificationClick(item);
+      }}
     >
       <View style={styles.iconContainer}>
         {getIcon(item.type)}
@@ -65,7 +74,13 @@ export const NotificationModal = ({
         <View style={styles.container}>
           <View style={styles.header}>
             <View style={styles.titleContainer}>
-              <Bell color="#fff" size={20} />
+              <TouchableOpacity onPress={onToggleAlert}>
+                {alertEnabled ? (
+                  <Bell color="#fff" size={20} />
+                ) : (
+                  <BellOff color="#9ca3af" size={20} />
+                )}
+              </TouchableOpacity>
               <Text style={styles.title}>Notificações</Text>
             </View>
             <View style={styles.headerActions}>

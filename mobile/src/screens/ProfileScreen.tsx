@@ -300,20 +300,18 @@ const profileStyles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
   },
-
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#ef4444',
     borderRadius: 12,
+    gap: 8,
   },
   logoutText: {
     color: '#ef4444',

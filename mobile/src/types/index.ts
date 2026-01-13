@@ -95,6 +95,16 @@ export interface Notification {
   createdAtIso?: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender?: User;
+}
+
 export interface DashboardStats {
   totalTickets: number;
   resolvedCount: number;

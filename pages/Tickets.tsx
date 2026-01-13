@@ -70,7 +70,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
   // Polling Logic
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     if (isAutoRefresh) {
         interval = setInterval(async () => {

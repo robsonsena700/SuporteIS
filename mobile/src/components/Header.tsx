@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { LogOut, Bell, Users, User as UserIcon } from 'lucide-react-native';
+import { useNotifications } from '../context/NotificationContext';
+import { useNavigation } from '@react-navigation/native';
+import { LogOut, Bell, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NotificationService } from '../services/notificationService';
-import { Notification } from '../types';
 import { NotificationModal } from './NotificationModal';
+import { Notification } from '../types';
 
 interface HeaderProps {
   title?: string;
@@ -16,49 +16,11 @@ interface HeaderProps {
 
 export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps) => {
   const { user, signOut } = useAuth();
-  const navigation = useNavigation();
+  const { notifications, unreadCount, loading, alertEnabled, markAsRead, markAllAsRead, refreshNotifications, toggleAlert } = useNotifications();
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
-
-  const fetchNotifications = async () => {
-    try {
-      const data = await NotificationService.getAll();
-      setNotifications(data);
-      setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
-    } catch (error) {
-      console.log('Error fetching notifications:', error);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchNotifications();
-    }, [])
-  );
-
-  const handleMarkAsRead = async (id: string) => {
-    try {
-      await NotificationService.markAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.log('Error marking as read:', error);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await NotificationService.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.log('Error marking all as read:', error);
-    }
-  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -72,7 +34,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
   };
 
   const handleTeamClick = () => {
-    if (user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico') {
+    if (user?.role === 'Administrador' || user?.profile === 'Suporte Técnico') {
       navigation.navigate('UsersTab' as never);
     } else {
       Alert.alert('Equipe', 'Você não tem permissão para visualizar a equipe.');
@@ -81,7 +43,17 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
 
   const handleNotifications = () => {
     setShowNotifications(true);
-    fetchNotifications();
+    refreshNotifications();
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    setShowNotifications(false);
+    
+    if (notification.type === 'new_message' || notification.type === 'status_change') {
+      navigation.navigate('TicketDetail', { ticketId: notification.referenceId });
+    } else if (notification.type === 'new_dm') {
+      navigation.navigate('Chat', { userId: notification.referenceId });
+    }
   };
 
   // Format last access date
@@ -126,13 +98,13 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
             
             {canShowTeam && (
               <TouchableOpacity onPress={handleTeamClick} style={styles.iconButton}>
-                <Users color="#fff" size={20} />
+                <Users stroke="#fff" size={20} />
               </TouchableOpacity>
             )}
 
             <TouchableOpacity onPress={handleNotifications} style={styles.iconButton}>
               <View>
-                <Bell color="#fff" size={20} />
+                <Bell stroke="#fff" size={20} />
                 {unreadCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
@@ -154,9 +126,12 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         visible={showNotifications}
         onClose={() => setShowNotifications(false)}
         notifications={notifications}
-        loading={loadingNotifications}
-        onMarkAsRead={handleMarkAsRead}
-        onMarkAllAsRead={handleMarkAllAsRead}
+        loading={loading}
+        alertEnabled={alertEnabled}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onToggleAlert={toggleAlert}
+        onNotificationClick={handleNotificationClick}
       />
     </>
   );

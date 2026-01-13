@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Platform, Alert, Modal } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/api';
-import { Ticket, TicketStatus } from '../types';
+import { Ticket, TicketStatus, TicketPriority } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Search, Filter, ArrowUpDown, AlertCircle, RefreshCw } from 'lucide-react-native';
+import { Plus, Search, Filter, ArrowUpDown, AlertCircle, RefreshCw, X, Check, Calendar, User as UserIcon, Monitor, Cpu } from 'lucide-react-native';
 import { useResponsive } from '../hooks/useResponsive';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Header } from '../components/Header';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type RootStackParamList = {
   TicketDetail: { ticketId: string };
@@ -16,7 +19,8 @@ type RootStackParamList = {
 
 type TicketsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
-const STATUS_FILTERS = [
+// Unified Status Tabs
+const STATUS_TABS = [
     { label: 'Todos', value: 'ALL' },
     { label: 'Abertos', value: TicketStatus.OPEN },
     { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
@@ -24,7 +28,19 @@ const STATUS_FILTERS = [
     { label: 'Resolvidos', value: TicketStatus.RESOLVED },
 ];
 
-import { Header } from '../components/Header';
+const PRIORITY_OPTIONS = [
+    { label: 'Todas', value: 'ALL' },
+    { label: 'Baixa', value: TicketPriority.LOW },
+    { label: 'Média', value: TicketPriority.MEDIUM },
+    { label: 'Alta', value: TicketPriority.HIGH },
+    { label: 'Crítica', value: TicketPriority.CRITICAL },
+];
+
+const TYPE_OPTIONS = [
+    { label: 'Todos', value: 'ALL' },
+    { label: 'Sistema', value: 'SYSTEM' },
+    { label: 'Equipamento', value: 'EQUIPMENT' },
+];
 
 export const TicketsScreen = () => {
   const navigation = useNavigation<TicketsScreenNavigationProp>();
@@ -35,14 +51,26 @@ export const TicketsScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const { isTablet, isLandscape, screenWidth } = useResponsive();
 
-  // Tabs
-  const [activeTab, setActiveTab] = useState<'Sistema' | 'Equipamento' | 'Concluído'>('Sistema');
-  const [showMyTicketsOnly, setShowMyTicketsOnly] = useState(false);
-
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  // State for Filters & Tabs
+  const [activeStatusTab, setActiveStatusTab] = useState('ALL'); // Primary Tab
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  
+  // Advanced Filters State
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+      type: 'ALL',
+      priority: 'ALL',
+      showMyTickets: false,
+      sortOrder: 'desc' as 'asc' | 'desc',
+      sortBy: 'date' as 'date' | 'priority'
+  });
+  const [appliedFilters, setAppliedFilters] = useState({
+      type: 'ALL',
+      priority: 'ALL',
+      showMyTickets: false,
+      sortOrder: 'desc' as 'asc' | 'desc',
+      sortBy: 'date' as 'date' | 'priority'
+  });
 
   const numColumns = isTablet || isLandscape ? 2 : 1;
   const cardWidth = (screenWidth - 40 - (numColumns - 1) * 16) / numColumns;
@@ -50,6 +78,8 @@ export const TicketsScreen = () => {
   const fetchTickets = useCallback(async () => {
     try {
       setError(null);
+      // In a real app, you might pass filters to the API. 
+      // Here we fetch all and filter client-side as per current implementation.
       const response = await api.get('/tickets');
       
       const mappedTickets = response.data.map((data: any) => ({
@@ -63,6 +93,8 @@ export const TicketsScreen = () => {
         technicianId: data.technician_id,
         equipment: data.equipment,
         createdAt: new Date(data.created_at).toLocaleDateString('pt-BR'),
+        createdAtIso: data.created_at, // Fix for type safety
+        created_at: data.created_at, // Keep original for sorting
         // Store raw date for sorting
         rawDate: new Date(data.created_at).getTime()
       }));
@@ -84,45 +116,41 @@ export const TicketsScreen = () => {
   const processedTickets = useMemo(() => {
       let result = [...tickets];
 
-      // 0. Tab Filter
-      if (activeTab === 'Concluído') {
-        result = result.filter(t => t.status === TicketStatus.RESOLVED);
-      } else {
-        // Exclude resolved from other tabs
-        result = result.filter(t => t.status !== TicketStatus.RESOLVED);
-        
-        if (activeTab === 'Equipamento') {
-           // Filter for Equipment tickets
-           result = result.filter(t => 
-             (t.equipment && t.equipment.trim() !== '') || 
-             t.subject.toLowerCase().includes('impressora') || 
-             t.subject.toLowerCase().includes('equipamento') ||
-             t.subject.toLowerCase().includes('toner')
-           );
-        } else {
-           // Sistema (System) - default for others
-           // Exclude equipment tickets
-           result = result.filter(t => !(
-             (t.equipment && t.equipment.trim() !== '') || 
-             t.subject.toLowerCase().includes('impressora') || 
-             t.subject.toLowerCase().includes('equipamento') ||
-             t.subject.toLowerCase().includes('toner')
-           ));
-        }
+      // 1. Status Filter (Primary Tab)
+      if (activeStatusTab !== 'ALL') {
+          result = result.filter(t => t.status === activeStatusTab);
       }
 
-      // 0.5 My Tickets Filter (Support/Admin only)
-      if (showMyTicketsOnly && user) {
+      // 2. Type Filter
+      if (appliedFilters.type !== 'ALL') {
+          if (appliedFilters.type === 'EQUIPMENT') {
+             result = result.filter(t => 
+                 (t.equipment && t.equipment.trim() !== '') || 
+                 t.subject.toLowerCase().includes('impressora') || 
+                 t.subject.toLowerCase().includes('equipamento') ||
+                 t.subject.toLowerCase().includes('toner')
+             );
+          } else { // SYSTEM
+             result = result.filter(t => !(
+                 (t.equipment && t.equipment.trim() !== '') || 
+                 t.subject.toLowerCase().includes('impressora') || 
+                 t.subject.toLowerCase().includes('equipamento') ||
+                 t.subject.toLowerCase().includes('toner')
+             ));
+          }
+      }
+
+      // 3. Priority Filter
+      if (appliedFilters.priority !== 'ALL') {
+          result = result.filter(t => t.priority === appliedFilters.priority);
+      }
+
+      // 4. My Tickets Filter (Support/Admin only)
+      if (appliedFilters.showMyTickets && user) {
         result = result.filter(t => t.technicianId === user.id);
       }
 
-      // 1. Status Filter (Chips)
-      // Only apply if not in 'Concluído' tab (where status is fixed)
-      if (activeTab !== 'Concluído' && statusFilter !== 'ALL') {
-          result = result.filter(t => t.status === statusFilter);
-      }
-
-      // 2. Search Filter
+      // 5. Search Filter
       if (searchQuery) {
           const lower = searchQuery.toLowerCase();
           result = result.filter(t => 
@@ -132,13 +160,23 @@ export const TicketsScreen = () => {
           );
       }
 
-      // 3. Sorting (Date)
+      // 6. Sorting
       return result.sort((a: any, b: any) => {
-          return sortOrder === 'desc' 
-              ? b.rawDate - a.rawDate 
-              : a.rawDate - b.rawDate;
+          let comparison = 0;
+          
+          if (appliedFilters.sortBy === 'priority') {
+             const priorityWeight = { [TicketPriority.CRITICAL]: 4, [TicketPriority.HIGH]: 3, [TicketPriority.MEDIUM]: 2, [TicketPriority.LOW]: 1 };
+             const weightA = priorityWeight[a.priority as TicketPriority] || 0;
+             const weightB = priorityWeight[b.priority as TicketPriority] || 0;
+             comparison = weightA - weightB;
+          } else {
+             // Date
+             comparison = a.rawDate - b.rawDate;
+          }
+
+          return appliedFilters.sortOrder === 'desc' ? -comparison : comparison;
       });
-  }, [tickets, statusFilter, searchQuery, sortOrder, activeTab, showMyTicketsOnly, user]);
+  }, [tickets, activeStatusTab, appliedFilters, searchQuery, user]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -147,61 +185,105 @@ export const TicketsScreen = () => {
 
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
-      case TicketStatus.OPEN: return '#3b82f6';
-      case TicketStatus.IN_ANALYSIS: return '#f59e0b';
-      case TicketStatus.IN_PROGRESS: return '#8b5cf6';
-      case TicketStatus.RESOLVED: return '#10b981';
+      case TicketStatus.OPEN: return '#3b82f6'; // Blue
+      case TicketStatus.IN_ANALYSIS: return '#f59e0b'; // Amber
+      case TicketStatus.IN_PROGRESS: return '#8b5cf6'; // Purple
+      case TicketStatus.RESOLVED: return '#10b981'; // Emerald
       default: return '#9ca3af';
     }
+  };
+
+  const getPriorityColor = (priority: TicketPriority) => {
+      switch (priority) {
+          case TicketPriority.CRITICAL: return '#ef4444'; // Red
+          case TicketPriority.HIGH: return '#f97316'; // Orange
+          case TicketPriority.MEDIUM: return '#eab308'; // Yellow
+          case TicketPriority.LOW: return '#3b82f6'; // Blue
+          default: return '#9ca3af';
+      }
+  };
+
+  const getStatusLabel = (status: TicketStatus) => {
+      const option = STATUS_TABS.find(o => o.value === status);
+      return option ? option.label : status;
   };
 
   const renderItem = ({ item }: { item: Ticket }) => (
     <TouchableOpacity 
       style={[styles.card, { width: numColumns > 1 ? cardWidth : '100%' }]}
       onPress={() => navigation.navigate('TicketDetail', { ticketId: item.id })}
+      activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.ticketCode}>{item.code || `CH-${item.id.slice(0, 4)}`}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
+        <View style={styles.codeContainer}>
+             <Text style={styles.ticketCode}>{item.code || `CH-${item.id.slice(0, 4)}`}</Text>
+             {item.createdAtIso && (
+                 <Text style={styles.timeAgo}>
+                    {format(new Date(item.createdAtIso), "dd/MM HH:mm")}
+                 </Text>
+             )}
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '40' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {getStatusLabel(item.status)}
+          </Text>
         </View>
       </View>
       
       <Text style={styles.subject} numberOfLines={2}>{item.subject}</Text>
       
+      <View style={styles.cardDetails}>
+        <View style={styles.detailRow}>
+            <UserIcon size={14} color="#9ca3af" />
+            <Text style={styles.detailText} numberOfLines={1}>{item.clientName}</Text>
+        </View>
+        
+        {item.equipment && (
+             <View style={styles.detailRow}>
+                <Monitor size={14} color="#9ca3af" />
+                <Text style={styles.detailText} numberOfLines={1}>{item.equipment}</Text>
+            </View>
+        )}
+      </View>
+
+      <View style={styles.divider} />
+
       <View style={styles.cardFooter}>
-        <Text style={styles.clientText}>{item.clientName}</Text>
-        <Text style={styles.dateText}>{item.createdAt}</Text>
+         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '20' }]}>
+            <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
+                {item.priority === TicketPriority.CRITICAL ? 'Crítica' :
+                 item.priority === TicketPriority.HIGH ? 'Alta' :
+                 item.priority === TicketPriority.MEDIUM ? 'Média' : 'Baixa'}
+            </Text>
+         </View>
+
+         {item.technician && (
+             <View style={styles.techContainer}>
+                 <Text style={styles.techLabel}>Técnico:</Text>
+                 <Text style={styles.techName} numberOfLines={1}>{item.technician}</Text>
+             </View>
+         )}
       </View>
     </TouchableOpacity>
   );
 
+  const applyFilters = () => {
+      setAppliedFilters(tempFilters);
+      setFilterModalVisible(false);
+  };
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <AlertCircle size={48} color="#ef4444" style={{ marginBottom: 16 }} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchTickets}>
-          <RefreshCw size={20} color="#fff" />
-          <Text style={styles.retryText}>Tentar Novamente</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-
-  const EmptyState = () => (
-    <View style={styles.center}>
-      <Filter size={48} color="#374151" style={{ marginBottom: 16 }} />
-      <Text style={styles.emptyTitle}>Nenhum chamado encontrado</Text>
-      <Text style={styles.emptyText}>
-        {searchQuery 
-          ? `Não encontramos resultados para "${searchQuery}"`
-          : 'Tente ajustar os filtros para ver mais resultados'}
-      </Text>
-    </View>
-  );
+  const resetFilters = () => {
+      const resetState = {
+          type: 'ALL',
+          priority: 'ALL',
+          showMyTickets: false,
+          sortOrder: 'desc' as 'asc' | 'desc',
+          sortBy: 'date' as 'date' | 'priority'
+      };
+      setTempFilters(resetState);
+      setAppliedFilters(resetState);
+      setFilterModalVisible(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -219,76 +301,53 @@ export const TicketsScreen = () => {
         }
       />
 
-      {/* Tabs */}
+      {/* Primary Status Tabs */}
       <View style={styles.tabsContainer}>
-        {(['Sistema', 'Equipamento', 'Concluído'] as const).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => {
-              setActiveTab(tab);
-              setStatusFilter('ALL'); // Reset status filter on tab change
-            }}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.tabsContent}
+        >
+            {STATUS_TABS.map((tab) => (
+            <TouchableOpacity
+                key={tab.value}
+                style={[styles.tab, activeStatusTab === tab.value && styles.activeTab]}
+                onPress={() => setActiveStatusTab(tab.value)}
+            >
+                <Text style={[styles.tabText, activeStatusTab === tab.value && styles.activeTabText]}>
+                {tab.label}
+                </Text>
+            </TouchableOpacity>
+            ))}
+        </ScrollView>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-              <Search color="#9ca3af" size={20} />
+      {/* Search and Filters Bar */}
+      <View style={styles.searchBarContainer}>
+          <View style={styles.searchInputWrapper}>
+              <Search color="#9ca3af" size={18} />
               <TextInput
                   style={styles.searchInput}
-                  placeholder="Buscar chamados..."
+                  placeholder="Buscar por código, assunto..."
                   placeholderTextColor="#6b7280"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
               />
+              {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <X stroke="#9ca3af" size={18} />
+                  </TouchableOpacity>
+              )}
           </View>
           <TouchableOpacity 
-            style={styles.sortButton}
-            onPress={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            style={[styles.filterButton, (appliedFilters.priority !== 'ALL' || appliedFilters.type !== 'ALL' || appliedFilters.showMyTickets) && styles.filterButtonActive]}
+            onPress={() => {
+                setTempFilters(appliedFilters);
+                setFilterModalVisible(true);
+            }}
           >
-              <ArrowUpDown color="#9ca3af" size={20} />
+              <Filter color={appliedFilters.priority !== 'ALL' || appliedFilters.type !== 'ALL' || appliedFilters.showMyTickets ? "#fff" : "#9ca3af"} size={20} />
           </TouchableOpacity>
-      </View>
-
-      {/* Filters: My Tickets Toggle & Status Chips */}
-      <View style={styles.filtersContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContent}>
-            {/* My Tickets Toggle (Support only) */}
-            {(user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador') && (
-               <TouchableOpacity
-                  style={[styles.chip, showMyTicketsOnly && styles.activeChip]}
-                  onPress={() => setShowMyTicketsOnly(!showMyTicketsOnly)}
-               >
-                 <Text style={[styles.chipText, showMyTicketsOnly && styles.activeChipText]}>
-                   Meus Chamados
-                 </Text>
-               </TouchableOpacity>
-            )}
-
-            {/* Status Chips (Only if not in Concluído tab) */}
-            {activeTab !== 'Concluído' && STATUS_FILTERS.map((filter) => (
-                <TouchableOpacity
-                  key={filter.value}
-                  style={[
-                      styles.chip,
-                      statusFilter === filter.value && styles.activeChip
-                  ]}
-                  onPress={() => setStatusFilter(filter.value)}
-                >
-                    <Text style={[
-                        styles.chipText,
-                        statusFilter === filter.value && styles.activeChipText
-                    ]}>{filter.label}</Text>
-                </TouchableOpacity>
-            ))}
-        </ScrollView>
       </View>
 
       {loading ? (
@@ -306,13 +365,134 @@ export const TicketsScreen = () => {
           }
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.emptyText}>Nenhum chamado encontrado</Text>
+                <View style={styles.emptyIconBg}>
+                    <Search size={32} color="#4b5563" />
+                </View>
+                <Text style={styles.emptyTitle}>Nenhum chamado encontrado</Text>
+                <Text style={styles.emptyText}>
+                    Tente ajustar os filtros ou busque por outro termo.
+                </Text>
+                <TouchableOpacity style={styles.clearFiltersButton} onPress={() => {
+                    setSearchQuery('');
+                    setActiveStatusTab('ALL');
+                    resetFilters();
+                }}>
+                    <Text style={styles.clearFiltersText}>Limpar Filtros</Text>
+                </TouchableOpacity>
             </View>
           }
           numColumns={numColumns}
-          key={numColumns} // Force re-render on orientation change
+          key={numColumns} 
         />
       )}
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+          <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Filtrar e Ordenar</Text>
+                      <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                          <X color="#9ca3af" size={24} />
+                      </TouchableOpacity>
+                  </View>
+                  
+                  <ScrollView style={styles.modalBody}>
+                      {/* Sort Options */}
+                      <Text style={styles.filterSectionTitle}>Ordenar por</Text>
+                      <View style={styles.filterOptionsRow}>
+                          <TouchableOpacity 
+                             style={[styles.filterOption, tempFilters.sortBy === 'date' && styles.filterOptionActive]}
+                             onPress={() => setTempFilters(prev => ({ ...prev, sortBy: 'date' }))}
+                          >
+                              <Calendar size={16} color={tempFilters.sortBy === 'date' ? '#fff' : '#9ca3af'} />
+                              <Text style={[styles.filterOptionText, tempFilters.sortBy === 'date' && styles.filterOptionTextActive]}>Data</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                             style={[styles.filterOption, tempFilters.sortBy === 'priority' && styles.filterOptionActive]}
+                             onPress={() => setTempFilters(prev => ({ ...prev, sortBy: 'priority' }))}
+                          >
+                              <AlertCircle size={16} color={tempFilters.sortBy === 'priority' ? '#fff' : '#9ca3af'} />
+                              <Text style={[styles.filterOptionText, tempFilters.sortBy === 'priority' && styles.filterOptionTextActive]}>Prioridade</Text>
+                          </TouchableOpacity>
+                      </View>
+
+                      <Text style={styles.filterSectionTitle}>Ordem</Text>
+                      <View style={styles.filterOptionsRow}>
+                          <TouchableOpacity 
+                             style={[styles.filterOption, tempFilters.sortOrder === 'desc' && styles.filterOptionActive]}
+                             onPress={() => setTempFilters(prev => ({ ...prev, sortOrder: 'desc' }))}
+                          >
+                              <Text style={[styles.filterOptionText, tempFilters.sortOrder === 'desc' && styles.filterOptionTextActive]}>Decrescente</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                             style={[styles.filterOption, tempFilters.sortOrder === 'asc' && styles.filterOptionActive]}
+                             onPress={() => setTempFilters(prev => ({ ...prev, sortOrder: 'asc' }))}
+                          >
+                              <Text style={[styles.filterOptionText, tempFilters.sortOrder === 'asc' && styles.filterOptionTextActive]}>Crescente</Text>
+                          </TouchableOpacity>
+                      </View>
+
+                      {/* Type Filter */}
+                      <Text style={styles.filterSectionTitle}>Tipo</Text>
+                      <View style={styles.filterOptionsGrid}>
+                          {TYPE_OPTIONS.map(opt => (
+                              <TouchableOpacity
+                                  key={opt.value}
+                                  style={[styles.filterOption, tempFilters.type === opt.value && styles.filterOptionActive]}
+                                  onPress={() => setTempFilters(prev => ({ ...prev, type: opt.value }))}
+                              >
+                                  <Text style={[styles.filterOptionText, tempFilters.type === opt.value && styles.filterOptionTextActive]}>{opt.label}</Text>
+                              </TouchableOpacity>
+                          ))}
+                      </View>
+
+                      {/* Priority Filter */}
+                      <Text style={styles.filterSectionTitle}>Prioridade</Text>
+                      <View style={styles.filterOptionsGrid}>
+                          {PRIORITY_OPTIONS.map(opt => (
+                              <TouchableOpacity
+                                  key={opt.value}
+                                  style={[styles.filterOption, tempFilters.priority === opt.value && styles.filterOptionActive]}
+                                  onPress={() => setTempFilters(prev => ({ ...prev, priority: opt.value }))}
+                              >
+                                  <Text style={[styles.filterOptionText, tempFilters.priority === opt.value && styles.filterOptionTextActive]}>{opt.label}</Text>
+                              </TouchableOpacity>
+                          ))}
+                      </View>
+
+                      {/* My Tickets Toggle */}
+                      {(user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador') && (
+                          <TouchableOpacity 
+                              style={styles.switchRow}
+                              onPress={() => setTempFilters(prev => ({ ...prev, showMyTickets: !prev.showMyTickets }))}
+                          >
+                              <Text style={styles.switchLabel}>Apenas meus chamados</Text>
+                              <View style={[styles.switch, tempFilters.showMyTickets ? styles.switchActive : styles.switchInactive]}>
+                                  <View style={[styles.switchThumb, tempFilters.showMyTickets ? styles.switchThumbActive : styles.switchThumbInactive]} />
+                              </View>
+                          </TouchableOpacity>
+                      )}
+
+                      <View style={{ height: 40 }} />
+                  </ScrollView>
+
+                  <View style={styles.modalFooter}>
+                      <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
+                          <Text style={styles.resetButtonText}>Limpar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
+                          <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
+                      </TouchableOpacity>
+                  </View>
+              </View>
+          </View>
+      </Modal>
     </View>
   );
 };
@@ -321,6 +501,113 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111827',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  list: {
+    padding: 16,
+    paddingBottom: 80, // Space for FAB
+  },
+  card: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  codeContainer: {
+    flex: 1,
+  },
+  ticketCode: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#9ca3af',
+    marginBottom: 4,
+  },
+  timeAgo: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  subject: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  cardDetails: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#d1d5db',
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#374151',
+    marginVertical: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  techContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  techLabel: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  techName: {
+    fontSize: 12,
+    color: '#d1d5db',
+    fontWeight: '500',
+    maxWidth: 100,
   },
   addButton: {
     width: 40,
@@ -331,183 +618,240 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    marginHorizontal: 24,
     backgroundColor: '#1f2937',
-    borderRadius: 8,
-    padding: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  tabsContent: {
+    paddingHorizontal: 16,
   },
   tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    backgroundColor: '#3b82f6',
+    borderBottomColor: '#3b82f6',
   },
   tabText: {
     color: '#9ca3af',
-    fontWeight: '500',
     fontSize: 14,
+    fontWeight: '500',
   },
   activeTabText: {
-    color: '#fff',
+    color: '#3b82f6',
     fontWeight: 'bold',
   },
-  searchContainer: {
-      paddingHorizontal: 24,
-      marginBottom: 16,
-      flexDirection: 'row',
-      gap: 12,
+  searchBarContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    backgroundColor: '#111827',
   },
-  searchInputContainer: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#1f2937',
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      height: 48,
-      gap: 8,
-  },
-  searchInput: {
-      flex: 1,
-      color: '#fff',
-      height: '100%',
-  },
-  sortButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      backgroundColor: '#1f2937',
-      justifyContent: 'center',
-      alignItems: 'center',
-  },
-  filtersContainer: {
-      marginBottom: 16,
-  },
-  chipsContent: {
-      paddingHorizontal: 24,
-      gap: 8,
-  },
-  chip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: '#1f2937',
-      borderWidth: 1,
-      borderColor: '#374151',
-  },
-  activeChip: {
-      backgroundColor: '#3b82f6',
-      borderColor: '#3b82f6',
-  },
-  chipText: {
-      color: '#9ca3af',
-      fontSize: 14,
-      fontWeight: '500',
-  },
-  activeChipText: {
-      color: '#fff',
-  },
-  list: {
-    padding: 24,
-    gap: 16,
-  },
-  card: {
+  searchInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1f2937',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#374151',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  ticketCode: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  subject: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  clientText: {
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  dateText: {
-    color: '#6b7280',
-    fontSize: 12,
-  },
-  center: {
+  searchInput: {
     flex: 1,
+    height: 48,
+    marginLeft: 8,
+    color: '#fff',
+    fontSize: 16,
+  },
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#1f2937',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  filterButtonActive: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
+    borderColor: '#3b82f6',
   },
-  retryText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+  emptyIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1f2937',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   emptyText: {
+    fontSize: 14,
     color: '#9ca3af',
-    fontSize: 16,
     textAlign: 'center',
+    marginBottom: 24,
   },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: '40%',
-    height: 3,
+  clearFiltersButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  clearFiltersText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '80%',
+    display: 'flex',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  modalBody: {
+    flex: 1,
+    padding: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  filterOptionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#111827',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  filterOptionActive: {
     backgroundColor: '#3b82f6',
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
+    borderColor: '#3b82f6',
+  },
+  filterOptionText: {
+    color: '#d1d5db',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterOptionTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 24,
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  switch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  switchActive: {
+    backgroundColor: '#3b82f6',
+  },
+  switchInactive: {
+    backgroundColor: '#374151',
+  },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  switchThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  switchThumbInactive: {
+    alignSelf: 'flex-start',
+  },
+  modalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    flexDirection: 'row',
+    gap: 16,
+  },
+  resetButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#374151',
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#d1d5db',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  applyButton: {
+    flex: 2,
+    backgroundColor: '#3b82f6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

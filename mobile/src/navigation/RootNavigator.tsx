@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,6 +15,7 @@ import { ReportsScreen } from '../screens/ReportsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { NewTicketScreen } from '../screens/NewTicketScreen';
 import { TicketDetailScreen } from '../screens/TicketDetailScreen';
+import { ChatScreen } from '../screens/ChatScreen';
 import { LayoutDashboard, Ticket, Users, BarChart, Settings } from 'lucide-react-native';
 
 const Stack = createStackNavigator();
@@ -115,8 +116,21 @@ export const RootNavigator = () => {
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
-            <Stack.Screen name="NewTicket" component={NewTicketScreen} />
-            <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
+            <Stack.Screen 
+              name="NewTicket" 
+              component={NewTicketScreen} 
+              options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen 
+              name="TicketDetail" 
+              component={TicketDetailScreen} 
+              options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen 
+              name="Chat" 
+              component={ChatScreen} 
+              options={{ presentation: 'modal' }}
+            />
           </>
         )}
       </Stack.Navigator>
