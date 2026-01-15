@@ -23,7 +23,17 @@ export const LoginScreen = () => {
     try {
       await signIn(email, password);
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Erro ao realizar login. Verifique suas credenciais.';
+      console.error('Login error:', error);
+      let msg = 'Erro ao realizar login. Verifique suas credenciais.';
+
+      if (error.response) {
+        msg = error.response.data?.message || msg;
+      } else if (error.request) {
+        msg = 'Não foi possível conectar ao servidor. Verifique sua internet ou se o servidor está online.';
+      } else if (error.message?.includes('timeout')) {
+        msg = 'Tempo de conexão esgotado. Tente novamente em instantes.';
+      }
+
       Alert.alert('Falha no Login', msg);
     } finally {
       setIsSubmitting(false);

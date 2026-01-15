@@ -1,24 +1,19 @@
 import axios from 'axios';
 import { getStorageItem, removeStorageItem } from '../utils/storage';
-
 import { Platform } from 'react-native';
 
-// Replace with your machine's IP address
-// Use 10.0.2.2 for Android Emulator if localhost
-// Use your LAN IP (e.g., 192.168.1.X) for physical devices
-// Updated to current detected IP
-
 const getBaseUrl = () => {
-    if (Platform.OS === 'web') {
-        return 'http://localhost:5000/api';
-    }
-    return 'http://10.123.36.180:5000/api';
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api';
+  }
+  return 'http://192.168.50.147:5000/api';
 };
 
-const DEV_API_URL = getBaseUrl(); 
+const DEV_API_URL = getBaseUrl();
 
 export const api = axios.create({
   baseURL: DEV_API_URL,
+  timeout: 10000,
 });
 
 let onUnauthorized: () => void = () => {};

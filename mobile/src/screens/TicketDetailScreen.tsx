@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboa
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
@@ -177,8 +177,10 @@ export const TicketDetailScreen = () => {
           setShowRatingModal(false);
           await fetchTicket();
           Alert.alert('Sucesso', 'Chamado resolvido com sucesso!');
-      } catch (error) {
-          Alert.alert('Erro', 'Falha ao resolver chamado.');
+      } catch (error: any) {
+          console.error('Failed to resolve ticket', error?.response?.data || error);
+          const message = error?.response?.data?.message || 'Falha ao resolver chamado.';
+          Alert.alert('Erro', message);
       } finally {
           setResolving(false);
       }
@@ -214,6 +216,8 @@ export const TicketDetailScreen = () => {
   const isTechnician = user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador';
   const isUnassigned = !ticket.technicianId;
   const isResolved = ticket.status === TicketStatus.RESOLVED;
+  const isCreator = user?.id === ticket.creatorId;
+  const canEvaluate = isResolved && isCreator && !ticket.rating;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -230,21 +234,24 @@ export const TicketDetailScreen = () => {
         </View>
         
         <View style={styles.headerActions}>
-            {/* Take Ticket Button */}
             {isTechnician && isUnassigned && !isResolved && (
                 <TouchableOpacity onPress={handleTakeTicket} style={styles.actionButton}>
                     <UserPlus color="#3b82f6" size={22} />
                 </TouchableOpacity>
             )}
 
-            {/* Resolve Button */}
-            {!isResolved && (
-                <TouchableOpacity onPress={handleResolvePress} style={styles.actionButton}>
-                    <CheckCircle color="#10b981" size={22} />
+            {canEvaluate ? (
+                <TouchableOpacity onPress={() => setShowRatingModal(true)} style={styles.actionButton}>
+                    <Star color="#fbbf24" size={22} />
                 </TouchableOpacity>
+            ) : (
+                !isResolved && (
+                    <TouchableOpacity onPress={handleResolvePress} style={styles.actionButton}>
+                        <CheckCircle color="#10b981" size={22} />
+                    </TouchableOpacity>
+                )
             )}
 
-            {/* Edit Button */}
             {canEdit && !isResolved && (
                 <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.actionButton}>
                     <Edit2 color={isEditing ? "#3b82f6" : "#fff"} size={22} />

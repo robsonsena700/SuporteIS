@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,38 +22,86 @@ export const SignupScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const lastNameRef = useRef<any>(null);
+  const emailRef = useRef<any>(null);
+  const companyRef = useRef<any>(null);
+  const passwordRef = useRef<any>(null);
+  const confirmPasswordRef = useRef<any>(null);
 
   const handleChange = (name: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      runAllValidations(updated);
+      return updated;
+    });
   };
 
   const validatePasswordStrength = (password: string) => {
     return /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
   };
 
+  const runAllValidations = (data: any) => {
+    const validationErrors: { [key: string]: string } = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!data.firstName) {
+      validationErrors.firstName = 'Informe seu nome.';
+    }
+
+    if (!data.lastName) {
+      validationErrors.lastName = 'Informe seu sobrenome.';
+    }
+
+    if (!data.email) {
+      validationErrors.email = 'Informe seu e-mail.';
+    } else if (!emailRegex.test(String(data.email).toLowerCase())) {
+      validationErrors.email = 'Por favor, insira um e-mail válido.';
+    }
+
+    if (!data.company) {
+      validationErrors.company = 'Informe o nome da empresa ou unidade.';
+    }
+
+    if (!data.password) {
+      validationErrors.password = 'Informe uma senha.';
+    } else if (data.password.length < 8) {
+      validationErrors.password = 'A senha deve ter no mínimo 8 caracteres.';
+    } else if (!validatePasswordStrength(data.password)) {
+      validationErrors.password = 'A senha deve conter letras e números.';
+    }
+
+    if (!data.confirmPassword) {
+      validationErrors.confirmPassword = 'Confirme sua senha.';
+    } else if (data.password !== data.confirmPassword) {
+      validationErrors.confirmPassword = 'As senhas não coincidem.';
+    }
+
+    if (!data.agreeTerms) {
+      validationErrors.agreeTerms = 'Você deve concordar com os termos para continuar.';
+    }
+
+    setErrors(validationErrors);
+    return validationErrors;
+  };
+
+  const areRequiredFieldsFilled =
+    !!formData.firstName &&
+    !!formData.lastName &&
+    !!formData.email &&
+    !!formData.company &&
+    !!formData.password &&
+    !!formData.confirmPassword &&
+    !!formData.agreeTerms;
+
+  const hasErrors = Object.values(errors).some(message => message);
+  const canSubmit = areRequiredFieldsFilled && !hasErrors && !isSubmitting;
+
   const handleSignup = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      Alert.alert('Senha Fraca', 'A senha deve ter no mínimo 8 caracteres.');
-      return;
-    }
-
-    if (!validatePasswordStrength(formData.password)) {
-      Alert.alert('Senha Fraca', 'A senha deve conter letras e números.');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Erro', 'As senhas não coincidem.');
-      return;
-    }
-
-    if (!formData.agreeTerms) {
-      Alert.alert('Termos de Serviço', 'Você deve concordar com os Termos de Serviço e Política de Privacidade para continuar.');
+    const validationErrors = runAllValidations(formData);
+    if (Object.values(validationErrors).some(message => message)) {
+      Alert.alert('Erro', 'Por favor, corrija os campos destacados.');
       return;
     }
 
@@ -69,7 +117,17 @@ export const SignupScreen = () => {
       });
       // AuthContext.signUp calls signIn automatically, so no need to navigate manually if RootNavigator handles it
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Erro ao realizar cadastro. Tente novamente.';
+      console.error('Signup error:', error);
+      let msg = 'Erro ao realizar cadastro. Tente novamente.';
+
+      if (error.response) {
+        msg = error.response.data?.message || msg;
+      } else if (error.request) {
+        msg = 'Não foi possível conectar ao servidor. Verifique sua internet ou se o servidor está online.';
+      } else if (error.message?.includes('timeout')) {
+        msg = 'Tempo de conexão esgotado. Tente novamente em instantes.';
+      }
+
       Alert.alert('Falha no Cadastro', msg);
     } finally {
       setIsSubmitting(false);
@@ -95,7 +153,7 @@ export const SignupScreen = () => {
 
           <View style={styles.form}>
             <View style={styles.row}>
-              <View style={[styles.inputContainer, styles.halfInput]}>
+              <View style={[styles.inputContainer, styles.halfInput, errors.firstName && styles.inputError]}>
                 <User color="#9ca3af" size={20} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -103,22 +161,30 @@ export const SignupScreen = () => {
                   placeholderTextColor="#6b7280"
                   value={formData.firstName}
                   onChangeText={(text) => handleChange('firstName', text)}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => lastNameRef.current?.focus()}
                 />
               </View>
-              <View style={[styles.inputContainer, styles.halfInput]}>
+              <View style={[styles.inputContainer, styles.halfInput, errors.lastName && styles.inputError]}>
                 <TextInput
+                  ref={lastNameRef}
                   style={styles.input}
                   placeholder="Sobrenome"
                   placeholderTextColor="#6b7280"
                   value={formData.lastName}
                   onChangeText={(text) => handleChange('lastName', text)}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
                 />
               </View>
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errors.email && styles.inputError]}>
               <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
               <TextInput
+                ref={emailRef}
                 style={styles.input}
                 placeholder="E-mail"
                 placeholderTextColor="#6b7280"
@@ -126,29 +192,41 @@ export const SignupScreen = () => {
                 onChangeText={(text) => handleChange('email', text)}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => companyRef.current?.focus()}
               />
             </View>
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errors.company && styles.inputError]}>
               <Briefcase color="#9ca3af" size={20} style={styles.inputIcon} />
               <TextInput
+                ref={companyRef}
                 style={styles.input}
                 placeholder="Empresa / Unidade"
                 placeholderTextColor="#6b7280"
                 value={formData.company}
                 onChangeText={(text) => handleChange('company', text)}
+                autoCapitalize="words"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
               />
             </View>
+            {errors.company ? <Text style={styles.errorText}>{errors.company}</Text> : null}
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errors.password && styles.inputError]}>
               <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
               <TextInput
+                ref={passwordRef}
                 style={styles.input}
                 placeholder="Senha"
                 placeholderTextColor="#6b7280"
                 value={formData.password}
                 onChangeText={(text) => handleChange('password', text)}
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => confirmPasswordRef.current?.focus()}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 {showPassword ? (
@@ -159,15 +237,21 @@ export const SignupScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputContainer}>
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+
+            <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError]}>
               <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
               <TextInput
+                ref={confirmPasswordRef}
                 style={styles.input}
                 placeholder="Confirmar Senha"
                 placeholderTextColor="#6b7280"
                 value={formData.confirmPassword}
                 onChangeText={(text) => handleChange('confirmPassword', text)}
                 secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleSignup}
               />
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
                 {showConfirmPassword ? (
@@ -177,6 +261,7 @@ export const SignupScreen = () => {
                 )}
               </TouchableOpacity>
             </View>
+            {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
 
             <TouchableOpacity 
               style={styles.termsContainer}
@@ -191,11 +276,12 @@ export const SignupScreen = () => {
                 Eu concordo com os <Text style={styles.linkText}>Termos de Serviço</Text> e confirmo que li a <Text style={styles.linkText}>Política de Privacidade</Text>.
               </Text>
             </TouchableOpacity>
+            {errors.agreeTerms ? <Text style={styles.errorText}>{errors.agreeTerms}</Text> : null}
 
             <TouchableOpacity 
-              style={styles.button} 
+              style={[styles.button, !canSubmit && styles.buttonDisabled]} 
               onPress={handleSignup}
-              disabled={isSubmitting}
+              disabled={!canSubmit}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />
@@ -259,6 +345,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 56,
   },
+  inputError: {
+    borderColor: '#ef4444',
+  },
   halfInput: {
     flex: 1,
   },
@@ -272,6 +361,11 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#fff',
     fontSize: 16,
+  },
+  errorText: {
+    color: '#f87171',
+    fontSize: 12,
+    marginTop: 4,
   },
   termsContainer: {
     flexDirection: 'row',
@@ -298,6 +392,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     marginBottom: 32,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: '#fff',

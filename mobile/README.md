@@ -13,7 +13,7 @@ Este é o aplicativo móvel do sistema SuporteIS, desenvolvido com React Native 
 2.  **Configure o IP da API:**
     Abra `src/api/api.ts` e altere `DEV_API_URL` para o IP da sua máquina local onde o backend está rodando.
     *   Para emulador Android: `http://10.0.2.2:5000/api`
-    *   Para dispositivo físico: `http://SEU_IP_LOCAL:5000/api` (ex: 192.168.1.5)
+    *   Para dispositivo físico: `http://192.168.50.147:5000/api`
 
 3.  **Inicie o projeto:**
     ```bash
