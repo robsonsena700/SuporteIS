@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { useLocationIBGE } from '../hooks/useLocationIBGE';
+import { CustomPicker } from '../components/CustomPicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, User, Briefcase, ArrowLeft, CheckSquare, Square, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -8,12 +10,15 @@ import { useNavigation } from '@react-navigation/native';
 export const SignupScreen = () => {
   const navigation = useNavigation();
   const { signUp } = useAuth();
+  const { estados, municipios, loadingEstados, loadingMunicipios, error, fetchMunicipios, clearMunicipios } = useLocationIBGE();
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     company: '',
+    uf: '',
+    municipality: '',
     password: '',
     confirmPassword: '',
     agreeTerms: false
@@ -64,6 +69,14 @@ export const SignupScreen = () => {
       validationErrors.company = 'Informe o nome da empresa ou unidade.';
     }
 
+    if (!data.uf) {
+      validationErrors.uf = 'Selecione o estado.';
+    }
+
+    if (!data.municipality) {
+      validationErrors.municipality = 'Selecione o município.';
+    }
+
     if (!data.password) {
       validationErrors.password = 'Informe uma senha.';
     } else if (data.password.length < 8) {
@@ -91,6 +104,8 @@ export const SignupScreen = () => {
     !!formData.lastName &&
     !!formData.email &&
     !!formData.company &&
+    !!formData.uf &&
+    !!formData.municipality &&
     !!formData.password &&
     !!formData.confirmPassword &&
     !!formData.agreeTerms;
@@ -113,7 +128,9 @@ export const SignupScreen = () => {
         company: formData.company,
         password: formData.password,
         role: 'Cliente',
-        profile: 'Cliente'
+        profile: 'Cliente',
+        uf: formData.uf,
+        municipality: formData.municipality
       });
       // AuthContext.signUp calls signIn automatically, so no need to navigate manually if RootNavigator handles it
     } catch (error: any) {
@@ -197,6 +214,51 @@ export const SignupScreen = () => {
               />
             </View>
             {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+
+            <CustomPicker
+              label="Estado (UF) *"
+              value={formData.uf}
+              options={estados.map(estado => ({
+                label: `${estado.sigla} - ${estado.nome}`,
+                value: estado.sigla,
+              }))}
+              onSelect={(value) => {
+                handleChange('uf', value);
+                handleChange('municipality', '');
+                clearMunicipios();
+                fetchMunicipios(value);
+              }}
+              placeholder={loadingEstados ? 'Carregando estados...' : 'Selecione o estado'}
+              disabled={loadingEstados}
+              searchable
+            />
+            {errors.uf ? <Text style={styles.errorText}>{errors.uf}</Text> : null}
+
+            <CustomPicker
+              label="Município *"
+              value={formData.municipality}
+              options={municipios.map(municipio => ({
+                label: municipio.nome,
+                value: municipio.nome,
+              }))}
+              onSelect={(value) => handleChange('municipality', value)}
+              placeholder={
+                !formData.uf
+                  ? 'Selecione primeiro o estado'
+                  : loadingMunicipios
+                  ? 'Carregando municípios...'
+                  : 'Selecione o município'
+              }
+              disabled={!formData.uf || loadingMunicipios}
+              searchable
+            />
+            {loadingMunicipios ? (
+              <View style={styles.loadingMunicipios}>
+                <ActivityIndicator color="#9ca3af" />
+              </View>
+            ) : null}
+            {errors.municipality ? <Text style={styles.errorText}>{errors.municipality}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <View style={[styles.inputContainer, errors.company && styles.inputError]}>
               <Briefcase color="#9ca3af" size={20} style={styles.inputIcon} />
@@ -400,5 +462,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingMunicipios: {
+    marginTop: 4,
   },
 });

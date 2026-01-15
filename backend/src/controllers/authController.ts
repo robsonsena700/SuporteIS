@@ -5,7 +5,7 @@ import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 export const register = async (req: Request, res: Response) => {
-  const { name, email, password, role, profile, company, phone, department } = req.body;
+  const { name, email, password, role, profile, company, phone, department, uf, municipality } = req.body;
 
   try {
     // Check if user exists
@@ -20,8 +20,8 @@ export const register = async (req: Request, res: Response) => {
 
     // Create user
     const newUser = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile, company, phone, department) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, profile, avatar, status, company, phone, department',
-      [name, email, hashedPassword, role || 'Técnico', profile || 'Suporte Técnico', company, phone, department]
+      'INSERT INTO users (name, email, password_hash, role, profile, company, phone, department, uf, municipality) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, profile, avatar, status, company, phone, department, uf, municipality',
+      [name, email, hashedPassword, role || 'Técnico', profile || 'Suporte Técnico', company, phone, department, uf, municipality]
     );
 
     res.status(201).json(newUser.rows[0]);

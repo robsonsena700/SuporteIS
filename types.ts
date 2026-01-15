@@ -27,6 +27,8 @@ export interface User {
   company?: string;
   phone?: string;
   department?: string;
+  uf?: string;
+  municipality?: string;
 }
 
 export interface Message {

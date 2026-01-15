@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet, Platform, ViewStyle } from 'react-native';
-import { ChevronDown, X } from 'lucide-react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet, Platform, ViewStyle, TextInput } from 'react-native';
+import { ChevronDown, X, Search } from 'lucide-react-native';
 
 interface Option {
   label: string;
@@ -15,6 +15,7 @@ interface CustomPickerProps {
   placeholder?: string;
   disabled?: boolean;
   containerStyle?: ViewStyle;
+  searchable?: boolean;
 }
 
 export const CustomPicker: React.FC<CustomPickerProps> = ({ 
@@ -24,11 +25,25 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
   onSelect, 
   placeholder = 'Selecione...',
   disabled = false,
-  containerStyle
+  containerStyle,
+  searchable = false
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const selectedOption = options.find(opt => opt.value === value);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchText) return options;
+    return options.filter(opt => 
+      opt.label.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [options, searchText]);
+
+  const handleClose = () => {
+    setModalVisible(false);
+    setSearchText('');
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -47,19 +62,33 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
         visible={modalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleClose}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={handleClose}>
                 <X size={24} color="#9ca3af" />
               </TouchableOpacity>
             </View>
+
+            {searchable && (
+              <View style={styles.searchContainer}>
+                <Search size={20} color="#9ca3af" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Pesquisar..."
+                  placeholderTextColor="#6b7280"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
             
             <FlatList
-              data={options}
+              data={filteredOptions}
               keyExtractor={(item) => item.value}
               renderItem={({ item }) => (
                 <TouchableOpacity 
@@ -69,7 +98,7 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
                   ]}
                   onPress={() => {
                     onSelect(item.value);
-                    setModalVisible(false);
+                    handleClose();
                   }}
                 >
                   <Text style={[
@@ -158,5 +187,22 @@ const styles = StyleSheet.create({
   selectedOptionText: {
     color: '#3b82f6',
     fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+    backgroundColor: '#111827',
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    height: 40,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/api';
+import { useLocationIBGE } from '../src/hooks/useLocationIBGE';
 
 interface SignupProps {
   onSignup: () => void;
@@ -14,10 +15,24 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
     email: '',
     company: '',
     password: '',
-    agreeTerms: false
+    confirmPassword: '',
+    agreeTerms: false,
+    uf: '',
+    municipality: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
+
+  const handleUfChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const uf = e.target.value;
+    setFormData(prev => ({ ...prev, uf, municipality: '' }));
+    clearMunicipios();
+    if (uf) {
+        fetchMunicipios(uf);
+    }
+  };
 
   const getPasswordStrength = (password: string) => {
     if (!password) return 0;
@@ -63,7 +78,9 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
         company: formData.company,
         password: formData.password,
         role: 'Cliente', // Default for self-signup
-        profile: 'Cliente' // Default profile
+        profile: 'Cliente', // Default profile
+        uf: formData.uf,
+        municipality: formData.municipality
       });
       
       alert('Cadastro realizado com sucesso! Faça login para continuar.');
@@ -184,6 +201,50 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                 onChange={e => setFormData({...formData, email: e.target.value})}
                 className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-2 md:col-span-1">
+                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">UF *</label>
+                <select
+                  required
+                  value={formData.uf}
+                  onChange={handleUfChange}
+                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all appearance-none"
+                  disabled={loadingEstados}
+                  style={{ backgroundImage: 'none' }} 
+                >
+                  <option value="" className="bg-background-dark">UF</option>
+                  {estados.map(est => (
+                    <option key={est.id} value={est.sigla} className="bg-background-dark">{est.sigla}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Município *</label>
+                <div className="relative">
+                    <input
+                      list="municipios-list"
+                      required
+                      placeholder={loadingMunicipios ? 'Carregando...' : 'Pesquise o município'}
+                      value={formData.municipality}
+                      onChange={e => setFormData({...formData, municipality: e.target.value})}
+                      className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all disabled:opacity-50"
+                      disabled={!formData.uf || loadingMunicipios}
+                    />
+                    <datalist id="municipios-list">
+                      {municipios.map(mun => (
+                        <option key={mun.id} value={mun.nome} />
+                      ))}
+                    </datalist>
+                     {loadingMunicipios && (
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <span className="material-symbols-outlined animate-spin text-primary text-sm">progress_activity</span>
+                        </div>
+                    )}
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
