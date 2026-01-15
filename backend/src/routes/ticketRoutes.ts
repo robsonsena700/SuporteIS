@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTickets, createTicket, updateTicket, getTicketById, addMessage, getTicketHistory } from '../controllers/ticketController';
+import { getTickets, createTicket, updateTicket, getTicketById, addMessage, getTicketHistory, changeTicketType } from '../controllers/ticketController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -157,5 +157,25 @@ router.post('/:id/messages', authenticateToken, addMessage);
  *         description: Chamado atualizado
  */
 router.put('/:id', authenticateToken, updateTicket);
+
+/**
+ * @swagger
+ * /api/tickets/{id}/type:
+ *   patch:
+ *     summary: Altera o tipo do chamado (SUP -> EQP)
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Tipo do chamado alterado
+ */
+router.patch('/:id/type', authenticateToken, changeTicketType);
 
 export default router;

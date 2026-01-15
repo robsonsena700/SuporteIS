@@ -9,7 +9,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
     // We can compute this dynamically or return the raw timestamp
     const result = await pool.query(`
       SELECT 
-        id, name, email, role, profile, status, last_access, avatar, department, company, phone, created_at, chat_status, last_active_at,
+        id, name, email, role, profile, status, last_access, avatar, department, company, phone, uf, municipality, created_at, chat_status, last_active_at,
         CASE 
           WHEN last_active_at > NOW() - INTERVAL '2 minutes' THEN 'online'
           ELSE 'offline'
@@ -36,7 +36,7 @@ export const getUserById = async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT 
-        id, name, email, role, profile, status, last_access, avatar, department, company, phone, created_at, chat_status, last_active_at,
+        id, name, email, role, profile, status, last_access, avatar, department, company, phone, uf, municipality, created_at, chat_status, last_active_at,
         CASE 
           WHEN last_active_at > NOW() - INTERVAL '2 minutes' THEN 'online'
           ELSE 'offline'
@@ -132,6 +132,14 @@ export const deleteUser = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
+    // Restriction 2: Prevent deletion if user has created tickets
+    const ticketCheck = await pool.query('SELECT COUNT(*) FROM tickets WHERE user_id = $1', [id]);
+    const ticketCount = parseInt(ticketCheck.rows[0].count);
+
+    if (ticketCount > 0) {
+        return res.status(400).json({ message: 'Não é possível excluir o usuário pois ele possui chamados criados.' });
+    }
+
     // Ideally we should check for dependencies (tickets, messages) or use CASCADE
     // For now, assuming CASCADE or manual cleanup isn't strictly enforced by code logic but DB constraints
     await pool.query('DELETE FROM users WHERE id = $1', [id]);

@@ -6,6 +6,7 @@ import { User } from '../types';
 import { useAuth } from '../auth/AuthContext';
 import { Search, Plus, Filter, MoreVertical, Edit2, Key, Trash2, X, Save, User as UserIcon, Check, Phone, Building, Shield, Mail } from 'lucide-react-native';
 import { CustomPicker } from '../components/CustomPicker';
+import { useLocationIBGE } from '../hooks/useLocationIBGE';
 
 // --- Modals ---
 
@@ -18,6 +19,10 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user, loading }) => {
+  const { user: currentUser } = useAuth();
+  const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
+  const canEditLocation = currentUser?.profile === 'Suporte Técnico' || currentUser?.profile === 'Administrador';
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,7 +31,9 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
     status: 'Ativo',
     department: '',
     phone: '',
-    password: '' // Only for creation
+    password: '',
+    uf: '',
+    municipality: ''
   });
 
   useEffect(() => {
@@ -39,8 +46,14 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
         status: user.status || 'Ativo',
         department: user.department || '',
         phone: user.phone || '',
-        password: ''
+        password: '',
+        uf: user.uf || '',
+        municipality: user.municipality || ''
       });
+      if (user.uf) {
+        clearMunicipios();
+        fetchMunicipios(user.uf);
+      }
     } else {
       setFormData({
         name: '',
@@ -50,10 +63,12 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
         status: 'Ativo',
         department: '',
         phone: '',
-        password: ''
+        password: '',
+        uf: '',
+        municipality: ''
       });
     }
-  }, [user, visible]);
+  }, [user, visible, clearMunicipios, fetchMunicipios]);
 
   const handleSubmit = () => {
     if (!formData.name || !formData.email) {
@@ -62,6 +77,10 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
     }
     if (!user && !formData.password) {
       Alert.alert('Erro', 'Senha é obrigatória para novos usuários');
+      return;
+    }
+     if (canEditLocation && (!formData.uf || !formData.municipality)) {
+      Alert.alert('Erro', 'UF e Município são obrigatórios para usuários de suporte/administrador.');
       return;
     }
     onSubmit(formData);
@@ -195,6 +214,49 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                 />
               </View>
             </View>
+
+            {canEditLocation ? (
+              <>
+                <CustomPicker
+                  label="UF"
+                  value={formData.uf}
+                  options={estados.map(estado => ({
+                    label: `${estado.sigla} - ${estado.nome}`,
+                    value: estado.sigla,
+                  }))}
+                  onSelect={(value) => {
+                    setFormData(prev => ({ ...prev, uf: value, municipality: '' }));
+                    clearMunicipios();
+                    fetchMunicipios(value);
+                  }}
+                  placeholder={loadingEstados ? 'Carregando estados...' : 'Selecione o estado'}
+                  disabled={loadingEstados || !!loading}
+                />
+
+                <CustomPicker
+                  label="Município"
+                  value={formData.municipality}
+                  options={municipios.map(municipio => ({
+                    label: municipio.nome,
+                    value: municipio.nome,
+                  }))}
+                  onSelect={(value) => setFormData(prev => ({ ...prev, municipality: value }))}
+                  placeholder={
+                    !formData.uf
+                      ? 'Selecione primeiro o estado'
+                      : loadingMunicipios
+                      ? 'Carregando municípios...'
+                      : 'Selecione o município'
+                  }
+                  disabled={!formData.uf || loadingMunicipios || !!loading}
+                  searchable
+                />
+              </>
+            ) : (
+              <Text style={styles.permissionDeniedText}>
+                Acesso negado: apenas perfis de suporte ou administrador podem alterar UF e Município.
+              </Text>
+            )}
           </ScrollView>
 
           <View style={styles.modalFooter}>
@@ -353,8 +415,9 @@ export const UsersScreen = () => {
               await UserService.delete(user.id);
               Alert.alert('Sucesso', 'Usuário excluído');
               fetchUsers();
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir o usuário');
+            } catch (error: any) {
+              const msg = error.response?.data?.message || 'Não foi possível excluir o usuário';
+              Alert.alert('Erro', msg);
               setLoading(false);
             }
           }
@@ -723,5 +786,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  permissionDeniedText: {
+    color: '#f97373',
+    fontSize: 13,
+    marginTop: 8,
   },
 });

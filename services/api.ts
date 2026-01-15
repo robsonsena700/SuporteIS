@@ -97,7 +97,9 @@ const mapUserFromApi = (data: any): User => ({
   profile: data.profile,
   company: data.company,
   phone: data.phone,
-  department: data.department
+  department: data.department,
+  uf: data.uf,
+  municipality: data.municipality
 });
 
 export const AuthService = {
@@ -203,6 +205,10 @@ export const TicketService = {
       details: h.details,
       createdAt: new Date(h.created_at).toLocaleString()
     }));
+  },
+  changeType: async (id: string) => {
+    const response = await api.patch(`/tickets/${id}/type`);
+    return mapTicketFromApi(response.data);
   }
 };
 

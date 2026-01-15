@@ -9,6 +9,7 @@ import { api } from '../api/api';
 import { CustomPicker } from '../components/CustomPicker';
 import { TicketPriority, User } from '../types';
 import { useResponsive } from '../hooks/useResponsive';
+import { useLocationIBGE } from '../hooks/useLocationIBGE';
 
 const EQUIPMENT_OPTIONS = [
   'CPU', 'Memória', 'HD (disco rígido)', 'Fonte / Carregador', 'Placa mãe', 
@@ -23,6 +24,7 @@ export const NewTicketScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   
+  const isClient = user?.profile === 'Cliente';
   const [loading, setLoading] = useState(false);
   const [ticketType, setTicketType] = useState<'Sistema' | 'Equipamento'>('Sistema');
   const [clientUsers, setClientUsers] = useState<User[]>([]);
@@ -45,17 +47,21 @@ export const NewTicketScreen = () => {
   const isWide = isTablet || isLandscape;
   const halfWidth: ViewStyle = { width: isWide ? '48%' : '100%' };
 
+  const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
+
   useEffect(() => {
-    if (user) {
-      if (user.profile === 'Cliente') {
-        setFormData(prev => ({
-          ...prev,
-          clientName: user.name,
-          unit: user.company || prev.unit
-        }));
-      } else if (user.profile === 'Suporte Técnico' || user.profile === 'Administrador') {
-        fetchClients();
-      }
+    if (!user) return;
+
+    setFormData(prev => ({
+      ...prev,
+      clientName: user.profile === 'Cliente' ? user.name : (prev.clientName || user.name),
+      unit: user.company || prev.unit,
+      municipality: user.municipality || prev.municipality,
+      uf: user.uf || prev.uf,
+    }));
+
+    if (user.profile === 'Suporte Técnico' || user.profile === 'Administrador') {
+      fetchClients();
     }
   }, [user]);
 
@@ -77,8 +83,14 @@ export const NewTicketScreen = () => {
         setFormData(prev => ({
             ...prev,
             clientName: clientName,
-            unit: selectedUser.company || prev.unit
+            unit: selectedUser.company || prev.unit,
+            municipality: selectedUser.municipality || prev.municipality,
+            uf: selectedUser.uf || prev.uf
         }));
+        if (selectedUser.uf) {
+          clearMunicipios();
+          fetchMunicipios(selectedUser.uf);
+        }
     } else {
         setFormData(prev => ({ ...prev, clientName: clientName }));
     }
@@ -269,30 +281,73 @@ export const NewTicketScreen = () => {
           <View style={[styles.inputGroup, halfWidth]}>
             <Text style={styles.label}>Unidade</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isClient && styles.disabledInput]}
               value={formData.unit}
               onChangeText={(text) => setFormData(prev => ({ ...prev, unit: text }))}
+              editable={!isClient}
             />
           </View>
 
-          <View style={[styles.inputGroup, halfWidth]}>
-            <Text style={styles.label}>Município</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.municipality}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, municipality: text }))}
-            />
-          </View>
+          {isClient ? (
+            <>
+              <View style={[styles.inputGroup, halfWidth]}>
+                <Text style={styles.label}>Município</Text>
+                <TextInput
+                  style={[styles.input, styles.disabledInput]}
+                  value={formData.municipality}
+                  editable={false}
+                />
+              </View>
 
-          <View style={[styles.inputGroup, halfWidth]}>
-            <Text style={styles.label}>UF</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.uf}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, uf: text.slice(0, 2).toUpperCase() }))}
-              maxLength={2}
-            />
-          </View>
+              <View style={[styles.inputGroup, halfWidth]}>
+                <Text style={styles.label}>UF</Text>
+                <TextInput
+                  style={[styles.input, styles.disabledInput]}
+                  value={formData.uf}
+                  editable={false}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              <CustomPicker
+                label="Estado (UF)"
+                value={formData.uf}
+                options={estados.map(estado => ({
+                  label: `${estado.sigla} - ${estado.nome}`,
+                  value: estado.sigla,
+                }))}
+                onSelect={(value) => {
+                  setFormData(prev => ({ ...prev, uf: value, municipality: '' }));
+                  clearMunicipios();
+                  fetchMunicipios(value);
+                }}
+                placeholder={loadingEstados ? 'Carregando estados...' : 'Selecione o estado'}
+                disabled={loadingEstados || loading}
+                containerStyle={halfWidth}
+              />
+
+              <CustomPicker
+                label="Município"
+                value={formData.municipality}
+                options={municipios.map(municipio => ({
+                  label: municipio.nome,
+                  value: municipio.nome,
+                }))}
+                onSelect={(value) => setFormData(prev => ({ ...prev, municipality: value }))}
+                placeholder={
+                  !formData.uf
+                    ? 'Selecione primeiro o estado'
+                    : loadingMunicipios
+                    ? 'Carregando municípios...'
+                    : 'Selecione o município'
+                }
+                disabled={!formData.uf || loadingMunicipios || loading}
+                searchable
+                containerStyle={halfWidth}
+              />
+            </>
+          )}
           
           <CustomPicker
             label="Prioridade"

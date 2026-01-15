@@ -62,7 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile: user.profile,
         company: user.company,
         phone: user.phone,
-        department: user.department
+        department: user.department,
+        uf: user.uf,
+        municipality: user.municipality
       };
 
       await setStorageItem('token', token);

@@ -75,7 +75,9 @@ export const DashboardScreen = () => {
   
   const inProgressCount = Number(stats?.byStatus.find(s => s.status === 'Em Andamento')?.count || 0);
   const inAnalysisCount = Number(stats?.byStatus.find(s => s.status === 'Em Análise')?.count || 0);
-  const treatingCount = inProgressCount + inAnalysisCount;
+  const forwardedAcquisitionCount = Number(stats?.byStatus.find(s => s.status === 'Encaminhado Aquisição')?.count || 0);
+  const inRouteCount = Number(stats?.byStatus.find(s => s.status === 'Em Rota')?.count || 0);
+  const treatingCount = inProgressCount + inAnalysisCount + forwardedAcquisitionCount + inRouteCount;
 
   const avgRating = Number(stats?.averageRating || 0);
 

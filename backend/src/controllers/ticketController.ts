@@ -85,7 +85,7 @@ export const getTicketHistory = async (req: AuthRequest, res: Response) => {
 export const getTickets = async (req: AuthRequest, res: Response) => {
   // console.log('GET /tickets called with query:', req.query);
   try {
-    const { startDate, endDate, status, priority, search, category } = req.query;
+    const { startDate, endDate, status, priority, search, category, myTickets } = req.query as any;
 
     let queryText = `
       SELECT t.*, 
@@ -102,11 +102,32 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
     const queryParams: any[] = [];
     let paramIndex = 1;
 
-    // Role-based filtering
-    if (req.user?.role === 'Cliente') {
-        queryText += ` AND t.user_id = $${paramIndex}`;
-        queryParams.push(req.user.id);
-        paramIndex++;
+    const user = req.user;
+
+    if (user) {
+        const isClient = user.role === 'Cliente' || user.profile === 'Cliente';
+
+        if (isClient) {
+            queryText += ` AND t.user_id = $${paramIndex}`;
+            queryParams.push(user.id);
+            paramIndex++;
+        } else if (myTickets === 'true') {
+            const isSupport = user.profile === 'Suporte Técnico'
+                || user.role === 'Suporte Técnico'
+                || user.role === 'Técnico'
+                || (typeof user.profile === 'string' && user.profile.includes('Suporte'))
+                || (typeof user.role === 'string' && user.role.includes('Suporte'))
+                || user.profile === 'Líder'
+                || user.role === 'Líder';
+
+            const isAdmin = user.role === 'Administrador' || user.profile === 'Administrador';
+
+            if (isSupport || isAdmin) {
+                queryText += ` AND (t.technician_id = $${paramIndex} OR t.user_id = $${paramIndex})`;
+                queryParams.push(user.id);
+                paramIndex++;
+            }
+        }
     }
 
     // Date Range Filtering
@@ -225,6 +246,23 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const userResult = await pool.query(
+      'SELECT id, name, role, profile, company, uf, municipality FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    const currentUser = userResult.rows[0];
+    const isClientProfile = currentUser.profile === 'Cliente' || currentUser.role === 'Cliente';
+
+    const effectiveClientName = isClientProfile ? (currentUser.name || client_name) : client_name;
+    const effectiveUnit = isClientProfile ? (currentUser.company || unit) : unit;
+    const effectiveMunicipality = isClientProfile ? (currentUser.municipality || municipality) : municipality;
+    const effectiveUf = isClientProfile ? (currentUser.uf || uf) : uf;
+
     // Determine prefix
     const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
     const isSystem = keywords.some(k => (equipment || '').toLowerCase().includes(k) || (subject || '').toLowerCase().includes(k));
@@ -243,7 +281,7 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
           `INSERT INTO tickets (code, subject, equipment, description, priority, attachment, user_id, client_name, status, unit, municipality, uf)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING *`,
-          [code, subject, equipment, description, priority, attachment, userId, client_name, status || 'Aberto', unit, municipality, uf]
+          [code, subject, equipment, description, priority, attachment, userId, effectiveClientName, status || 'Aberto', effectiveUnit, effectiveMunicipality, effectiveUf]
         );
         
         const ticket = result.rows[0];
@@ -314,18 +352,16 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     }
     const currentTicket = currentRes.rows[0];
 
-    // Permission Check: Clients cannot update tickets directly (Except Reopen/Rating)
     if (req.user?.role === 'Cliente') {
         const isRating = currentTicket.status === 'Resolvido' && rating;
         const isReopen = currentTicket.status === 'Resolvido' && status && status !== 'Resolvido';
-        const isResolveAndRate = status === 'Resolvido' && rating; // Allow Client to Resolve AND Rate
+        const isResolveAndRate = status === 'Resolvido' && rating;
 
         if (!isRating && !isReopen && !isResolveAndRate) {
             return res.status(403).json({ message: 'Permissão negada. Apenas Responsável ou Admin podem modificar chamados.' });
         }
     }
 
-    // Validation
     if (rating !== undefined) {
         const ratingNum = Number(rating);
         if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
@@ -333,7 +369,6 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
         }
     }
 
-    // Reopening Logic
     if (currentTicket.status === 'Resolvido' && status && status !== 'Resolvido') {
         const resolvedAt = new Date(currentTicket.resolved_at || currentTicket.updated_at);
         const now = new Date();
@@ -372,8 +407,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
       if (status === 'Resolvido' && !currentTicket.resolved_at) {
           updateQuery += `, resolved_at = NOW()`;
           
-          // Notify Creator
-          if (userId !== currentTicket.user_id) {
+        if (userId !== currentTicket.user_id) {
              try {
                  await pool.query(
                      'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
@@ -470,6 +504,108 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     console.error('Update Ticket Error:', error);
     res.status(500).json({ message: 'Erro ao atualizar chamado' });
   }
+};
+
+export const changeTicketType = async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userProfile = req.user?.profile;
+    const userRole = req.user?.role;
+
+    if (!userId) return res.status(401).json({ message: 'Não autorizado' });
+
+    // Validate permission (Suporte, Líder, Administrador)
+    const allowedProfiles = ['Administrador', 'Suporte Técnico', 'Líder', 'Suporte'];
+    const isAllowed = allowedProfiles.some(p => 
+        (userProfile && userProfile.includes(p)) || (userRole && userRole.includes(p))
+    );
+
+    if (!isAllowed) {
+        return res.status(403).json({ message: 'Permissão negada. Apenas Suporte, Líder ou Administrador podem alterar o tipo do chamado.' });
+    }
+
+    try {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Get current ticket
+            const tRes = await client.query('SELECT * FROM tickets WHERE id = $1', [id]);
+            if (tRes.rows.length === 0) {
+                 await client.query('ROLLBACK');
+                 return res.status(404).json({ message: 'Chamado não encontrado' });
+            }
+            const ticket = tRes.rows[0];
+
+            // Validate Open status
+            if (ticket.status !== 'Aberto') {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Apenas chamados com status "Aberto" podem ter o tipo alterado.' });
+            }
+
+            // Check if already EQP
+            if (ticket.code && ticket.code.startsWith('EQP-')) {
+                 await client.query('ROLLBACK');
+                 return res.status(400).json({ message: 'Este chamado já é do tipo Equipamento.' });
+            }
+
+            // Generate new code (EQP)
+            // Logic duplicated from getNextCode but using transaction client
+            const prefix = 'EQP';
+            const resCode = await client.query(
+                `SELECT code FROM tickets 
+                 WHERE code LIKE $1 
+                 AND LENGTH(code) = 14 
+                 ORDER BY code DESC LIMIT 1`,
+                [`${prefix}-%`]
+            );
+            
+            let sequence = 1;
+            if (resCode.rows.length > 0) {
+                const lastCode = resCode.rows[0].code;
+                const parts = lastCode.split('-');
+                if (parts.length === 2) {
+                    const seqStr = parts[1];
+                    const seq = parseInt(seqStr, 10);
+                    if (!isNaN(seq)) sequence = seq + 1;
+                }
+            }
+            
+            const newCode = `${prefix}-${String(sequence).padStart(10, '0')}`;
+
+            // Update ticket
+            await client.query('UPDATE tickets SET code = $1 WHERE id = $2', [newCode, id]);
+
+            // Log history
+            await logTicketHistory(client, id, userId, 'TYPE_CHANGE', ticket.code, newCode, 'Tipo de chamado alterado de Sistema (SUP) para Equipamento (EQP)');
+
+            await client.query('COMMIT');
+            
+            // Return updated ticket
+            const updatedRes = await client.query(`
+                SELECT t.*, 
+                       tech.name as technician_name, tech.avatar as technician_avatar,
+                       creator.name as creator_name,
+                       td.model, td.serial_number, td.warranty_info
+                FROM tickets t
+                LEFT JOIN users tech ON t.technician_id = tech.id
+                LEFT JOIN users creator ON t.user_id = creator.id
+                LEFT JOIN ticket_details td ON t.id = td.ticket_id
+                WHERE t.id = $1
+            `, [id]);
+            
+            res.json(updatedRes.rows[0]);
+
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Change Ticket Type Error:', error);
+        res.status(500).json({ message: 'Erro ao alterar tipo do chamado' });
+    }
 };
 
 export const addMessage = async (req: AuthRequest, res: Response) => {

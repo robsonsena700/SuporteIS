@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { UserService, AuthService } from '../services/api';
+import { useLocationIBGE } from '../src/hooks/useLocationIBGE';
 
 interface UsersProps {
   users?: User[]; // Optional to support initial load from App or self-fetch
@@ -29,8 +30,12 @@ const Users: React.FC<UsersProps> = () => {
     profile: 'Suporte Técnico',
     status: 'Ativo',
     department: '',
-    phone: ''
+    phone: '',
+    uf: '',
+    municipality: ''
   });
+
+  const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
 
   useEffect(() => {
     fetchUsers();
@@ -324,6 +329,42 @@ const Users: React.FC<UsersProps> = () => {
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none" 
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase">UF</label>
+                  <select
+                    value={formData.uf}
+                    onChange={(e) => {
+                      const uf = e.target.value;
+                      setFormData(prev => ({ ...prev, uf, municipality: '' }));
+                      clearMunicipios();
+                      if (uf) fetchMunicipios(uf);
+                    }}
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                    disabled={loadingEstados}
+                  >
+                    <option value="">Selecione...</option>
+                    {estados.map(estado => (
+                      <option key={estado.id} value={estado.sigla}>{estado.sigla} - {estado.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase">Município</label>
+                  <select
+                    value={formData.municipality}
+                    onChange={(e) => setFormData(prev => ({ ...prev, municipality: e.target.value }))}
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                    disabled={!formData.uf || loadingMunicipios}
+                  >
+                    <option value="">{loadingMunicipios ? 'Carregando...' : 'Selecione...'}</option>
+                    {municipios.map(municipio => (
+                      <option key={municipio.id} value={municipio.nome}>{municipio.nome}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

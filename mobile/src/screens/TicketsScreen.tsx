@@ -25,6 +25,8 @@ const STATUS_TABS = [
     { label: 'Abertos', value: TicketStatus.OPEN },
     { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
     { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
+    { label: 'Encaminhado', value: TicketStatus.FORWARDED_ACQUISITION },
+    { label: 'Em Rota', value: TicketStatus.IN_ROUTE },
     { label: 'Resolvidos', value: TicketStatus.RESOLVED },
 ];
 
@@ -78,26 +80,40 @@ export const TicketsScreen = () => {
   const fetchTickets = useCallback(async () => {
     try {
       setError(null);
-      // In a real app, you might pass filters to the API. 
-      // Here we fetch all and filter client-side as per current implementation.
-      const response = await api.get('/tickets');
+
+      const params: any = {};
+      if (appliedFilters.showMyTickets) {
+        params.myTickets = 'true';
+      }
+
+      const response = await api.get('/tickets', { params });
       
-      const mappedTickets = response.data.map((data: any) => ({
-        id: data.id,
-        code: data.code,
-        subject: data.subject,
-        status: data.status,
-        priority: data.priority,
-        clientName: data.client_name,
-        technician: data.technician_name,
-        technicianId: data.technician_id,
-        equipment: data.equipment,
-        createdAt: new Date(data.created_at).toLocaleDateString('pt-BR'),
-        createdAtIso: data.created_at, // Fix for type safety
-        created_at: data.created_at, // Keep original for sorting
-        // Store raw date for sorting
-        rawDate: new Date(data.created_at).getTime()
-      }));
+      const mappedTickets = response.data.map((data: any) => {
+        const date = new Date(data.created_at);
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+
+        return {
+          id: data.id,
+          code: data.code,
+          subject: data.subject,
+          status: data.status,
+          priority: data.priority,
+          clientName: data.client_name,
+          technician: data.technician_name,
+          technicianId: data.technician_id,
+          creatorId: data.user_id,
+          equipment: data.equipment,
+          createdAt: `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`,
+          createdAtIso: data.created_at,
+          created_at: data.created_at,
+          rawDate: date.getTime()
+        };
+      });
       
       setTickets(mappedTickets);
     } catch (err) {
@@ -107,7 +123,7 @@ export const TicketsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [appliedFilters.showMyTickets, user]);
 
   useEffect(() => {
     fetchTickets();
@@ -145,9 +161,13 @@ export const TicketsScreen = () => {
           result = result.filter(t => t.priority === appliedFilters.priority);
       }
 
-      // 4. My Tickets Filter (Support/Admin only)
       if (appliedFilters.showMyTickets && user) {
-        result = result.filter(t => t.technicianId === user.id);
+        const isClient = user.profile === 'Cliente' || user.role === 'Cliente';
+        if (isClient) {
+          result = result.filter(t => t.creatorId === user.id);
+        } else {
+          result = result.filter(t => t.technicianId === user.id || t.creatorId === user.id);
+        }
       }
 
       // 5. Search Filter
@@ -188,6 +208,8 @@ export const TicketsScreen = () => {
       case TicketStatus.OPEN: return '#3b82f6'; // Blue
       case TicketStatus.IN_ANALYSIS: return '#f59e0b'; // Amber
       case TicketStatus.IN_PROGRESS: return '#8b5cf6'; // Purple
+      case TicketStatus.FORWARDED_ACQUISITION: return '#6366f1'; // Indigo
+      case TicketStatus.IN_ROUTE: return '#06b6d4'; // Cyan
       case TicketStatus.RESOLVED: return '#10b981'; // Emerald
       default: return '#9ca3af';
     }

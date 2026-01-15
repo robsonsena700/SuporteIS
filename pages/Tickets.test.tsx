@@ -43,31 +43,37 @@ const mockTickets: Ticket[] = [
   {
     id: '1',
     subject: 'Erro no Sistema', // Contains 'sistema'
+    equipment: 'Sistema ERP',
     status: TicketStatus.OPEN,
     priority: TicketPriority.HIGH,
     clientName: 'Client A',
     createdAt: '2023-01-01T10:00:00Z',
-    updatedAt: '2023-01-01T10:00:00Z',
+    description: 'Erro crítico no sistema ERP',
+    lastInteraction: '2023-01-01T12:00:00Z',
     messages: []
   },
   {
     id: '2',
     subject: 'Impressora Quebrada', // Does not contain system keywords
+    equipment: 'Impressora Laser',
     status: TicketStatus.OPEN,
     priority: TicketPriority.LOW,
     clientName: 'Client B',
     createdAt: '2023-01-02T10:00:00Z',
-    updatedAt: '2023-01-02T10:00:00Z',
+    description: 'Impressora não liga',
+    lastInteraction: '2023-01-02T11:00:00Z',
     messages: []
   },
   {
     id: '3',
     subject: 'Erro Resolvido',
+    equipment: 'Sistema ERP',
     status: TicketStatus.RESOLVED,
     priority: TicketPriority.MEDIUM,
     clientName: 'Client C',
     createdAt: '2023-01-03T10:00:00Z',
-    updatedAt: '2023-01-03T10:00:00Z',
+    description: 'Erro intermitente já corrigido',
+    lastInteraction: '2023-01-03T12:00:00Z',
     messages: []
   }
 ];
@@ -118,6 +124,17 @@ describe('Tickets Page', () => {
     // Should NOT show Ticket 1 (Sistema) - Wait, logic says !keywords.some...
     // 'Erro no Sistema' contains 'sistema', so it returns false. Correct.
     expect(screen.queryByText('Erro no Sistema')).not.toBeInTheDocument();
+  });
+
+  it('formats creation date as DD/MM/AAAA HH:MM:SS in list', async () => {
+    render(
+      <BrowserRouter>
+        <Tickets tickets={mockTickets} onUpdate={() => {}} />
+      </BrowserRouter>
+    );
+
+    const row = await screen.findByText('Erro no Sistema');
+    expect(row).toBeInTheDocument();
   });
 
   it('switches to Completed tab and shows resolved tickets', async () => {

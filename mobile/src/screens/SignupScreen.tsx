@@ -156,8 +156,13 @@ export const SignupScreen = () => {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ArrowLeft color="#9ca3af" size={24} />
             <Text style={styles.backText}>Voltar</Text>
@@ -230,7 +235,6 @@ export const SignupScreen = () => {
               }}
               placeholder={loadingEstados ? 'Carregando estados...' : 'Selecione o estado'}
               disabled={loadingEstados}
-              searchable
             />
             {errors.uf ? <Text style={styles.errorText}>{errors.uf}</Text> : null}
 

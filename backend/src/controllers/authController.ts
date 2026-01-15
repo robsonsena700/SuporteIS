@@ -94,7 +94,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
              avatar = COALESCE($4, avatar),
              updated_at = NOW() 
          WHERE id = $5 
-         RETURNING id, name, email, role, profile, avatar, status, company, phone, department`,
+         RETURNING id, name, email, role, profile, avatar, status, company, phone, department, uf, municipality`,
         [name, phone, department, avatar, userId]
       );
   

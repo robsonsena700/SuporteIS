@@ -141,6 +141,29 @@ export const TicketDetailScreen = () => {
       }
   };
 
+  const handleChangeType = () => {
+    Alert.alert(
+        'Confirmar Alteração',
+        'Tem certeza que deseja alterar o tipo deste chamado para Equipamento (EQP)? Esta ação gerará um novo código e não pode ser desfeita.',
+        [
+            { text: 'Cancelar', style: 'cancel' },
+            { 
+                text: 'Alterar', 
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await TicketService.changeType(ticketId);
+                        Alert.alert('Sucesso', 'Tipo de chamado alterado com sucesso!');
+                        fetchTicket();
+                    } catch (error) {
+                         Alert.alert('Erro', 'Falha ao alterar tipo do chamado.');
+                    }
+                }
+            }
+        ]
+    );
+  };
+
   const handleResolvePress = () => {
       if (!ticket || !user) return;
 
@@ -191,6 +214,8 @@ export const TicketDetailScreen = () => {
       case TicketStatus.OPEN: return '#3b82f6';
       case TicketStatus.IN_ANALYSIS: return '#f59e0b';
       case TicketStatus.IN_PROGRESS: return '#8b5cf6';
+      case TicketStatus.FORWARDED_ACQUISITION: return '#6366f1';
+      case TicketStatus.IN_ROUTE: return '#06b6d4';
       case TicketStatus.RESOLVED: return '#10b981';
       default: return '#9ca3af';
     }
@@ -314,27 +339,37 @@ export const TicketDetailScreen = () => {
             />
             
             {!isResolved && (
-                <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.input}
-                    value={replyText}
-                    onChangeText={setReplyText}
-                    placeholder="Digite sua resposta..."
-                    placeholderTextColor="#6b7280"
-                    multiline
-                />
-                <TouchableOpacity 
-                    style={[styles.sendButton, !replyText.trim() && styles.sendButtonDisabled]} 
-                    onPress={handleSend}
-                    disabled={!replyText.trim() || sending}
-                >
-                    {sending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                    <Send color="#fff" size={20} />
+                <>
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            value={replyText}
+                            onChangeText={setReplyText}
+                            placeholder="Digite sua resposta..."
+                            placeholderTextColor="#6b7280"
+                            multiline
+                        />
+                        <TouchableOpacity 
+                            style={[styles.sendButton, !replyText.trim() && styles.sendButtonDisabled]} 
+                            onPress={handleSend}
+                            disabled={!replyText.trim() || sending}
+                        >
+                            {sending ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Send color="#fff" size={20} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                    {user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador' || user.profile === 'Líder') && ticket.status === TicketStatus.OPEN && !ticket.code?.startsWith('EQP') && (
+                        <TouchableOpacity 
+                            style={[styles.saveButton, { marginTop: 16, backgroundColor: 'rgba(99, 102, 241, 0.2)', borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.4)' }]} 
+                            onPress={handleChangeType}
+                        >
+                            <Text style={[styles.saveButtonText, { color: '#818cf8' }]}>Alterar para Equipamento</Text>
+                        </TouchableOpacity>
                     )}
-                </TouchableOpacity>
-                </View>
+                </>
             )}
           </KeyboardAvoidingView>
         ) : activeTab === 'details' ? (
@@ -360,6 +395,8 @@ export const TicketDetailScreen = () => {
                             { label: 'Aberto', value: TicketStatus.OPEN },
                             { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
                             { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
+                            { label: 'Encaminhado Aquisição', value: TicketStatus.FORWARDED_ACQUISITION },
+                            { label: 'Em Rota', value: TicketStatus.IN_ROUTE },
                             { label: 'Resolvido', value: TicketStatus.RESOLVED },
                         ]}
                         onSelect={(v) => setEditForm(p => ({...p, status: v as TicketStatus}))}
@@ -440,9 +477,9 @@ export const TicketDetailScreen = () => {
                                 <Clock size={16} color="#9ca3af" />
                             </View>
                             <View style={styles.historyContent}>
-                                <Text style={styles.historyAction}>{item.action}</Text>
+                                <Text style={styles.historyAction}>{item.changeType}</Text>
                                 <Text style={styles.historyDetails}>
-                                    {item.userName} • {new Date(item.timestamp).toLocaleString()}
+                                    {item.userName} • {new Date(item.createdAt).toLocaleString()}
                                 </Text>
                                 {item.details && <Text style={styles.historyMeta}>{item.details}</Text>}
                             </View>

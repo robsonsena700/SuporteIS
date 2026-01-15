@@ -200,6 +200,8 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
       case TicketStatus.OPEN: return 'bg-primary/10 text-primary border-primary/20';
       case TicketStatus.IN_ANALYSIS: return 'bg-warning/10 text-warning border-warning/20';
       case TicketStatus.IN_PROGRESS: return 'bg-primary/20 text-primary border-primary/30';
+      case TicketStatus.FORWARDED_ACQUISITION: return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+      case TicketStatus.IN_ROUTE: return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20';
       case TicketStatus.RESOLVED: return 'bg-success/10 text-success border-success/20';
       default: return 'bg-background-input text-text-muted border-border-dark';
     }
@@ -418,13 +420,17 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                   </td>
                   <td className="p-4">
                     <span className="text-white text-xs font-mono">
-                      {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('pt-BR', { 
-                          day: '2-digit', 
-                          month: '2-digit', 
-                          year: 'numeric', 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                      }) : '-'}
+                      {ticket.createdAt ? (() => {
+                        const d = new Date(ticket.createdAt);
+                        if (Number.isNaN(d.getTime())) return '-';
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const yyyy = d.getFullYear();
+                        const hh = String(d.getHours()).padStart(2, '0');
+                        const min = String(d.getMinutes()).padStart(2, '0');
+                        const ss = String(d.getSeconds()).padStart(2, '0');
+                        return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+                      })() : '-'}
                     </span>
                   </td>
                   {showRating && (

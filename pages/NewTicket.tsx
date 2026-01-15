@@ -23,6 +23,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   const { success, error, warning } = useToast();
   const { user } = useAuth();
   
+  const isClient = user?.profile === 'Cliente';
   const [loading, setLoading] = useState(false);
   const [ticketType, setTicketType] = useState<'Sistema' | 'Equipamento'>('Sistema');
   const [clientUsers, setClientUsers] = useState<User[]>([]);
@@ -43,23 +44,23 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
   });
 
   useEffect(() => {
-    if (user) {
-      if (user.profile === 'Cliente') {
-        // Se for cliente, preenche automaticamente e bloqueia edição (via UI condicional)
-        setFormData(prev => ({
-          ...prev,
-          clientName: user.name,
-          unit: user.company || prev.unit
-        }));
-      } else if (user.profile === 'Suporte Técnico' || user.profile === 'Administrador') {
-        // Se for suporte/admin, carrega lista de clientes
-        UserService.getAll()
-          .then(users => {
-            const clients = users.filter(u => u.profile === 'Cliente');
-            setClientUsers(clients);
-          })
-          .catch(err => console.error('Failed to load users', err));
-      }
+    if (!user) return;
+
+    setFormData(prev => ({
+      ...prev,
+      clientName: user.profile === 'Cliente' ? user.name : (prev.clientName || user.name),
+      unit: user.company || prev.unit,
+      municipality: user.municipality || prev.municipality,
+      uf: user.uf || prev.uf,
+    }));
+
+    if (user.profile === 'Suporte Técnico' || user.profile === 'Administrador') {
+      UserService.getAll()
+        .then(users => {
+          const clients = users.filter(u => u.profile === 'Cliente');
+          setClientUsers(clients);
+        })
+        .catch(err => console.error('Failed to load users', err));
     }
   }, [user]);
 
@@ -80,7 +81,9 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
              setFormData(prev => ({
                  ...prev,
                  [name]: value,
-                 unit: selectedUser.company || prev.unit
+                 unit: selectedUser.company || prev.unit,
+                 municipality: selectedUser.municipality || prev.municipality,
+                 uf: selectedUser.uf || prev.uf
              }));
              return;
         }
@@ -267,9 +270,11 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                         name="unit"
                         value={formData.unit}
                         onChange={handleChange}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="Unidade"
                         required
+                        readOnly={isClient}
+                        title={isClient ? 'Campo bloqueado para clientes' : undefined}
                     />
                 </div>
             </div>
@@ -282,9 +287,11 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                         name="municipality"
                         value={formData.municipality}
                         onChange={handleChange}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="Município"
                         required
+                        readOnly={isClient}
+                        title={isClient ? 'Campo bloqueado para clientes' : undefined}
                     />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -295,9 +302,11 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                         value={formData.uf}
                         onChange={handleChange}
                         maxLength={2}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all uppercase"
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all uppercase ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="UF"
                         required
+                        readOnly={isClient}
+                        title={isClient ? 'Campo bloqueado para clientes' : undefined}
                     />
                 </div>
             </div>

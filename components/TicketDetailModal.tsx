@@ -266,19 +266,16 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   const handleResolve = async () => {
-    // Check if technician is assigned
     if (!localTicket.technicianId) {
         toast.warning('Não é possível encerrar o chamado sem um Responsável Técnico definido. Por favor, atribua um técnico antes de resolver.');
         return;
     }
 
-    // If Creator, show rating modal
     if (isCreator) {
         setShowRatingModal(true);
         return;
     }
 
-    // If Technician (not Creator), resolve directly
     if (window.confirm('Confirma a resolução deste chamado? O solicitante será notificado para realizar a avaliação.')) {
         try {
             const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
@@ -329,6 +326,23 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       }
   };
 
+  const handleChangeType = async () => {
+    if (!window.confirm('Tem certeza que deseja alterar o tipo deste chamado para Equipamento (EQP)? Esta ação gerará um novo código e não pode ser desfeita.')) {
+        return;
+    }
+    
+    try {
+        const updated = await TicketService.changeType(localTicket.id);
+        setLocalTicket(updated);
+        onUpdate(updated);
+        toast.success(`Tipo de chamado alterado com sucesso! Novo código: ${updated.code}`);
+    } catch (error: any) {
+        console.error('Failed to change ticket type', error);
+        const errorMessage = error.response?.data?.message || 'Erro ao alterar tipo do chamado.';
+        toast.error(errorMessage);
+    }
+  };
+
   const isAssignedToOthers = localTicket.technicianId && user && localTicket.technicianId !== user.id;
   const isAssignedToMe = localTicket.technicianId && user && localTicket.technicianId === user.id;
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
@@ -358,7 +372,19 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             </div>
             <div>
               <h2 id="modal-title" className="text-white text-lg font-bold leading-tight line-clamp-1">{localTicket.subject}</h2>
-              <p className="text-text-muted text-xs">{localTicket.clientName} • Criado em {localTicket.createdAt}</p>
+              <p className="text-text-muted text-xs">
+                {localTicket.clientName} • Criado em {(() => {
+                  const d = new Date(localTicket.createdAt);
+                  if (Number.isNaN(d.getTime())) return '-';
+                  const dd = String(d.getDate()).padStart(2, '0');
+                  const mm = String(d.getMonth() + 1).padStart(2, '0');
+                  const yyyy = d.getFullYear();
+                  const hh = String(d.getHours()).padStart(2, '0');
+                  const min = String(d.getMinutes()).padStart(2, '0');
+                  const ss = String(d.getSeconds()).padStart(2, '0');
+                  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+                })()}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -712,6 +738,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             <option value={TicketStatus.OPEN}>{TicketStatus.OPEN}</option>
                             <option value={TicketStatus.IN_ANALYSIS}>{TicketStatus.IN_ANALYSIS}</option>
                             <option value={TicketStatus.IN_PROGRESS}>{TicketStatus.IN_PROGRESS}</option>
+                            <option value={TicketStatus.FORWARDED_ACQUISITION}>{TicketStatus.FORWARDED_ACQUISITION}</option>
+                            <option value={TicketStatus.IN_ROUTE}>{TicketStatus.IN_ROUTE}</option>
                             <option value={TicketStatus.RESOLVED}>{TicketStatus.RESOLVED}</option>
                         </select>
                     ) : (
@@ -768,6 +796,17 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Change Type Action */}
+             {user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador' || user.profile === 'Líder' || (user as any).role === 'Líder') && localTicket.status === TicketStatus.OPEN && !localTicket.code?.startsWith('EQP') && (
+                 <button 
+                    onClick={handleChangeType}
+                    className="w-full py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 mb-2"
+                 >
+                    <span className="material-symbols-outlined text-[16px]">transform</span>
+                    Alterar para Equipamento
+                 </button>
+             )}
 
             {/* Equipment Info */}
             <div className="flex flex-col gap-3">

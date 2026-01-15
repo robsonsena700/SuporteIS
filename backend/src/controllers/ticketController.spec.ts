@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getNextCode } from './ticketController';
+import { getNextCode, getTickets } from './ticketController';
 
 // Mock do pool
 const mockQuery = vi.fn();
@@ -15,7 +15,6 @@ describe('getNextCode', () => {
   });
 
   it('deve gerar o primeiro código (0000000001) se não houver tickets no novo formato', async () => {
-    // Simula que a query retornou vazio (nenhum ticket com length 14 encontrado)
     mockQuery.mockResolvedValue({ rows: [] }); 
 
     const code = await getNextCode('EQP');
@@ -27,7 +26,6 @@ describe('getNextCode', () => {
   });
 
   it('deve incrementar o código se já houver tickets no novo formato', async () => {
-    // Simula que o último ticket foi EQP-0000000001
     mockQuery.mockResolvedValue({ 
       rows: [{ code: 'EQP-0000000001' }] 
     });
@@ -43,12 +41,101 @@ describe('getNextCode', () => {
   });
 
   it('deve ignorar tickets antigos (simulado pelo retorno vazio da query filtrada)', async () => {
-      // A query real filtra por LENGTH=14.
-      // Se houver tickets EQP-260002 (length 10) no banco, a query retornará vazio para length 14.
-      // O mock simula esse retorno vazio.
       mockQuery.mockResolvedValue({ rows: [] });
       
       const code = await getNextCode('EQP');
       expect(code).toBe('EQP-0000000001');
+  });
+});
+
+describe('getTickets - regras de visualização por perfil', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deve filtrar por user_id quando usuário é Cliente via role', async () => {
+    const req: any = {
+      user: { id: 'user-1', role: 'Cliente' },
+      query: {}
+    };
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json })
+    };
+
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await getTickets(req, res);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('t.user_id = $1');
+    expect(params).toEqual(['user-1']);
+  });
+
+  it('deve filtrar por user_id quando usuário é Cliente via profile', async () => {
+    const req: any = {
+      user: { id: 'user-2', role: 'Outro', profile: 'Cliente' },
+      query: {}
+    };
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json })
+    };
+
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await getTickets(req, res);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('t.user_id = $1');
+    expect(params).toEqual(['user-2']);
+  });
+
+  it('deve aplicar filtro myTickets para usuário de suporte', async () => {
+    const req: any = {
+      user: { id: 'tech-1', role: 'Técnico', profile: 'Suporte Técnico' },
+      query: { myTickets: 'true' }
+    };
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json })
+    };
+
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await getTickets(req, res);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('t.technician_id = $1');
+    expect(sql).toContain('t.user_id = $1');
+    expect(params).toEqual(['tech-1']);
+  });
+
+  it('não deve aplicar filtro myTickets extra para Cliente', async () => {
+    const req: any = {
+      user: { id: 'client-1', role: 'Cliente', profile: 'Cliente' },
+      query: { myTickets: 'true' }
+    };
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json })
+    };
+
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    await getTickets(req, res);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('t.user_id = $1');
+    expect(sql).not.toContain('t.technician_id = $1');
+    expect(params).toEqual(['client-1']);
   });
 });

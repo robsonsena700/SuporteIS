@@ -30,5 +30,10 @@ export const TicketService = {
   getHistory: async (id: string) => {
     const response = await api.get(`/tickets/${id}/history`);
     return response.data;
+  },
+
+  changeType: async (id: string) => {
+    const response = await api.patch(`/tickets/${id}/type`);
+    return response.data;
   }
 };

@@ -2,6 +2,8 @@ export enum TicketStatus {
   OPEN = 'Aberto',
   IN_ANALYSIS = 'Em Análise',
   IN_PROGRESS = 'Em Andamento',
+  FORWARDED_ACQUISITION = 'Encaminhado Aquisição',
+  IN_ROUTE = 'Em Rota',
   RESOLVED = 'Resolvido'
 }
 
