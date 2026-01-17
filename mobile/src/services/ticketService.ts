@@ -5,6 +5,7 @@ const mapMessageFromApi = (data: any): Message => ({
   id: data.id,
   senderId: data.sender_id,
   senderName: data.sender_name || 'Usuário',
+  senderAvatar: data.sender_avatar,
   content: data.content,
   timestamp: data.created_at,
   isInternal: data.is_internal,

@@ -40,13 +40,13 @@ vi.mock('../context/NotificationContext', () => ({
 const mockTicket: Ticket = {
   id: '1',
   subject: 'Test Ticket',
-  content: 'Ticket content',
-  status: TicketStatus.OPEN,
-  priority: TicketPriority.MEDIUM,
-  category: 'Hardware',
-  createdAt: '2023-01-01',
-  creatorId: 'user2',
+  equipment: 'Computador',
   clientName: 'Client User',
+  priority: TicketPriority.MEDIUM,
+  status: TicketStatus.OPEN,
+  description: 'Ticket content',
+  createdAt: '2023-01-01',
+  lastInteraction: '2023-01-01',
   messages: [],
 };
 
@@ -116,8 +116,8 @@ describe('TicketDetailModal', () => {
     fireEvent.click(sendButton);
 
     await waitFor(() => {
-        expect(TicketService.addMessage).toHaveBeenCalledWith('1', 'New message', false);
-        expect(onUpdateMock).toHaveBeenCalled();
+      expect(TicketService.addMessage).toHaveBeenCalledWith('1', 'New message', false, undefined);
+      expect(onUpdateMock).toHaveBeenCalled();
     });
   });
 
@@ -213,6 +213,7 @@ describe('TicketDetailModal', () => {
     const updatedTicket: Ticket = { ...ticket, status: TicketStatus.RESOLVED };
 
     (TicketService.update as any).mockResolvedValue(updatedTicket);
+    (TicketService.getById as any).mockResolvedValue(ticket);
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 

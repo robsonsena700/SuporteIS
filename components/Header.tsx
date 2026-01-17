@@ -19,6 +19,13 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
   const [showUserList, setShowUserList] = useState(false);
   const navigate = useNavigate();
 
+  const isClientProfile =
+    user?.profile === 'Cliente' ||
+    user?.role === 'Cliente' ||
+    user?.role === 'client';
+
+  const canShowTeamButton = !!user && !isClientProfile;
+
   const handleNotificationSelect = async (notification: Notification) => {
     try {
         console.log(`[Notification] Clicked notification: ${notification.id}, type: ${notification.type}`);
@@ -64,7 +71,7 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
       {/* Right side - Actions */}
       <div className="flex items-center gap-4">
         {/* Team / Users Dropdown - Only for non-clients */}
-        {user?.profile !== 'Cliente' && (
+        {canShowTeamButton && (
           <div className="relative">
             <button 
               onClick={() => { setShowUserList(!showUserList); setShowNotifications(false); }}
@@ -124,16 +131,11 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
 
         <div className="h-8 w-px bg-border-dark mx-2"></div>
 
-        {/* User Profile Summary */}
         <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-start">
             <span className="text-sm font-bold text-white">{user?.name}</span>
             <span className="text-[10px] text-text-secondary">{user?.profile}</span>
           </div>
-          <div 
-            className="hidden md:block size-10 rounded-full bg-cover bg-center border border-border-dark"
-            style={{ backgroundImage: `url(${user?.avatar})` }}
-          />
           {onLogout && (
             <button
               onClick={onLogout}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, FlatList, ViewStyle, DimensionValue } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, FlatList, ViewStyle, DimensionValue, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
@@ -48,6 +48,8 @@ export const TicketDetailScreen = () => {
   // Rating
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [isInternal, setIsInternal] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
     fetchTicket();
@@ -80,9 +82,9 @@ export const TicketDetailScreen = () => {
       setTicket(data);
       if (!isEditing) {
         setEditForm({
-            priority: data.priority,
-            status: data.status,
-            equipment: data.equipment // simplistic mapping
+          priority: data.priority,
+          status: data.status,
+          equipment: data.equipment,
         });
       }
     } catch (error: any) {
@@ -90,6 +92,9 @@ export const TicketDetailScreen = () => {
       if (error.response) {
           console.error('Response status:', error.response.status);
           console.error('Response data:', error.response.data);
+          if (error.response.status === 403) {
+              setUnauthorized(true);
+          }
       }
     } finally {
       setLoading(false);
@@ -101,8 +106,13 @@ export const TicketDetailScreen = () => {
     try {
         const data = await TicketService.getHistory(ticketId);
         setHistory(data);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to load history', error);
+        if (error.response && error.response.status === 403) {
+            Alert.alert('Acesso não autorizado', 'Você não tem permissão para visualizar o histórico deste chamado.');
+        } else {
+            Alert.alert('Erro', 'Falha ao carregar histórico do chamado.');
+        }
     } finally {
         setLoadingHistory(false);
     }
@@ -113,17 +123,25 @@ export const TicketDetailScreen = () => {
 
     setSending(true);
     try {
-      // Auto-assign logic: If no technician and user is tech support/admin
       if (ticket && !ticket.technicianId && user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador')) {
         try {
-            await TicketService.update(ticket.id, { technicianId: user.id });
+          await TicketService.update(ticket.id, { technicianId: user.id });
         } catch (err) {
-            console.error('Failed to auto-assign', err);
+          console.error('Failed to auto-assign', err);
         }
       }
 
-      await TicketService.addMessage(ticketId, replyText);
+      const canUseInternal =
+        user &&
+        (user.profile === 'Suporte Técnico' ||
+          user.profile === 'Administrador' ||
+          user.profile === 'Líder' ||
+          (typeof user.profile === 'string' && user.profile.includes('Suporte')) ||
+          (typeof user.role === 'string' && user.role.includes('Suporte')));
+
+      await TicketService.addMessage(ticketId, replyText, !!canUseInternal && isInternal);
       setReplyText('');
+      setIsInternal(false);
       await fetchTicket();
       const related = notifications.filter(
         n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead
@@ -257,7 +275,9 @@ export const TicketDetailScreen = () => {
   if (!ticket) {
     return (
         <View style={[styles.container, styles.center]}>
-            <Text style={{color: '#fff'}}>Chamado não encontrado</Text>
+            <Text style={{color: '#fff'}}>
+                {unauthorized ? 'Acesso não autorizado ao chamado.' : 'Chamado não encontrado'}
+            </Text>
         </View>
     )
   }
@@ -347,17 +367,75 @@ export const TicketDetailScreen = () => {
               contentContainerStyle={styles.messagesList}
               renderItem={({ item }) => {
                 const isMe = item.senderId === user?.id;
+                const internal = !!item.isInternal;
                 return (
-                  <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.otherMessage]}>
-                    <View style={styles.messageHeader}>
-                        <Text style={styles.senderName}>{item.senderName}</Text>
+                  <View
+                    style={[
+                      styles.messageRow,
+                      isMe ? styles.myMessageRow : styles.otherMessageRow,
+                    ]}
+                  >
+                    {!isMe && (
+                      <View style={styles.messageAvatar}>
+                        {item.senderAvatar ? (
+                          <Image
+                            source={{ uri: item.senderAvatar }}
+                            style={styles.messageAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.messageAvatarInitials}>
+                            {item.senderName?.substring(0, 2).toUpperCase() || 'US'}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                    <View
+                      style={[
+                        styles.messageBubble,
+                        isMe ? styles.myMessage : styles.otherMessage,
+                        internal && styles.internalMessage,
+                      ]}
+                    >
+                      <View style={styles.messageHeader}>
+                        <View style={styles.messageHeaderLeft}>
+                          <Text style={styles.senderName}>{item.senderName}</Text>
+                          {internal && (
+                            <View style={styles.internalBadge}>
+                              <Lock size={12} color="#facc15" />
+                              <Text style={styles.internalBadgeText}>Privado</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.timestamp}>
-                            {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(item.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.messageText,
+                          isMe ? styles.myMessageText : styles.otherMessageText,
+                        ]}
+                      >
+                        {item.content}
+                      </Text>
                     </View>
-                    <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
-                      {item.content}
-                    </Text>
+                    {isMe && (
+                      <View style={styles.messageAvatar}>
+                        {user?.avatar ? (
+                          <Image
+                            source={{ uri: user.avatar }}
+                            style={styles.messageAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.messageAvatarInitials}>
+                            {user?.name?.substring(0, 2).toUpperCase() || 'EU'}
+                          </Text>
+                        )}
+                      </View>
+                    )}
                   </View>
                 );
               }}
@@ -652,6 +730,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 12,
   },
+  inputActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   input: {
     flex: 1,
     backgroundColor: '#374151',
@@ -673,6 +756,81 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: '#4b5563',
     opacity: 0.5,
+  },
+  privateToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4b5563',
+    backgroundColor: '#111827',
+    gap: 4,
+  },
+  privateToggleActive: {
+    borderColor: '#facc15',
+    backgroundColor: 'rgba(250, 204, 21, 0.12)',
+  },
+  privateToggleText: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  privateToggleTextActive: {
+    color: '#facc15',
+    fontWeight: '600',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 8,
+    gap: 8,
+  },
+  myMessageRow: {
+    justifyContent: 'flex-end',
+  },
+  otherMessageRow: {
+    justifyContent: 'flex-start',
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  messageAvatarInitials: {
+    color: '#e5e7eb',
+    fontWeight: 'bold',
+  },
+  internalMessage: {
+    borderWidth: 1,
+    borderColor: '#facc15',
+  },
+  messageHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  internalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(250, 204, 21, 0.16)',
+  },
+  internalBadgeText: {
+    fontSize: 10,
+    color: '#facc15',
+    fontWeight: '600',
   },
   detailsContainer: {
     padding: 20,

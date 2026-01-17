@@ -55,16 +55,26 @@ export const getNextCode = async (prefix: string) => {
 export const getTicketHistory = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
-    // Resolve ID if code provided (handle CH- prefix or new prefixes)
     let ticketId = id;
+    let ticketRow: any;
+
     if (id.includes('-') && !id.match(/^[0-9a-fA-F-]{36}$/)) { // Simple UUID check
-       const t = await pool.query('SELECT id FROM tickets WHERE code = $1', [id]);
+       const t = await pool.query('SELECT id, user_id FROM tickets WHERE code = $1', [id]);
        if (t.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
-       ticketId = t.rows[0].id;
+       ticketRow = t.rows[0];
+       ticketId = ticketRow.id;
     } else {
-       // Verify existence if UUID
-       const t = await pool.query('SELECT id FROM tickets WHERE id = $1', [id]);
+       const t = await pool.query('SELECT id, user_id FROM tickets WHERE id = $1', [id]);
        if (t.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
+       ticketRow = t.rows[0];
+       ticketId = ticketRow.id;
+    }
+
+    const user = req.user;
+    const isClient = user && (user.role === 'Cliente' || user.profile === 'Cliente');
+
+    if (isClient && ticketRow.user_id !== user.id) {
+      return res.status(403).json({ message: 'Acesso não autorizado' });
     }
 
     const result = await pool.query(`
@@ -219,16 +229,38 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
 
     const ticket = ticketResult.rows[0];
 
-    // Fetch messages
+    const user = req.user;
+    const isClient = user && (user.role === 'Cliente' || user.profile === 'Cliente');
+
+    if (isClient && ticket.user_id !== user.id) {
+      return res.status(403).json({ message: 'Acesso não autorizado' });
+    }
+
     const messagesResult = await pool.query(`
-      SELECT m.*, u.name as sender_name 
+      SELECT m.*, u.name as sender_name, u.avatar as sender_avatar 
       FROM messages m
       LEFT JOIN users u ON m.sender_id = u.id
       WHERE m.ticket_id = $1
       ORDER BY m.created_at ASC
     `, [ticket.id]);
 
-    ticket.messages = messagesResult.rows;
+    const canSeeInternalMessages = user && (
+      user.profile === 'Administrador' ||
+      user.profile === 'Suporte Técnico' ||
+      user.profile === 'Líder' ||
+      user.role === 'Administrador' ||
+      user.role === 'Técnico' ||
+      user.role === 'Líder' ||
+      (typeof user.profile === 'string' && user.profile.includes('Suporte')) ||
+      (typeof user.role === 'string' && user.role.includes('Suporte'))
+    );
+
+    const allMessages = messagesResult.rows;
+    const visibleMessages = canSeeInternalMessages
+      ? allMessages
+      : allMessages.filter((m: any) => !m.is_internal);
+
+    ticket.messages = visibleMessages;
 
     res.json(ticket);
   } catch (error) {
@@ -635,18 +667,25 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
 
       if (ticketResult.rows.length === 0) return res.status(404).json({message: 'Ticket not found'});
       
-      const ticketStatus = ticketResult.rows[0].status;
-      if (req.user?.role === 'Cliente' && ticketStatus === 'Resolvido') {
+      const row = ticketResult.rows[0];
+      const currentUser = req.user;
+
+      if (currentUser && (currentUser.role === 'Cliente' || currentUser.profile === 'Cliente') && row.user_id !== currentUser.id) {
+          return res.status(403).json({ message: 'Acesso não autorizado' });
+      }
+
+      const ticketStatus = row.status;
+      if (currentUser?.role === 'Cliente' && ticketStatus === 'Resolvido') {
           return res.status(403).json({ message: 'Apenas o Responsável pelo atendimento ou Administrador podem realizar esta função!' });
       }
 
-      ticketId = ticketResult.rows[0].id;
-      const currentTechnicianId = ticketResult.rows[0].technician_id;
-      const ticketOwnerId = ticketResult.rows[0].user_id;
+      ticketId = row.id;
+      const currentTechnicianId = row.technician_id;
+      const ticketOwnerId = row.user_id;
 
       // Insert Message
       const newMessage = await pool.query(
-          'INSERT INTO messages (ticket_id, sender_id, content, is_internal, attachment) VALUES ($1, $2, $3, $4, $5) RETURNING *, (SELECT name FROM users WHERE id = $2) as sender_name',
+          'INSERT INTO messages (ticket_id, sender_id, content, is_internal, attachment) VALUES ($1, $2, $3, $4, $5) RETURNING *, (SELECT name FROM users WHERE id = $2) as sender_name, (SELECT avatar FROM users WHERE id = $2) as sender_avatar',
           [ticketId, req.user?.id, content, is_internal || false, attachment || null]
       );
 

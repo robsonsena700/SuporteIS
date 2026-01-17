@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getNextCode, getTickets, updateTicket } from './ticketController';
+import { getNextCode, getTickets, updateTicket, getTicketById, getTicketHistory, addMessage } from './ticketController';
 
 // Mock do pool
 const mockQuery = vi.fn();
@@ -239,5 +239,111 @@ describe('updateTicket - validações de avaliação', () => {
     expect(json).toHaveBeenCalledWith({
       message: 'Permissão negada. Apenas o solicitante do chamado pode avaliar ou reabrir este chamado.',
     });
+  });
+});
+
+describe('getTicketById - restrições para clientes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('impede cliente de visualizar chamado de outro usuário', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-1',
+          user_id: 'client-1',
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-1' },
+      user: { id: 'client-2', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await getTicketById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({ message: 'Acesso não autorizado' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getTicketHistory - restrições para clientes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('impede cliente de acessar histórico de chamado de outro usuário', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-1',
+          user_id: 'client-1',
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-1' },
+      user: { id: 'client-2', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await getTicketHistory(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({ message: 'Acesso não autorizado' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('addMessage - restrições para clientes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('impede cliente de enviar mensagem em chamado de outro usuário', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-1',
+          technician_id: null,
+          user_id: 'client-1',
+          code: 'SUP-0000000001',
+          status: 'Aberto',
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-1' },
+      body: { content: 'Mensagem do cliente' },
+      user: { id: 'client-2', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await addMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({ message: 'Acesso não autorizado' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

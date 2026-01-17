@@ -6,6 +6,7 @@ import { TicketService, UserService } from '../services/api';
 import TicketDetailModal from '../components/TicketDetailModal';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface TicketsProps {
   tickets: Ticket[];
@@ -15,6 +16,7 @@ interface TicketsProps {
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const { notifications, markAsRead } = useNotifications();
   const location = useLocation();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -231,9 +233,14 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
       const fullTicket = await TicketService.getById(ticket.id);
       setSelectedTicket(fullTicket);
       await markTicketNotificationsAsRead(fullTicket.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch ticket details', error);
-      setSelectedTicket(ticket);
+      const status = error?.response?.status;
+      if (status === 403) {
+        toast.error('Acesso não autorizado ao chamado.');
+      } else {
+        toast.error('Erro ao carregar detalhes do chamado.');
+      }
     } finally {
       setLoadingDetails(false);
     }

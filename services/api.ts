@@ -35,9 +35,11 @@ const mapMessageFromApi = (data: any): Message => ({
   id: data.id,
   senderId: data.sender_id,
   senderName: data.sender_name || 'Usuário',
+  senderAvatar: data.sender_avatar,
   content: data.content,
   timestamp: new Date(data.created_at).toLocaleString(),
-  isInternal: data.is_internal
+  isInternal: data.is_internal,
+  attachment: data.attachment
 });
 
 const mapTicketFromApi = (data: any): Ticket => ({

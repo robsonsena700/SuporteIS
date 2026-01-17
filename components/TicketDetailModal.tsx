@@ -85,30 +85,28 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
   // Polling for new messages
   useEffect(() => {
-    if (activeTab !== 'messages') return;
+    if (activeTab !== 'messages' || !localTicket || !localTicket.id) return;
 
     const pollMessages = async () => {
-        try {
-            const freshTicket = await TicketService.getById(localTicket.id);
-            // Simple check: if message count differs, update. 
-            // Better: Compare last message ID or timestamp.
-            const currentCount = localTicket.messages?.length || 0;
-            const newCount = freshTicket.messages?.length || 0;
-            
-            if (newCount !== currentCount) {
-                 setLocalTicket(prev => ({ ...prev, messages: freshTicket.messages }));
-            }
-        } catch (e) {
-            console.error('Polling error', e);
+      try {
+        const freshTicket = await TicketService.getById(localTicket.id);
+        const currentCount = localTicket.messages?.length || 0;
+        const newCount = freshTicket.messages?.length || 0;
+
+        if (newCount !== currentCount) {
+          setLocalTicket(prev => ({ ...prev, messages: freshTicket.messages }));
         }
+      } catch (e) {
+        console.error('Polling error', e);
+      }
     };
 
-    const interval = setInterval(pollMessages, 5000); // 5 seconds
+    const interval = setInterval(pollMessages, 5000);
     return () => clearInterval(interval);
-  }, [activeTab, localTicket.id, localTicket.messages?.length]);
+  }, [activeTab, localTicket?.id, localTicket?.messages?.length]);
 
   useEffect(() => {
-    if (!localTicket.id) return;
+    if (!localTicket?.id) return;
     const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === localTicket.id && !n.isRead);
     if (related.length === 0) return;
     related.forEach(n => {
@@ -120,18 +118,24 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
   // Fetch History on Tab Change
   useEffect(() => {
-    if (activeTab === 'history') {
+    if (activeTab === 'history' && localTicket?.id) {
         const fetchHistory = async () => {
             try {
                 const data = await TicketService.getHistory(localTicket.id);
                 setHistory(data);
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to fetch history', err);
+                const status = err?.response?.status;
+                if (status === 403) {
+                    toast.error('Acesso não autorizado ao histórico deste chamado.');
+                } else {
+                    toast.error('Erro ao carregar histórico do chamado.');
+                }
             }
         };
         fetchHistory();
     }
-  }, [activeTab, localTicket.id]);
+  }, [activeTab, localTicket?.id]);
 
   // Auto-assign logic
   const handleInteractionStart = async () => {
@@ -203,8 +207,18 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
+  const allowedInternalProfiles = ['Administrador', 'Suporte Técnico', 'Líder', 'Suporte'];
+  const canUseInternalComments = !!user && (
+    allowedInternalProfiles.includes(user.profile) ||
+    allowedInternalProfiles.includes((user as any).role) ||
+    (typeof user.profile === 'string' && user.profile.includes('Suporte')) ||
+    (typeof (user as any).role === 'string' && (user as any).role.includes('Suporte'))
+  );
+
+  const [isInternalNote, setIsInternalNote] = useState(false);
+
   const handleSendMessage = async () => {
-    if (!replyText.trim() || isSubmitting) return;
+    if ((!replyText.trim() && !selectedAttachment) || isSubmitting) return;
 
     // Ensure assignment before sending if needed
     if (!localTicket.technicianId && user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador')) {
@@ -213,7 +227,12 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const newMessage = await TicketService.addMessage(localTicket.id, replyText, false);
+      const newMessage = await TicketService.addMessage(
+        localTicket.id,
+        replyText,
+        canUseInternalComments ? isInternalNote : false,
+        selectedAttachment?.content
+      );
       
       const updatedTicket = { ...localTicket };
       updatedTicket.messages = [...(updatedTicket.messages || []), newMessage];
@@ -221,6 +240,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       onUpdate(updatedTicket); 
       setLocalTicket(updatedTicket);
       setReplyText('');
+      setSelectedAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === localTicket.id && !n.isRead);
       if (related.length > 0) {
         related.forEach(n => {
@@ -514,22 +535,56 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <div className="flex-1 overflow-y-auto p-3 md:p-6 flex flex-col gap-6">
                         {/* Messages */}
                         <div className="flex flex-col gap-5">
-                            {localTicket.messages && localTicket.messages.map((msg, i) => (
-                            <div key={msg.id || i} className={`flex gap-3 ${msg.senderName === 'Você' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${msg.senderName === 'Você' ? 'bg-primary text-white' : 'bg-[#1f2937] text-text-secondary'}`}>
-                                {msg.senderName ? msg.senderName[0] : '?'}
-                                </div>
-                                <div className={`flex flex-col gap-1 max-w-[85%] md:max-w-[70%] ${msg.senderName === 'Você' ? 'items-end' : ''}`}>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-white text-[11px] font-bold">{msg.senderName}</span>
-                                    <span className="text-[9px] text-[#6b7280]">{msg.timestamp}</span>
-                                </div>
-                                <div className={`p-3 rounded-xl text-sm leading-relaxed break-words ${msg.senderName === 'Você' ? 'bg-[#135bec] text-white rounded-tr-none' : 'bg-[#1f2937] text-white border border-[#374151] rounded-tl-none'}`}>
-                                    {msg.content}
-                                </div>
-                                </div>
-                            </div>
-                            ))}
+                            {localTicket.messages && localTicket.messages.map((msg, i) => {
+                                const isMe = msg.senderId === user?.id || msg.senderName === 'Você';
+                                const isInternal = !!msg.isInternal;
+                                return (
+                                    <div
+                                      key={msg.id || i}
+                                      className={`flex items-end gap-3 ${isMe ? 'flex-row-reverse' : ''}`}
+                                    >
+                                      <div
+                                        className="size-8 rounded-full overflow-hidden shrink-0 bg-[#1f2937] border border-[#374151] flex items-center justify-center text-[10px] font-bold text-text-secondary"
+                                        style={
+                                          msg.senderAvatar
+                                            ? { backgroundImage: `url(${msg.senderAvatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                                            : undefined
+                                        }
+                                      >
+                                        {!msg.senderAvatar && (msg.senderName ? msg.senderName[0] : '?')}
+                                      </div>
+                                      <div
+                                        className={`flex flex-col gap-1 max-w-[85%] md:max-w-[70%] ${
+                                          isMe ? 'items-end' : ''
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-white text-[11px] font-bold">{msg.senderName}</span>
+                                          {isInternal && (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-[9px] font-bold text-yellow-400">
+                                              <span className="material-symbols-outlined text-[14px]">lock</span>
+                                              Privado
+                                            </span>
+                                          )}
+                                          <span className="text-[9px] text-[#6b7280]">{msg.timestamp}</span>
+                                        </div>
+                                        <div
+                                          className={`p-3 rounded-xl text-sm leading-relaxed break-words ${
+                                            isMe
+                                              ? isInternal
+                                                ? 'bg-yellow-500/20 text-white border border-yellow-500/40 rounded-tr-none'
+                                                : 'bg-[#135bec] text-white rounded-tr-none'
+                                              : isInternal
+                                                ? 'bg-[#1f2937] text-yellow-50 border border-yellow-500/40 rounded-tl-none'
+                                                : 'bg-[#1f2937] text-white border border-[#374151] rounded-tl-none'
+                                          }`}
+                                        >
+                                          {msg.content}
+                                        </div>
+                                      </div>
+                                    </div>
+                                );
+                            })}
                             {(!localTicket.messages || localTicket.messages.length === 0) && (
                                 <div className="text-center text-text-muted text-xs py-10">Nenhuma mensagem ainda.</div>
                             )}
@@ -575,27 +630,43 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                                     onFocus={handleInteractionStart}
                                     />
                                 </div>
-                                <div className="flex justify-end gap-3">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                    {canUseInternalComments && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsInternalNote(!isInternalNote)}
+                                          className={`inline-flex items-center justify-center px-3 py-2 rounded-lg text-[11px] font-bold border transition-colors ${
+                                            isInternalNote
+                                              ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-300'
+                                              : 'bg-[#111827] border-[#374151] text-text-secondary hover:text-white'
+                                          }`}
+                                        >
+                                          <span className="material-symbols-outlined text-[16px] mr-1">lock</span>
+                                          Comentário privado
+                                        </button>
+                                    )}
+                                    <div className="flex justify-end gap-3">
                                     <input 
                                         type="file" 
                                         ref={fileInputRef}
                                         className="hidden"
                                         onChange={handleFileSelect}
                                     />
-                                    <button 
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className={`px-3 md:px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all flex items-center gap-2 ${selectedAttachment ? 'bg-primary/20 border-primary/50' : ''}`}
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">attach_file</span>
-                                        Anexar
-                                    </button>
-                                    <button 
-                                    onClick={handleSendMessage}
-                                    disabled={(!replyText.trim() && !selectedAttachment) || isSubmitting}
-                                    className={`px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                    {isSubmitting ? 'Enviando...' : 'Enviar Resposta'}
-                                    </button>
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className={`px-3 md:px-5 h-10 border border-[#374151] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-all flex items-center gap-2 ${selectedAttachment ? 'bg-primary/20 border-primary/50' : ''}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">attach_file</span>
+                                            Anexar
+                                        </button>
+                                        <button 
+                                        onClick={handleSendMessage}
+                                        disabled={(!replyText.trim() && !selectedAttachment) || isSubmitting}
+                                        className={`px-4 md:px-6 h-10 bg-[#135bec] text-white text-xs font-bold rounded-lg hover:bg-[#0f48bd] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                        {isSubmitting ? 'Enviando...' : 'Enviar Resposta'}
+                                        </button>
+                                    </div>
                                 </div>
                             </>
                         )}

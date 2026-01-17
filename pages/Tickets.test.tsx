@@ -29,6 +29,16 @@ vi.mock('../context/NotificationContext', () => ({
   })
 }));
 
+vi.mock('../context/ToastContext', () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  })
+}));
+
 // Mock the child component to simplify integration testing
 vi.mock('../components/TicketDetailModal', () => ({
   default: ({ ticket, onClose }: any) => (
@@ -167,6 +177,26 @@ describe('Tickets Page', () => {
     await waitFor(() => {
         expect(screen.getByTestId('ticket-modal')).toBeInTheDocument();
         expect(screen.getByText('Modal: Erro no Sistema')).toBeInTheDocument();
+    });
+  });
+
+  it('does not open modal when API retorna 403 para detalhes do chamado', async () => {
+    (TicketService.getAll as any).mockResolvedValueOnce(mockTickets);
+    (TicketService.getById as any).mockRejectedValueOnce({
+      response: { status: 403, data: { message: 'Acesso não autorizado' } }
+    });
+
+    render(
+      <BrowserRouter>
+        <Tickets tickets={mockTickets} onUpdate={() => {}} />
+      </BrowserRouter>
+    );
+
+    const ticketRow = await screen.findByText('Erro no Sistema');
+    fireEvent.click(ticketRow);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('ticket-modal')).not.toBeInTheDocument();
     });
   });
 });

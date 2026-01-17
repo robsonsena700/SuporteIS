@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, Activity
 import { useAuth } from '../auth/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useNavigation } from '@react-navigation/native';
-import { LogOut, Bell, Users, User as UserIcon } from 'lucide-react-native';
+import { LogOut, Bell, Users, User as UserIcon, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Notification, User } from '../types';
 import { NotificationModal } from './NotificationModal';
@@ -49,7 +49,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
   };
 
   const handleTeamClick = () => {
-    if (user?.role === 'Administrador' || user?.profile === 'Suporte Técnico') {
+    if (user && (user.profile === 'Administrador' || user.profile === 'Suporte Técnico' || user.profile === 'Líder')) {
       setShowTeamModal(true);
       loadTeamUsers();
     } else {
@@ -147,7 +147,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
     ? new Date(user.lastAccess).toLocaleString('pt-BR') 
     : new Date().toLocaleString('pt-BR');
 
-  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico';
+  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico' || user?.profile === 'Líder';
 
   return (
     <>
@@ -156,6 +156,15 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
           <View style={styles.leftContainer}>
             {showUserInfo ? (
               <View style={styles.userInfo}>
+                <View style={styles.userAvatar}>
+                  {user?.avatar ? (
+                    <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+                  ) : (
+                    <Text style={styles.userAvatarInitials}>
+                      {user?.name?.substring(0, 2).toUpperCase() || 'US'}
+                    </Text>
+                  )}
+                </View>
                 <View>
                   <Text style={styles.userName}>{user?.name}</Text>
                   <Text style={styles.userDetails}>
@@ -170,19 +179,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
 
           <View style={styles.actions}>
             {rightAction}
-            
-            <TouchableOpacity onPress={handleOpenProfileMenu} style={styles.profileButton}>
-              <View style={styles.profileButtonAvatar}>
-                {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.profileButtonAvatarImage} />
-                ) : (
-                  <Text style={styles.profileButtonInitials}>
-                    {user?.name?.substring(0, 2).toUpperCase() || 'US'}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-            
+
             {canShowTeam && (
               <TouchableOpacity onPress={handleTeamClick} style={styles.iconButton}>
                 <Users stroke="#fff" size={20} />
@@ -417,6 +414,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3b82f6',
+  },
+  userAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  userAvatarInitials: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   userName: {
     color: '#fff',
     fontSize: 16,
@@ -441,6 +456,12 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 999,
     backgroundColor: '#1f2937',
+  },
+  profileButtonText: {
+    color: '#e5e7eb',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   profileButtonAvatar: {
     width: 32,

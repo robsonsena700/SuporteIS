@@ -22,6 +22,7 @@
 - **Mobile**: Updated `NotificationDropdown` for WCAG accessibility (aria-labels).
 - **Mobile**: Corrected `User` type definition and usage of `role` vs `profile` across the app for better permission handling.
 - **Mobile**: Fixed ticket rating flow so Clientes and Administradores podem avaliar chamados resolvidos diretamente na tela de detalhes, alinhando o comportamento com a versão Web.
+- **Web/Mobile**: Restored visibility of the "Equipe & Chat" button for Suporte Técnico, Líder e Administrador, mantendo oculto para perfis de Cliente. Added automated tests to validate access control no Header web e mobile.
 
 ## [Unreleased] - 2026-01-08
 
