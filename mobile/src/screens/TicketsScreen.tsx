@@ -108,6 +108,9 @@ export const TicketsScreen = () => {
           technicianId: data.technician_id,
           creatorId: data.user_id,
           equipment: data.equipment,
+          municipality: data.municipality,
+          uf: data.uf,
+          rating: data.rating,
           createdAt: `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`,
           createdAtIso: data.created_at,
           created_at: data.created_at,
@@ -230,64 +233,102 @@ export const TicketsScreen = () => {
       return option ? option.label : status;
   };
 
-  const renderItem = ({ item }: { item: Ticket }) => (
-    <TouchableOpacity 
-      style={[styles.card, { width: numColumns > 1 ? cardWidth : '100%' }]}
-      onPress={() => navigation.navigate('TicketDetail', { ticketId: item.id })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.codeContainer}>
-             <Text style={styles.ticketCode}>{item.code || `CH-${item.id.slice(0, 4)}`}</Text>
-             {item.createdAtIso && (
-                 <Text style={styles.timeAgo}>
-                    {format(new Date(item.createdAtIso), "dd/MM HH:mm")}
-                 </Text>
-             )}
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '40' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-      
-      <Text style={styles.subject} numberOfLines={2}>{item.subject}</Text>
-      
-      <View style={styles.cardDetails}>
-        <View style={styles.detailRow}>
-            <UserIcon size={14} color="#9ca3af" />
-            <Text style={styles.detailText} numberOfLines={1}>{item.clientName}</Text>
+  const renderItem = ({ item }: { item: Ticket }) => {
+    const ratingColor =
+      item.rating && item.rating >= 4
+        ? '#facc15'
+        : item.rating && item.rating <= 2
+        ? '#f87171'
+        : '#fbbf24';
+
+    return (
+      <TouchableOpacity 
+        style={[styles.card, { width: numColumns > 1 ? cardWidth : '100%' }]}
+        onPress={() => navigation.navigate('TicketDetail', { ticketId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.codeContainer}>
+               <Text style={styles.ticketCode}>{item.code || `CH-${item.id.slice(0, 4)}`}</Text>
+               {item.createdAtIso && (
+                   <Text style={styles.timeAgo}>
+                      {format(new Date(item.createdAtIso), "dd/MM/yyyy HH:mm")}
+                   </Text>
+               )}
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '40' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(item.status) }} />
+              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                {getStatusLabel(item.status)}
+              </Text>
+            </View>
+          </View>
         </View>
         
-        {item.equipment && (
-             <View style={styles.detailRow}>
-                <Monitor size={14} color="#9ca3af" />
-                <Text style={styles.detailText} numberOfLines={1}>{item.equipment}</Text>
-            </View>
-        )}
-      </View>
+        <Text style={styles.subject} numberOfLines={2}>{item.subject}</Text>
+        
+        <View style={styles.cardDetails}>
+          <View style={styles.detailRow}>
+              <UserIcon size={14} color="#9ca3af" />
+              <Text style={styles.detailText} numberOfLines={1}>
+                {item.clientName}
+                {item.municipality ? ` • ${item.municipality}` : ''}
+              </Text>
+          </View>
+          
+          {item.equipment && (
+               <View style={styles.detailRow}>
+                  <Monitor size={14} color="#9ca3af" />
+                  <Text style={styles.detailText} numberOfLines={1}>{item.equipment}</Text>
+              </View>
+          )}
+        </View>
 
-      <View style={styles.divider} />
+        <View style={styles.divider} />
 
-      <View style={styles.cardFooter}>
-         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '20' }]}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
-                {item.priority === TicketPriority.CRITICAL ? 'Crítica' :
-                 item.priority === TicketPriority.HIGH ? 'Alta' :
-                 item.priority === TicketPriority.MEDIUM ? 'Média' : 'Baixa'}
-            </Text>
+        <View style={styles.cardFooter}>
+           <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '20' }]}>
+              <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
+                  {item.priority === TicketPriority.CRITICAL ? 'Crítica' :
+                   item.priority === TicketPriority.HIGH ? 'Alta' :
+                   item.priority === TicketPriority.MEDIUM ? 'Média' : 'Baixa'}
+              </Text>
+           </View>
+
+           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
+             {item.rating ? (
+               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                 <Text style={{ fontSize: 12, color: '#9ca3af' }}>Avaliação:</Text>
+                 {[1, 2, 3, 4, 5].map((s) => (
+                   <Text
+                     key={s}
+                     style={{
+                       fontSize: 14,
+                       color: item.rating && item.rating >= s ? ratingColor : '#4b5563',
+                     }}
+                   >
+                     ★
+                   </Text>
+                 ))}
+               </View>
+             ) : (
+               <Text style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>Não avaliado</Text>
+             )}
+           </View>
          </View>
 
          {item.technician && (
+           <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
              <View style={styles.techContainer}>
                  <Text style={styles.techLabel}>Técnico:</Text>
                  <Text style={styles.techName} numberOfLines={1}>{item.technician}</Text>
              </View>
+           </View>
          )}
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const applyFilters = () => {
       setAppliedFilters(tempFilters);

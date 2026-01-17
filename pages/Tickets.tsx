@@ -248,6 +248,12 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
   const showRating = activeTab === 'Concluído' && (user?.profile === 'Cliente' || user?.profile === 'Administrador');
 
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+
+  const toggleExpandSubject = (id: string) => {
+    setExpandedTicketId(prev => (prev === id ? null : id));
+  };
+
   useEffect(() => {
     if (selectedTicket) {
       document.body.style.overflow = 'hidden';
@@ -327,143 +333,161 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-background-surface/50 border-b border-border-dark">
-              <tr>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Ticket</th>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Assunto</th>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Prioridade</th>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Status</th>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Relator</th>
-                <th className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider">Técnico</th>
-                <th 
-                    className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
-                    onClick={() => handleSort('createdAt')}
+        <div className="p-4">
+          {sortedTickets.length === 0 && (
+            <div className="px-6 py-16 text-center text-text-muted border border-dashed border-border-dark rounded-2xl">
+              <div className="flex flex-col items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-4xl">inbox</span>
+                <p className="text-sm">Nenhum chamado encontrado nesta categoria.</p>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {sortedTickets.map((ticket) => {
+              const createdLabel = ticket.createdAt
+                ? (() => {
+                    const d = new Date(ticket.createdAt);
+                    if (Number.isNaN(d.getTime())) return '-';
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    const hh = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+                  })()
+                : '-';
+
+              const ratingColor =
+                ticket.rating && ticket.rating >= 4
+                  ? 'text-yellow-400'
+                  : ticket.rating && ticket.rating <= 2
+                  ? 'text-red-400'
+                  : 'text-yellow-300';
+
+              return (
+                <button
+                  key={ticket.id}
+                  onClick={() => handleTicketClick(ticket)}
+                  className={`w-full text-left rounded-2xl border border-border-dark bg-background-surface/80 hover:bg-background-input/60 transition-all shadow-lg shadow-black/30 flex flex-col gap-3 p-4 focus:outline-none focus:ring-2 focus:ring-primary ${
+                    newTicketsIds.has(ticket.id) ? 'ring-2 ring-primary/60' : ''
+                  }`}
                 >
-                    <div className="flex items-center gap-1">
-                        Data de Criação
-                        <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">
-                            {sortConfig?.key === 'createdAt' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
-                        </span>
-                    </div>
-                </th>
-                {showRating && (
-                  <th 
-                    className="p-4 text-[10px] font-bold text-text-secondary uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
-                    onClick={() => handleSort('rating')}
-                  >
-                    <div className="flex items-center gap-1">
-                        Avaliação
-                        <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">
-                            {sortConfig?.key === 'rating' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
-                        </span>
-                    </div>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-dark">
-              {sortedTickets.length === 0 && (
-                <tr>
-                  <td colSpan={showRating ? 8 : 7} className="px-6 py-8 text-center text-text-muted">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-3xl">inbox</span>
-                      <p>Nenhum chamado encontrado nesta categoria.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {sortedTickets.map((ticket) => (
-                <tr 
-                    key={ticket.id} 
-                    className={`group transition-colors cursor-pointer ${newTicketsIds.has(ticket.id) ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-background-input/40'}`}
-                    onClick={() => handleTicketClick(ticket)}
-                >
-                  <td className="p-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-white text-xs font-bold font-mono tracking-wider">{ticket.code || `CH-${ticket.id.slice(0, 4).toUpperCase()}`}</span>
-                      {hasUnreadMessages(ticket.id) && (
-                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/20 rounded border border-primary/30 w-fit">
-                            <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
-                            <span className="text-[9px] font-bold text-primary">NOVA MSG</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                         <span className="text-white text-sm font-medium">{ticket.subject}</span>
-                         {hasUnreadMessages(ticket.id) && (
-                           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 shadow-sm animate-bounce" title="Novas mensagens">
-                             <span className="material-symbols-outlined text-white text-[12px] font-bold">mail</span>
-                           </div>
-                         )}
+                        <span className="text-xs font-mono font-bold px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">
+                          {ticket.code || `CH-${ticket.id.slice(0, 4).toUpperCase()}`}
+                        </span>
+                        {hasUnreadMessages(ticket.id) && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/40">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-[10px] font-bold text-red-400">Nova mensagem</span>
+                          </span>
+                        )}
                       </div>
-                      <span className="text-text-muted text-[11px]">{ticket.clientName}</span>
+                      <span className="text-[11px] text-text-muted flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        {createdLabel}
+                      </span>
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getPriorityStyle(ticket.priority)}`}>
-                      {ticket.priority}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusStyle(ticket.status)}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                         <div className="size-6 rounded-full bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-[10px] text-white font-bold">
-                            {ticket.creatorName ? ticket.creatorName.charAt(0) : '-'}
-                         </div>
-                         <span className="text-white text-xs font-medium">{ticket.creatorName || 'Sistema'}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="size-6 rounded-full bg-background-surface border border-border-dark overflow-hidden flex items-center justify-center">
-                        {ticket.technicianAvatar ? <img src={ticket.technicianAvatar} alt="" /> : <span className="material-symbols-outlined text-xs">person</span>}
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusStyle(ticket.status)}`}>
+                          {ticket.status}
+                        </span>
                       </div>
-                      <span className="text-white text-xs font-medium">{ticket.technician || 'Ninguém'}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[16px] text-text-muted">flag</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityStyle(ticket.priority)}`}
+                        >
+                          {ticket.priority}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-white text-xs font-mono">
-                      {ticket.createdAt ? (() => {
-                        const d = new Date(ticket.createdAt);
-                        if (Number.isNaN(d.getTime())) return '-';
-                        const dd = String(d.getDate()).padStart(2, '0');
-                        const mm = String(d.getMonth() + 1).padStart(2, '0');
-                        const yyyy = d.getFullYear();
-                        const hh = String(d.getHours()).padStart(2, '0');
-                        const min = String(d.getMinutes()).padStart(2, '0');
-                        const ss = String(d.getSeconds()).padStart(2, '0');
-                        return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
-                      })() : '-'}
-                    </span>
-                  </td>
-                  {showRating && (
-                    <td className="p-4">
-                      {ticket.rating ? (
-                          <div className="flex gap-0.5" title={`${ticket.rating} estrelas`}>
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                  <span key={star} className={`material-symbols-outlined text-[16px] ${Number(ticket.rating) >= star ? 'filled text-yellow-400' : 'text-gray-600'}`}>
-                                      star
-                                  </span>
-                              ))}
-                          </div>
-                      ) : (
-                          <span className="text-text-muted text-[10px] italic">Não avaliado</span>
+                  </div>
+
+                  <div className="mt-1">
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-[18px] text-primary shrink-0">description</span>
+                      <div className="flex-1">
+                        <p
+                          className={`text-sm font-semibold text-white ${
+                            expandedTicketId === ticket.id ? '' : 'line-clamp-2'
+                          }`}
+                        >
+                          {ticket.subject}
+                        </p>
+                        {ticket.subject && ticket.subject.length > 80 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpandSubject(ticket.id);
+                            }}
+                            className="mt-1 text-[11px] font-semibold text-primary hover:text-primary/80"
+                          >
+                            {expandedTicketId === ticket.id ? 'Ver menos' : 'Ver mais'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    <div className="flex items-center gap-2 text-[12px] text-text-secondary">
+                      <span className="material-symbols-outlined text-[16px] text-text-muted">person</span>
+                      <span className="font-medium text-white">
+                        {ticket.creatorName || 'Sistema'}
+                      </span>
+                      {ticket.municipality && (
+                        <span className="text-[11px] text-text-muted">• {ticket.municipality}</span>
                       )}
-                    </td>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px] text-text-secondary">
+                      <div className="size-7 rounded-full bg-background-input border border-border-dark overflow-hidden flex items-center justify-center">
+                        {ticket.technicianAvatar ? (
+                          <img src={ticket.technicianAvatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[16px] text-text-muted">engineering</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium text-white">
+                          {ticket.technician || 'Sem responsável'}
+                        </span>
+                        <span className="text-[11px] text-text-muted">Suporte Técnico</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showRating && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[18px] text-yellow-400">star</span>
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span
+                              key={star}
+                              className={`material-symbols-outlined text-[16px] ${
+                                ticket.rating && Number(ticket.rating) >= star ? ratingColor : 'text-gray-600'
+                              }`}
+                            >
+                              star
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-text-muted">
+                        {ticket.rating ? `${ticket.rating.toFixed(1)} / 5` : 'Não avaliado'}
+                      </span>
+                    </div>
                   )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
