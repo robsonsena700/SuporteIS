@@ -131,7 +131,7 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
             <span className="text-[10px] text-text-secondary">{user?.profile}</span>
           </div>
           <div 
-            className="size-10 rounded-full bg-cover bg-center border border-border-dark"
+            className="hidden md:block size-10 rounded-full bg-cover bg-center border border-border-dark"
             style={{ backgroundImage: `url(${user?.avatar})` }}
           />
           {onLogout && (

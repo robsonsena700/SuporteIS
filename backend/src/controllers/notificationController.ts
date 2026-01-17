@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
@@ -8,7 +8,15 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const result = await pool.query(
-      'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
+      `
+      SELECT n.*
+      FROM notifications n
+      LEFT JOIN tickets t ON n.reference_id = t.id
+      WHERE n.user_id = $1
+        AND (t.id IS NULL OR t.user_id = $1 OR t.technician_id = $1)
+      ORDER BY n.created_at DESC
+      LIMIT 50
+      `,
       [userId]
     );
 
@@ -27,12 +35,12 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     if (id === 'all') {
-        await pool.query('UPDATE notifications SET is_read = TRUE WHERE user_id = $1', [userId]);
+      await pool.query('UPDATE notifications SET is_read = TRUE WHERE user_id = $1', [userId]);
     } else {
-        await pool.query(
-            'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2',
-            [id, userId]
-        );
+      await pool.query(
+        'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
     }
 
     res.json({ message: 'Notificação marcada como lida' });

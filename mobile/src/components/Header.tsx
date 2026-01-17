@@ -80,17 +80,6 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
           <View style={styles.leftContainer}>
             {showUserInfo ? (
               <View style={styles.userInfo}>
-                <View style={styles.avatarContainer}>
-                  {user?.avatar ? (
-                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarInitials}>
-                        {user?.name?.substring(0, 2).toUpperCase() || 'US'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
                 <View>
                   <Text style={styles.userName}>{user?.name}</Text>
                   <Text style={styles.userDetails}>
@@ -274,28 +263,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
   userName: {
     color: '#fff',

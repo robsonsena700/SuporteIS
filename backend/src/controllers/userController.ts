@@ -70,7 +70,7 @@ export const pingUser = async (req: AuthRequest, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, email, role, profile, status, department, company, phone } = req.body;
+  const { name, email, role, profile, status, department, company, phone, uf, municipality } = req.body;
 
   try {
     const result = await pool.query(
@@ -83,10 +83,12 @@ export const updateUser = async (req: Request, res: Response) => {
            department = COALESCE($6, department),
            company = COALESCE($7, company),
            phone = COALESCE($8, phone),
+           uf = COALESCE($9, uf),
+           municipality = COALESCE($10, municipality),
            updated_at = NOW()
-       WHERE id = $9
-       RETURNING id, name, email, role, profile, status, department, company, phone`,
-      [name, email, role, profile, status, department, company, phone, id]
+       WHERE id = $11
+       RETURNING id, name, email, role, profile, status, department, company, phone, uf, municipality`,
+      [name, email, role, profile, status, department, company, phone, uf, municipality, id]
     );
 
     if (result.rows.length === 0) {
@@ -164,25 +166,27 @@ export const updateUserStatus = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
-    const { name, email, password, role, profile, department, company, phone } = req.body;
+  const { name, email, password, role, profile, department, company, phone, uf, municipality } = req.body;
 
-    try {
-        const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ message: 'Email já cadastrado' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const newUser = await pool.query(
-            'INSERT INTO users (name, email, password_hash, role, profile, department, company, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, profile, status',
-            [name, email, hashedPassword, role || 'Técnico', profile || 'Suporte Técnico', department, company, phone, 'Ativo']
-        );
-
-        res.status(201).json(newUser.rows[0]);
-    } catch (error) {
-        console.error('Create User Error:', error);
-        res.status(500).json({ message: 'Erro ao criar usuário' });
+  try {
+    const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({ message: 'Email já cadastrado' });
     }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, profile, department, company, phone, uf, municipality, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+       RETURNING id, name, email, role, profile, status, department, company, phone, uf, municipality`,
+      [name, email, hashedPassword, role || 'Técnico', profile || 'Suporte Técnico', department, company, phone, uf, municipality, 'Ativo']
+    );
+
+    res.status(201).json(newUser.rows[0]);
+  } catch (error) {
+    console.error('Create User Error:', error);
+    res.status(500).json({ message: 'Erro ao criar usuário' });
+  }
 };

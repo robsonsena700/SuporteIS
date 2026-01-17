@@ -85,8 +85,14 @@ const Users: React.FC<UsersProps> = () => {
       profile: user.profile,
       status: user.status,
       department: user.department || '',
-      phone: user.phone || ''
+      phone: user.phone || '',
+      uf: user.uf || '',
+      municipality: user.municipality || ''
     });
+    clearMunicipios();
+    if (user.uf) {
+      fetchMunicipios(user.uf);
+    }
     setIsModalOpen(true);
   };
 
@@ -99,13 +105,19 @@ const Users: React.FC<UsersProps> = () => {
         profile: 'Suporte Técnico',
         status: 'Ativo',
         department: '',
-        phone: ''
+        phone: '',
+        uf: '',
+        municipality: ''
     });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if ((formData.uf && !formData.municipality) || (!formData.uf && formData.municipality)) {
+      alert('UF e Município devem ser preenchidos em conjunto.');
+      return;
+    }
     try {
       if (selectedUser) {
         // Update
