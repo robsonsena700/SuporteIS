@@ -33,3 +33,12 @@ Foi implementada a funcionalidade de alterar o tipo de um chamado de "Sistema" (
 Os novos status ("Encaminhado Aquisição" e "Em Rota") foram integrados aos painéis de controle (Dashboard):
 - Eles são contabilizados no grupo **"Em Tratativa"** ou **"Em Andamento"** nas estatísticas gerais.
 - Aparecem nos gráficos e contagens de status.
+
+## 4. Permissões de Gerenciamento de Usuários
+
+As permissões de criação, edição e exclusão de usuários foram ajustadas para reforçar o controle de acesso:
+
+- Usuários com perfil **Técnico** não podem editar nem excluir usuários na tela **Gerenciar Usuários** (Web e Mobile).
+- Usuários com perfil **Líder** ou **Administrador** podem editar dados dos usuários e alterar senhas pela tela de gerenciamento.
+- Apenas usuários com perfil **Administrador** podem criar novos usuários diretamente pelo módulo de gerenciamento.
+- Todas as operações de edição, alteração de senha e exclusão também são validadas no backend, garantindo que chamadas diretas à API respeitem as mesmas regras de permissão.

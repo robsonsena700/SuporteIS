@@ -4,6 +4,7 @@ import { Ticket, TicketStatus, TicketPriority, User, TicketHistory } from '../ty
 import { TicketService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNotifications } from '../context/NotificationContext';
 import { canReopenTicket } from '../utils/dateUtils';
 
 interface TicketDetailModalProps {
@@ -29,6 +30,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const { notifications, markAsRead } = useNotifications();
   const [replyText, setReplyText] = useState('');
   const [showTransferList, setShowTransferList] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -104,6 +106,17 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     const interval = setInterval(pollMessages, 5000); // 5 seconds
     return () => clearInterval(interval);
   }, [activeTab, localTicket.id, localTicket.messages?.length]);
+
+  useEffect(() => {
+    if (!localTicket.id) return;
+    const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === localTicket.id && !n.isRead);
+    if (related.length === 0) return;
+    related.forEach(n => {
+      markAsRead(n.id).catch(error => {
+        console.error('Failed to mark notification as read on ticket open', localTicket.id, error);
+      });
+    });
+  }, [localTicket.id, notifications, markAsRead]);
 
   // Fetch History on Tab Change
   useEffect(() => {
@@ -208,6 +221,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       onUpdate(updatedTicket); 
       setLocalTicket(updatedTicket);
       setReplyText('');
+      const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === localTicket.id && !n.isRead);
+      if (related.length > 0) {
+        related.forEach(n => {
+          markAsRead(n.id).catch(error => {
+            console.error('Failed to mark notification as read after reply', localTicket.id, error);
+          });
+        });
+      }
     } catch (error: any) {
       console.error('Failed to send message', error);
       const errorMessage = error.response?.data?.message || 'Erro ao enviar mensagem. Tente novamente.';

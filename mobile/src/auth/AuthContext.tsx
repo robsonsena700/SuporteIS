@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Platform } from 'react-native';
 import { api, setUnauthorizedCallback } from '../api/api';
 import { User } from '../types';
+import { UserService } from '../services/userService';
 import { setStorageItem, getStorageItem, removeStorageItem } from '../utils/storage';
 
 interface AuthContextData {
@@ -43,6 +44,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut();
     });
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+
+    const ping = async () => {
+      try {
+        await UserService.ping();
+      } catch (error) {
+        console.error('Ping failed', error);
+      }
+    };
+
+    ping();
+    const interval = setInterval(ping, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user]);
 
   async function signIn(email: string, password: string) {
     try {

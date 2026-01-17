@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { UserService } from '../services/userService';
 import { LogOut, Camera, User as UserIcon, Phone, Briefcase, Mail, Shield, Building, Save } from 'lucide-react-native';
 import { Header } from '../components/Header';
 import * as ImagePicker from 'expo-image-picker';
 import { CustomPicker } from '../components/CustomPicker';
+import { useResponsive } from '../hooks/useResponsive';
 
 export const ProfileScreen = () => {
   const { user, signOut, updateUser } = useAuth();
+  const navigation = useNavigation<any>();
+  const { responsiveValue } = useResponsive();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -36,6 +40,8 @@ export const ProfileScreen = () => {
     }
   }, [user]);
 
+  const avatarSize = responsiveValue(120, 140);
+
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
@@ -56,6 +62,10 @@ export const ProfileScreen = () => {
       const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
       setFormData(prev => ({ ...prev, avatar: base64Image }));
     }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => ({ ...prev, avatar: '' }));
   };
 
   const handleUpdate = async () => {
@@ -103,11 +113,20 @@ export const ProfileScreen = () => {
       <Header title="Perfil" />
       
       <ScrollView contentContainerStyle={profileStyles.scrollContent}>
-        {/* Avatar Section */}
+        <View style={profileStyles.pageHeader}>
+          <Text style={profileStyles.pageTitle}>Ajustes de Perfil</Text>
+          <Text style={profileStyles.pageSubtitle}>
+            Gerencie suas informações pessoais e preferências de conta.
+          </Text>
+        </View>
+
         <View style={profileStyles.avatarSection}>
           <View style={profileStyles.avatarContainer}>
             {formData.avatar ? (
-              <Image source={{ uri: formData.avatar }} style={profileStyles.avatar} />
+              <Image
+                source={{ uri: formData.avatar }}
+                style={[profileStyles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+              />
             ) : (
               <View style={profileStyles.avatarPlaceholder}>
                 <UserIcon size={40} color="#9ca3af" />
@@ -119,6 +138,20 @@ export const ProfileScreen = () => {
           </View>
           <Text style={profileStyles.profileName}>{user?.name}</Text>
           <Text style={profileStyles.profileRole}>{user?.profile}</Text>
+          <Text style={profileStyles.profileEmail}>
+            {user?.email} {user?.id ? `• ID: #${user.id.substring(0, 5)}` : ''}
+          </Text>
+          <View style={profileStyles.avatarActions}>
+            <TouchableOpacity style={profileStyles.avatarActionPrimary} onPress={handlePickImage}>
+              <Camera size={18} color="#fff" />
+              <Text style={profileStyles.avatarActionPrimaryText}>Alterar Foto</Text>
+            </TouchableOpacity>
+            {formData.avatar ? (
+              <TouchableOpacity style={profileStyles.avatarActionSecondary} onPress={handleRemovePhoto}>
+                <Text style={profileStyles.avatarActionSecondaryText}>Remover</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
 
         <View style={profileStyles.formSection}>
@@ -133,6 +166,19 @@ export const ProfileScreen = () => {
                 value={formData.name}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
                 placeholder="Seu nome"
+                placeholderTextColor="#6b7280"
+              />
+            </View>
+          </View>
+
+          <View style={profileStyles.inputGroup}>
+            <Text style={profileStyles.label}>Email Corporativo</Text>
+            <View style={profileStyles.inputContainer}>
+              <Mail size={20} color="#6b7280" style={profileStyles.inputIcon} />
+              <TextInput
+                style={profileStyles.inputReadonly}
+                value={user?.email || ''}
+                editable={false}
                 placeholderTextColor="#6b7280"
               />
             </View>
@@ -154,20 +200,77 @@ export const ProfileScreen = () => {
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <CustomPicker
-              label="Departamento"
-              value={formData.department}
-              options={DEPARTMENT_OPTIONS}
-              onSelect={(value) => setFormData(prev => ({ ...prev, department: value }))}
-              placeholder="Selecione..."
-              disabled={user?.role === 'Cliente'}
-            />
+            <Text style={profileStyles.label}>Empresa</Text>
+            <View style={profileStyles.inputContainer}>
+              <Building size={20} color="#6b7280" style={profileStyles.inputIcon} />
+              <TextInput
+                style={profileStyles.inputReadonly}
+                value={user?.company || ''}
+                editable={false}
+                placeholderTextColor="#6b7280"
+              />
+            </View>
           </View>
+        </View>
 
+        {user?.profile !== 'Cliente' && (
+          <View style={profileStyles.formSection}>
+            <Text style={profileStyles.sectionTitle}>Dados do Sistema</Text>
+
+            <View style={profileStyles.inputGroup}>
+              <Text style={profileStyles.label}>Cargo / Função</Text>
+              <View style={profileStyles.inputContainer}>
+                <Briefcase size={20} color="#6b7280" style={profileStyles.inputIcon} />
+                <TextInput
+                  style={profileStyles.inputReadonly}
+                  value={user?.role || ''}
+                  editable={false}
+                  placeholderTextColor="#6b7280"
+                />
+              </View>
+            </View>
+
+            <View style={profileStyles.inputGroup}>
+              <CustomPicker
+                label="Departamento"
+                value={formData.department}
+                options={DEPARTMENT_OPTIONS}
+                onSelect={(value) => setFormData(prev => ({ ...prev, department: value }))}
+                placeholder="Selecione..."
+                disabled={user?.role === 'Cliente'}
+              />
+            </View>
+
+            <View style={profileStyles.inputGroup}>
+              <Text style={profileStyles.label}>Perfil de Acesso</Text>
+              <View style={profileStyles.inputContainer}>
+                <Shield size={20} color="#6b7280" style={profileStyles.inputIcon} />
+                <TextInput
+                  style={profileStyles.inputReadonly}
+                  value={user?.profile || ''}
+                  editable={false}
+                  placeholderTextColor="#6b7280"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View style={profileStyles.actionsRow}>
+          <TouchableOpacity
+            style={profileStyles.cancelButton}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancelar alterações de perfil"
+          >
+            <Text style={profileStyles.cancelButtonText}>Cancelar</Text>
+          </TouchableOpacity>
           <TouchableOpacity 
             style={profileStyles.saveButton}
             onPress={handleUpdate}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Salvar alterações de perfil"
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -179,8 +282,6 @@ export const ProfileScreen = () => {
             )}
           </TouchableOpacity>
         </View>
-
-
 
         <TouchableOpacity style={profileStyles.logoutButton} onPress={confirmSignOut}>
           <LogOut color="#ef4444" size={20} />
@@ -199,6 +300,19 @@ const profileStyles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
+  },
+  pageHeader: {
+    marginBottom: 24,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
   },
   avatarSection: {
     alignItems: 'center',
@@ -252,6 +366,47 @@ const profileStyles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
+  profileEmail: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  avatarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  avatarActionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#1f2937',
+    borderWidth: 1,
+    borderColor: '#374151',
+    gap: 6,
+  },
+  avatarActionPrimaryText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  avatarActionSecondary: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  avatarActionSecondaryText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   formSection: {
     marginBottom: 32,
     gap: 16,
@@ -288,6 +443,33 @@ const profileStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  inputReadonly: {
+    flex: 1,
+    height: 48,
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 24,
+  },
+  cancelButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,7 +478,6 @@ const profileStyles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 8,
-    marginTop: 8,
   },
   saveButtonText: {
     color: '#fff',

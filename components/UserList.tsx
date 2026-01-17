@@ -15,8 +15,11 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState<Date>(new Date());
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUsers = async () => {
       try {
         const allUsers = await UserService.getAll();
@@ -36,15 +39,24 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
           });
         }
 
+        if (!isMounted) return;
         setUsers(filteredUsers);
       } catch (error) {
         console.error('Failed to fetch users', error);
       } finally {
+        if (!isMounted) return;
         setLoading(false);
       }
     };
 
     fetchUsers();
+
+    const interval = setInterval(fetchUsers, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [currentUser]);
 
   useEffect(() => {
@@ -60,6 +72,16 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
     };
   }, [onClose]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
   const getStatusColor = (user: User) => {
     // Priority: 'busy' set manually > calculated 'online' > 'offline'
     if (user.chatStatus === 'busy') return 'bg-warning';
@@ -71,12 +93,31 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
 
   const getStatusLabel = (user: User) => {
     if (user.chatStatus === 'busy') return 'Ocupado';
-    const isOnline = user.calculatedStatus === 'online';
-    return isOnline ? 'Online' : 'Offline';
+    const isOnline = user.calculatedStatus === 'online' || user.chatStatus === 'online';
+    return isOnline ? 'Disponível' : 'Ausente';
   };
 
   const getUnreadCountForUser = (userId: string) => {
     return notifications.filter(n => n.type === 'new_dm' && n.referenceId === userId && !n.isRead).length;
+  };
+
+  const getConnectionTime = (user: User) => {
+    if (!user.lastActiveAtIso) return '';
+    const lastActive = new Date(user.lastActiveAtIso);
+    if (isNaN(lastActive.getTime())) return '';
+
+    const diffMs = now.getTime() - lastActive.getTime();
+    if (diffMs < 0) return '';
+
+    const diffMinutes = Math.floor(diffMs / 60000);
+    if (diffMinutes < 1) return 'agora';
+    if (diffMinutes < 60) return `há ${diffMinutes} min`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `há ${diffHours} h`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `há ${diffDays} d`;
   };
 
   return (
@@ -96,6 +137,8 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
         ) : (
           users.map((user) => {
             const unread = getUnreadCountForUser(user.id);
+            const statusLabel = getStatusLabel(user);
+            const connectionTime = getConnectionTime(user);
             return (
               <div 
                 key={user.id}
@@ -114,7 +157,10 @@ const UserList: React.FC<UserListProps> = ({ onClose, onSelectUser }) => {
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                  <p className="text-xs text-text-secondary truncate">{getStatusLabel(user)}</p>
+                  <p className="text-xs text-text-secondary truncate">
+                    {statusLabel}
+                    {connectionTime ? ` • ${connectionTime}` : ''}
+                  </p>
                 </div>
                 
                 {unread > 0 ? (

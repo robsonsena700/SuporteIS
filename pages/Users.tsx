@@ -172,6 +172,8 @@ const Users: React.FC<UsersProps> = () => {
       setIsPasswordModalOpen(true);
   };
 
+  const canManageUsers = currentUser?.profile === 'Administrador' || currentUser?.profile === 'Líder' || currentUser?.role === 'Administrador' || currentUser?.role === 'Líder';
+
   if (loading) return <div className="text-white p-8">Carregando usuários...</div>;
   if (error) return <div className="text-red-400 p-8">{error}</div>;
 
@@ -182,7 +184,7 @@ const Users: React.FC<UsersProps> = () => {
           <h1 className="text-white text-3xl font-black">Gerenciamento de Usuários</h1>
           <p className="text-text-secondary">Administre o acesso, perfis e status dos usuários do sistema.</p>
         </div>
-        {currentUser?.role === 'Administrador' && (
+        {canManageUsers && (
             <button 
               onClick={handleCreate}
               className="flex items-center gap-2 h-11 px-6 bg-primary text-white rounded-lg font-bold text-sm shadow-lg shadow-primary/30 hover:bg-primary-hover transition-all"
@@ -240,7 +242,7 @@ const Users: React.FC<UsersProps> = () => {
                   <td className="p-4 flex justify-between md:table-cell md:border-0">
                     <span className="md:hidden text-xs font-bold text-text-secondary uppercase self-center">Ações</span>
                     <div className="text-right w-full md:w-auto">
-                    {currentUser?.role === 'Administrador' && (
+                    {canManageUsers && (
                         <div className="flex justify-end gap-2">
                         <button onClick={() => openPasswordModal(u)} className="text-text-muted hover:text-white p-1.5 transition-colors" title="Alterar Senha">
                             <span className="material-symbols-outlined text-[18px]">key</span>

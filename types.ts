@@ -25,7 +25,8 @@ export interface User {
   chatStatus?: 'online' | 'busy' | 'offline';
   calculatedStatus?: 'online' | 'offline';
   lastAccess: string;
-  profile: 'Administrador' | 'Suporte Técnico' | 'Cliente';
+  lastActiveAtIso?: string;
+  profile: string;
   company?: string;
   phone?: string;
   department?: string;

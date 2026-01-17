@@ -7,6 +7,7 @@ import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCir
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { CustomPicker } from '../components/CustomPicker';
 import { RatingModal } from '../components/RatingModal';
 import { useResponsive } from '../hooks/useResponsive';
@@ -23,6 +24,7 @@ export const TicketDetailScreen = () => {
   const route = useRoute<TicketDetailRouteProp>();
   const { ticketId } = route.params;
   const { user } = useAuth();
+  const { notifications, markAsRead } = useNotifications();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, screenWidth } = useResponsive();
   const isWide = isTablet || isLandscape;
@@ -52,6 +54,19 @@ export const TicketDetailScreen = () => {
     const interval = setInterval(fetchTicket, 5000); // Poll every 5s
     return () => clearInterval(interval);
   }, [ticketId]);
+
+  useEffect(() => {
+    if (!ticket) return;
+    const related = notifications.filter(
+      n => n.type === 'new_message' && n.referenceId === ticket.id && !n.isRead
+    );
+    if (related.length === 0) return;
+    related.forEach(n => {
+      markAsRead(n.id).catch(error => {
+        console.log('Failed to mark notification as read on ticket open (mobile)', ticket.id, error);
+      });
+    });
+  }, [ticket, notifications, markAsRead]);
 
   useEffect(() => {
     if (activeTab === 'history' && ticket) {
@@ -110,6 +125,16 @@ export const TicketDetailScreen = () => {
       await TicketService.addMessage(ticketId, replyText);
       setReplyText('');
       await fetchTicket();
+      const related = notifications.filter(
+        n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead
+      );
+      if (related.length > 0) {
+        related.forEach(n => {
+          markAsRead(n.id).catch(error => {
+            console.log('Failed to mark notification as read after reply (mobile)', ticketId, error);
+          });
+        });
+      }
     } catch (error) {
       Alert.alert('Erro', 'Falha ao enviar mensagem');
     } finally {

@@ -195,45 +195,47 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
           </div>
         </div>
 
-        <div className="bg-background-card rounded-2xl border border-border-dark overflow-hidden">
-          <div className="p-6 border-b border-border-dark flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary">badge</span>
-            <h3 className="text-white text-lg font-bold">Dados do Sistema</h3>
+        {user?.profile !== 'Cliente' && (
+          <div className="bg-background-card rounded-2xl border border-border-dark overflow-hidden">
+            <div className="p-6 border-b border-border-dark flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary">badge</span>
+              <h3 className="text-white text-lg font-bold">Dados do Sistema</h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-text-secondary text-sm font-medium">Cargo / Função</label>
+                <input 
+                  readOnly
+                  value={formData.role} 
+                  className="h-12 bg-background-surface border border-border-dark rounded-lg px-4 text-text-muted cursor-not-allowed" 
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-text-secondary text-sm font-medium">Departamento</label>
+                <select 
+                  value={formData.department}
+                  onChange={e => setFormData({...formData, department: e.target.value})}
+                  className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:ring-1 focus:ring-primary transition-all"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="Suporte Técnico TI">Suporte Técnico TI</option>
+                  <option value="Cliente">Cliente</option>
+                  <option value="Manutenção Geral">Manutenção Geral</option>
+                  <option value="Operações">Operações</option>
+                  <option value="Administrativo">Administrativo</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-text-secondary text-sm font-medium">Perfil de Acesso</label>
+                <input 
+                  readOnly 
+                  value={user?.profile || ''} 
+                  className="h-12 bg-background-surface border border-border-dark rounded-lg px-4 text-text-muted cursor-not-allowed" 
+                />
+              </div>
+            </div>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-text-secondary text-sm font-medium">Cargo / Função</label>
-              <input 
-                readOnly
-                value={formData.role} 
-                className="h-12 bg-background-surface border border-border-dark rounded-lg px-4 text-text-muted cursor-not-allowed" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-text-secondary text-sm font-medium">Departamento</label>
-              <select 
-                value={formData.department}
-                onChange={e => setFormData({...formData, department: e.target.value})}
-                className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:ring-1 focus:ring-primary transition-all"
-              >
-                <option value="">Selecione...</option>
-                <option value="Suporte Técnico TI">Suporte Técnico TI</option>
-                <option value="Cliente">Cliente</option>
-                <option value="Manutenção Geral">Manutenção Geral</option>
-                <option value="Operações">Operações</option>
-                <option value="Administrativo">Administrativo</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-text-secondary text-sm font-medium">Perfil de Acesso</label>
-              <input 
-                readOnly 
-                value={user?.profile || ''} 
-                className="h-12 bg-background-surface border border-border-dark rounded-lg px-4 text-text-muted cursor-not-allowed" 
-              />
-            </div>
-          </div>
-        </div>
+        )}
 
         <div className="flex flex-wrap justify-end gap-4 mt-2">
            <button 

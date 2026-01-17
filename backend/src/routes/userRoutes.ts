@@ -10,9 +10,9 @@ router.get('/', getAllUsers); // Removed authorizeRole to allow all auth users t
 router.get('/:id', getUserById);
 router.post('/ping', pingUser);
 router.post('/', authorizeRole(['Administrador']), createUser);
-router.put('/:id', authorizeRole(['Administrador']), updateUser);
-router.put('/:id/password', authorizeRole(['Administrador']), updateUserPassword);
-router.delete('/:id', authorizeRole(['Administrador']), deleteUser);
+router.put('/:id', authorizeRole(['Administrador', 'Líder']), updateUser);
+router.put('/:id/password', authorizeRole(['Administrador', 'Líder']), updateUserPassword);
+router.delete('/:id', authorizeRole(['Administrador', 'Líder']), deleteUser);
 router.put('/:id/status', updateUserStatus);
 
 export default router;

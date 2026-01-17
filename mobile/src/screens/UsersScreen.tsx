@@ -340,6 +340,8 @@ export const UsersScreen = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const canManageUsers = currentUser?.profile === 'Administrador' || currentUser?.profile === 'Líder' || currentUser?.role === 'Administrador' || currentUser?.role === 'Líder';
+
   const fetchUsers = useCallback(async () => {
     try {
       const data = await UserService.getAll();
@@ -467,30 +469,34 @@ export const UsersScreen = () => {
           </View>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              setSelectedUser(item);
-              setUserModalVisible(true);
-            }}
-          >
-            <Edit2 stroke="#9ca3af" size={20} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              setSelectedUser(item);
-              setPasswordModalVisible(true);
-            }}
-          >
-            <Key stroke="#9ca3af" size={20} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleDelete(item)}
-          >
-            <Trash2 stroke="#ef4444" size={20} />
-          </TouchableOpacity>
+          {canManageUsers && (
+            <>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => {
+                  setSelectedUser(item);
+                  setUserModalVisible(true);
+                }}
+              >
+                <Edit2 stroke="#9ca3af" size={20} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => {
+                  setSelectedUser(item);
+                  setPasswordModalVisible(true);
+                }}
+              >
+                <Key stroke="#9ca3af" size={20} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => handleDelete(item)}
+              >
+                <Trash2 stroke="#ef4444" size={20} />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
       

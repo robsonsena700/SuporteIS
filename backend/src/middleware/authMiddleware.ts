@@ -30,7 +30,10 @@ export const authorizeRole = (roles: string[]) => {
       return res.status(401).json({ message: 'Não autenticado' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const hasRole = roles.includes(req.user.role);
+    const hasProfile = req.user.profile && roles.includes(req.user.profile);
+
+    if (!hasRole && !hasProfile) {
       return res.status(403).json({ message: 'Acesso negado: Permissão insuficiente' });
     }
 

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useNavigation } from '@react-navigation/native';
 import { LogOut, Bell, Users, User as UserIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Notification, User } from '../types';
 import { NotificationModal } from './NotificationModal';
-import { Notification } from '../types';
+import { UserService } from '../services/userService';
 
 interface HeaderProps {
   title?: string;
@@ -22,6 +23,10 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
   
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [teamUsers, setTeamUsers] = useState<User[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
 
   const handleLogout = () => {
     Alert.alert(
@@ -45,15 +50,86 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
 
   const handleTeamClick = () => {
     if (user?.role === 'Administrador' || user?.profile === 'Suporte Técnico') {
-      navigation.navigate('UsersTab' as never);
+      setShowTeamModal(true);
+      loadTeamUsers();
     } else {
       Alert.alert('Equipe', 'Você não tem permissão para visualizar a equipe.');
+    }
+  };
+
+  const loadTeamUsers = async () => {
+    try {
+      setTeamLoading(true);
+      const all = await UserService.getAll();
+      let filtered = all.filter((u: User) => u.id !== user?.id);
+      filtered = filtered.filter((u: User) => u.profile !== 'Cliente');
+
+      if (user?.profile !== 'Administrador') {
+        filtered = filtered.filter((u: User) => {
+          const isOnline = u.calculatedStatus === 'online';
+          const isBusy = u.chatStatus === 'busy';
+          return isOnline || isBusy;
+        });
+      }
+
+      setTeamUsers(filtered);
+    } catch (error) {
+      console.error('Failed to fetch team users', error);
+      Alert.alert('Equipe', 'Não foi possível carregar a equipe. Verifique sua conexão.');
+    } finally {
+      setTeamLoading(false);
     }
   };
 
   const handleNotifications = () => {
     setShowNotifications(true);
     refreshNotifications();
+  };
+
+  useEffect(() => {
+    if (!showTeamModal) return;
+    const interval = setInterval(() => {
+      loadTeamUsers();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [showTeamModal]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStatusColor = (target: User) => {
+    if (target.chatStatus === 'busy') return '#f59e0b';
+    const isOnline = target.calculatedStatus === 'online' || target.chatStatus === 'online';
+    return isOnline ? '#10b981' : '#6b7280';
+  };
+
+  const getStatusLabel = (target: User) => {
+    if (target.chatStatus === 'busy') return 'Ocupado';
+    const isOnline = target.calculatedStatus === 'online' || target.chatStatus === 'online';
+    return isOnline ? 'Disponível' : 'Ausente';
+  };
+
+  const getConnectionTime = (target: User) => {
+    if (!target.lastActiveAtIso) return '';
+    const lastActive = new Date(target.lastActiveAtIso);
+    if (isNaN(lastActive.getTime())) return '';
+    const diffMs = now.getTime() - lastActive.getTime();
+    if (diffMs < 0) return '';
+    const diffMinutes = Math.floor(diffMs / 60000);
+    if (diffMinutes < 1) return 'agora';
+    if (diffMinutes < 60) return `há ${diffMinutes} min`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `há ${diffHours} h`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `há ${diffDays} d`;
+  };
+
+  const getUnreadDmForUser = (userId: string) => {
+    return notifications.filter(n => n.type === 'new_dm' && n.referenceId === userId && !n.isRead).length;
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -144,6 +220,83 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         onToggleAlert={toggleAlert}
         onNotificationClick={handleNotificationClick}
       />
+
+      <Modal
+        visible={showTeamModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTeamModal(false)}
+      >
+        <View style={styles.teamOverlay}>
+          <View style={styles.teamContainer}>
+            <View style={styles.teamHeader}>
+              <Text style={styles.teamTitle}>Equipe Online</Text>
+              <TouchableOpacity onPress={() => setShowTeamModal(false)}>
+                <Text style={styles.teamCloseText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {teamLoading ? (
+              <View style={styles.teamLoading}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.teamLoadingText}>Carregando equipe...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.teamList}>
+                {teamUsers.length === 0 ? (
+                  <Text style={styles.teamEmptyText}>Nenhum membro disponível no momento.</Text>
+                ) : (
+                  teamUsers.map(u => {
+                    const unread = getUnreadDmForUser(u.id);
+                    const statusLabel = getStatusLabel(u);
+                    const connectionTime = getConnectionTime(u);
+                    return (
+                      <TouchableOpacity
+                        key={u.id}
+                        style={styles.teamItem}
+                        onPress={() => {
+                          setShowTeamModal(false);
+                          navigation.navigate('Chat', { userId: u.id, userName: u.name });
+                        }}
+                      >
+                        <View style={styles.teamAvatarWrapper}>
+                          {u.avatar ? (
+                            <Image source={{ uri: u.avatar }} style={styles.teamAvatar} />
+                          ) : (
+                            <View style={styles.teamAvatarPlaceholder}>
+                              <Text style={styles.teamAvatarInitials}>
+                                {u.name.substring(0, 2).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <View
+                            style={[
+                              styles.teamStatusDot,
+                              { backgroundColor: getStatusColor(u) },
+                            ]}
+                          />
+                        </View>
+                        <View style={styles.teamInfo}>
+                          <Text style={styles.teamName}>{u.name}</Text>
+                          <Text style={styles.teamDetails}>
+                            {statusLabel}
+                            {connectionTime ? ` • ${connectionTime}` : ''}
+                          </Text>
+                        </View>
+                        {unread > 0 && (
+                          <View style={styles.teamBadge}>
+                            <Text style={styles.teamBadgeText}>{unread}</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showProfileMenu}
@@ -409,5 +562,116 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 12,
     marginTop: 2,
+  },
+  teamOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  teamContainer: {
+    backgroundColor: '#111827',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+    maxHeight: '70%',
+  },
+  teamHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  teamTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  teamCloseText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  teamLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  teamLoadingText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  teamList: {
+    marginTop: 4,
+  },
+  teamEmptyText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    paddingVertical: 16,
+  },
+  teamItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  teamAvatarWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  teamAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  teamAvatarPlaceholder: {
+    flex: 1,
+    borderRadius: 20,
+    backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamAvatarInitials: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  teamStatusDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#111827',
+  },
+  teamInfo: {
+    flex: 1,
+  },
+  teamName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  teamDetails: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  teamBadge: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

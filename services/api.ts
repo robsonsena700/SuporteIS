@@ -94,6 +94,7 @@ const mapUserFromApi = (data: any): User => ({
   chatStatus: data.chat_status,
   calculatedStatus: data.calculated_status,
   lastAccess: data.last_access ? new Date(data.last_access).toLocaleString() : 'Nunca',
+  lastActiveAtIso: data.last_active_at || undefined,
   profile: data.profile,
   company: data.company,
   phone: data.phone,

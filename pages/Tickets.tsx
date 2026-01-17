@@ -15,7 +15,7 @@ interface TicketsProps {
 const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { notifications } = useNotifications();
+  const { notifications, markAsRead } = useNotifications();
   const location = useLocation();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState('');
@@ -31,6 +31,17 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   // Helper to check for unread messages related to ticket
   const hasUnreadMessages = (ticketId: string) => {
     return notifications.some(n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead);
+  };
+
+  const markTicketNotificationsAsRead = async (ticketId: string) => {
+    const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead);
+    for (const notification of related) {
+      try {
+        await markAsRead(notification.id);
+      } catch (error) {
+        console.error('Failed to mark notification as read for ticket', ticketId, error);
+      }
+    }
   };
 
   useEffect(() => {
@@ -219,6 +230,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     try {
       const fullTicket = await TicketService.getById(ticket.id);
       setSelectedTicket(fullTicket);
+      await markTicketNotificationsAsRead(fullTicket.id);
     } catch (error) {
       console.error('Failed to fetch ticket details', error);
       setSelectedTicket(ticket);
