@@ -287,26 +287,36 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   const handleResolve = async () => {
-    if (!localTicket.technicianId) {
-        toast.warning('Não é possível encerrar o chamado sem um Responsável Técnico definido. Por favor, atribua um técnico antes de resolver.');
-        return;
-    }
+    try {
+        const freshTicket = await TicketService.getById(localTicket.id);
+        setLocalTicket(freshTicket);
 
-    if (isCreator) {
-        setShowRatingModal(true);
-        return;
-    }
-
-    if (window.confirm('Confirma a resolução deste chamado? O solicitante será notificado para realizar a avaliação.')) {
-        try {
-            const updated = await TicketService.update(localTicket.id, { status: TicketStatus.RESOLVED });
-            onUpdate(updated);
-            setLocalTicket(updated);
-            toast.success('Chamado resolvido com sucesso.');
-        } catch (error: any) {
-            console.error('Failed to resolve ticket', error);
-            toast.error('Erro ao resolver chamado.');
+        if (!freshTicket.technicianId) {
+            toast.warning('Não é possível encerrar o chamado sem um Responsável Técnico definido. Por favor, atribua um técnico antes de resolver.');
+            return;
         }
+
+        if (isCreator) {
+            setShowRatingModal(true);
+            return;
+        }
+
+        if (window.confirm('Confirma a resolução deste chamado? O solicitante será notificado para realizar a avaliação.')) {
+            try {
+                const updated = await TicketService.update(freshTicket.id, { status: TicketStatus.RESOLVED });
+                onUpdate(updated);
+                setLocalTicket(updated);
+                toast.success('Chamado resolvido com sucesso.');
+            } catch (error: any) {
+                console.error('Failed to resolve ticket', error);
+                const errorMessage = error.response?.data?.message || 'Erro ao resolver chamado.';
+                toast.error(errorMessage);
+            }
+        }
+    } catch (error: any) {
+        console.error('Failed to validate technician before resolve', error);
+        const errorMessage = error.response?.data?.message || 'Erro ao validar informações do chamado antes de resolver.';
+        toast.error(errorMessage);
     }
   };
 

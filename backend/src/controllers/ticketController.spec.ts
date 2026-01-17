@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getNextCode, getTickets } from './ticketController';
+import { getNextCode, getTickets, updateTicket } from './ticketController';
 
 // Mock do pool
 const mockQuery = vi.fn();
@@ -137,5 +137,107 @@ describe('getTickets - regras de visualização por perfil', () => {
     expect(sql).toContain('t.user_id = $1');
     expect(sql).not.toContain('t.technician_id = $1');
     expect(params).toEqual(['client-1']);
+  });
+});
+
+describe('updateTicket - validações de avaliação', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('retorna 400 quando rating está fora do intervalo permitido', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-1',
+          status: 'Resolvido',
+          user_id: 'client-1',
+          feedback: null,
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-1' },
+      body: { rating: 6 },
+      user: { id: 'client-1', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await updateTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ message: 'Avaliação deve ser um número entre 1 e 5.' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('retorna 400 quando rating baixo não possui feedback', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-2',
+          status: 'Resolvido',
+          user_id: 'client-1',
+          feedback: null,
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-2' },
+      body: { rating: 1 },
+      user: { id: 'client-1', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await updateTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      message: 'Por favor, informe o motivo da insatisfação ao registrar uma avaliação baixa.',
+    });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('impede cliente de avaliar chamado de outro usuário', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-3',
+          status: 'Resolvido',
+          user_id: 'client-1',
+          feedback: null,
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-3' },
+      body: { rating: 5, feedback: 'Ok' },
+      user: { id: 'client-2', role: 'Cliente' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await updateTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      message: 'Permissão negada. Apenas o solicitante do chamado pode avaliar ou reabrir este chamado.',
+    });
   });
 });

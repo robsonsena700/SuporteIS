@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Star, X } from 'lucide-react-native';
 
 interface RatingModalProps {
@@ -14,6 +14,15 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
   const [feedback, setFeedback] = useState('');
 
   const handleSubmit = () => {
+    if (loading) return;
+    if (rating === 0) {
+      Alert.alert('Aviso', 'Por favor, selecione uma nota para o atendimento.');
+      return;
+    }
+    if (rating <= 2 && !feedback.trim()) {
+      Alert.alert('Aviso', 'Por favor, informe o motivo da insatisfação.');
+      return;
+    }
     onSubmit(rating, feedback);
   };
 
@@ -43,6 +52,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
                 key={star}
                 onPress={() => setRating(star)}
                 disabled={loading}
+                accessibilityLabel={`Definir avaliação ${star} estrelas`}
               >
                 <Star
                   size={32}
@@ -54,24 +64,26 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
             ))}
           </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Deixe um comentário (opcional se > 2 estrelas)"
-            placeholderTextColor="#6b7280"
-            multiline
-            numberOfLines={4}
-            value={feedback}
-            onChangeText={setFeedback}
-            editable={!loading}
-          />
+          {rating > 0 && rating <= 2 && (
+            <TextInput
+              style={styles.input}
+              placeholder="Por favor, conte-nos brevemente o que houve..."
+              placeholderTextColor="#6b7280"
+              multiline
+              numberOfLines={4}
+              value={feedback}
+              onChangeText={setFeedback}
+              editable={!loading}
+            />
+          )}
 
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (rating === 0 || (rating <= 2 && !feedback.trim()) || loading) && styles.disabledButton
+              (rating === 0 || loading) && styles.disabledButton
             ]}
             onPress={handleSubmit}
-            disabled={rating === 0 || (rating <= 2 && !feedback.trim()) || loading}
+            disabled={rating === 0 || loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />

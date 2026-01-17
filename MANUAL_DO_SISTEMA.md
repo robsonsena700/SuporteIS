@@ -42,3 +42,28 @@ As permissões de criação, edição e exclusão de usuários foram ajustadas p
 - Usuários com perfil **Líder** ou **Administrador** podem editar dados dos usuários e alterar senhas pela tela de gerenciamento.
 - Apenas usuários com perfil **Administrador** podem criar novos usuários diretamente pelo módulo de gerenciamento.
 - Todas as operações de edição, alteração de senha e exclusão também são validadas no backend, garantindo que chamadas diretas à API respeitem as mesmas regras de permissão.
+
+## 5. Avaliação de Atendimento pelo Cliente
+
+Foi padronizado o fluxo de avaliação de chamados entre as versões Web e Mobile, garantindo as mesmas regras de negócio em todas as plataformas.
+
+- **Quem pode avaliar**:
+  - O solicitante do chamado (perfil/role **Cliente**) pode avaliar seu próprio chamado após ele ser marcado como **Resolvido**.
+  - Administradores podem visualizar e acompanhar as avaliações, mas a avaliação registrada pelo cliente é a referência principal.
+- **Onde avaliar**:
+  - **Web**: na tela de detalhes do chamado, o solicitante visualiza o botão **"Avaliar Atendimento"** quando o chamado está Resolvido e ainda não possui nota.
+  - **Mobile**: na tela de detalhes do chamado, o cliente visualiza o ícone de estrela para abrir o modal de avaliação nas mesmas condições.
+- **Escala de avaliação**:
+  - A avaliação é feita em uma escala de **1 a 5 estrelas**, com rótulos:
+    - 1: Péssimo
+    - 2: Ruim
+    - 3: Bom
+    - 4: Ótimo
+    - 5: Excelente
+- **Obrigatoriedade de feedback**:
+  - Para avaliações **1** ou **2 estrelas**, é obrigatório preencher um comentário explicando o motivo da insatisfação.
+  - Para avaliações **3, 4 ou 5 estrelas**, o comentário é opcional.
+  - Essa regra é aplicada tanto na interface (Web/Mobile) quanto no backend, impedindo que avaliações baixas sejam registradas sem justificativa.
+- **Segurança e permissões**:
+  - O backend valida se o usuário autenticado é o **solicitante do chamado** antes de aceitar a avaliação ou tentativa de reabertura.
+  - Atualizações diretas na API que tentem avaliar chamados de outros usuários são rejeitadas com erro de permissão.

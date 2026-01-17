@@ -352,6 +352,10 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     }
     const currentTicket = currentRes.rows[0];
 
+    if ((req.user?.role === 'Cliente' || req.user?.profile === 'Cliente') && currentTicket.user_id !== userId) {
+        return res.status(403).json({ message: 'Permissão negada. Apenas o solicitante do chamado pode avaliar ou reabrir este chamado.' });
+    }
+
     if (req.user?.role === 'Cliente') {
         const isRating = currentTicket.status === 'Resolvido' && rating;
         const isReopen = currentTicket.status === 'Resolvido' && status && status !== 'Resolvido';
@@ -366,6 +370,12 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
         const ratingNum = Number(rating);
         if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
             return res.status(400).json({ message: 'Avaliação deve ser um número entre 1 e 5.' });
+        }
+        if (ratingNum <= 2) {
+            const feedbackText = (feedback ?? currentTicket.feedback ?? '').trim();
+            if (!feedbackText) {
+                return res.status(400).json({ message: 'Por favor, informe o motivo da insatisfação ao registrar uma avaliação baixa.' });
+            }
         }
     }
 
