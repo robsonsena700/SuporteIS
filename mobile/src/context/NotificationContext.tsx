@@ -11,13 +11,18 @@ interface NotificationContextType {
   alertEnabled: boolean;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  refreshNotifications: () => Promise<void>;
+  refreshNotifications: (showLoading?: boolean) => Promise<void>;
   toggleAlert: () => void;
+}
+
+interface NotificationProviderProps {
+  children: React.ReactNode;
+  autoRefresh?: boolean;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children, autoRefresh = true }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,16 +59,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   useEffect(() => {
-    if (user) {
-      refreshNotifications(true);
-      // Poll every 10s, same as web
-      const interval = setInterval(() => refreshNotifications(false), 10000); 
-      return () => clearInterval(interval);
-    } else {
+    if (!user) {
       setNotifications([]);
       previousCount.current = 0;
+      return;
     }
-  }, [user]);
+
+    if (!autoRefresh) {
+      return;
+    }
+
+    refreshNotifications(true);
+    const interval = setInterval(() => refreshNotifications(false), 10000);
+    return () => clearInterval(interval);
+  }, [user, autoRefresh]);
 
   const markAsRead = async (id: string) => {
     try {

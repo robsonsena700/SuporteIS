@@ -53,9 +53,17 @@ describe('Header - Equipe & Chat visibility (mobile)', () => {
     };
   });
 
-  it('renderiza o header sem o botão Abrir menu de perfil', () => {
+  it('mostra botão Equipe & Chat para perfil técnico', () => {
     const utils = render(<Header title="Dashboard" />);
 
-    expect(utils.queryByLabelText('Abrir menu de perfil')).toBeNull();
+    expect(utils.getByLabelText('Equipe e chat')).toBeTruthy();
+  });
+
+  it('não mostra botão Equipe & Chat para cliente', () => {
+    mockUser.profile = 'Cliente';
+
+    const utils = render(<Header title="Dashboard" />);
+
+    expect(utils.queryByLabelText('Equipe e chat')).toBeNull();
   });
 });

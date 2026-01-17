@@ -181,7 +181,12 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
             {rightAction}
 
             {canShowTeam && (
-              <TouchableOpacity onPress={handleTeamClick} style={styles.iconButton}>
+              <TouchableOpacity
+                onPress={handleTeamClick}
+                style={styles.iconButton}
+                accessibilityLabel="Equipe e chat"
+                accessibilityRole="button"
+              >
                 <Users stroke="#fff" size={20} />
               </TouchableOpacity>
             )}

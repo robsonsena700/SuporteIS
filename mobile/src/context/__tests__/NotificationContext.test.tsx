@@ -1,10 +1,9 @@
 import React from 'react';
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { NotificationProvider, useNotifications } from '../NotificationContext';
 import { NotificationService } from '../../services/notificationService';
 import { Vibration } from 'react-native';
 
-// Mock dependencies
 jest.mock('../../services/notificationService');
 jest.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ user: { id: '1', name: 'Test User', role: 'Técnico' } }),
@@ -17,7 +16,7 @@ jest.mock('react-native/Libraries/Vibration/Vibration', () => ({
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <NotificationProvider>{children}</NotificationProvider>
+  <NotificationProvider autoRefresh={false}>{children}</NotificationProvider>
 );
 
 describe('NotificationContext', () => {
@@ -25,7 +24,7 @@ describe('NotificationContext', () => {
     jest.clearAllMocks();
   });
 
-  it('should fetch notifications on mount', async () => {
+  it('should fetch notifications when refreshed', async () => {
     const mockNotifications = [
       { id: '1', content: 'Test', isRead: false, type: 'system', createdAt: '2023-01-01' },
     ];
@@ -33,9 +32,11 @@ describe('NotificationContext', () => {
 
     const { result } = renderHook(() => useNotifications(), { wrapper });
 
-    await waitFor(() => {
-      expect(result.current.notifications).toEqual(mockNotifications);
+    await act(async () => {
+      await result.current.refreshNotifications(true);
     });
+
+    expect(result.current.notifications).toEqual(mockNotifications);
     expect(result.current.unreadCount).toBe(1);
   });
 
@@ -48,9 +49,11 @@ describe('NotificationContext', () => {
 
     const { result } = renderHook(() => useNotifications(), { wrapper });
 
-    await waitFor(() => {
-      expect(result.current.notifications).toHaveLength(1);
+    await act(async () => {
+      await result.current.refreshNotifications(true);
     });
+
+    expect(result.current.notifications).toHaveLength(1);
 
     await act(async () => {
       await result.current.markAsRead('1');
@@ -65,17 +68,17 @@ describe('NotificationContext', () => {
     (NotificationService.getAll as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: '1', content: 'New', isRead: false, type: 'system', createdAt: '2023-01-01' }
+        { id: '1', content: 'New', isRead: false, type: 'system', createdAt: '2023-01-01' },
       ]);
 
     const { result } = renderHook(() => useNotifications(), { wrapper });
 
-    // Initial load empty
-    await waitFor(() => {
-      expect(result.current.notifications).toEqual([]);
+    await act(async () => {
+      await result.current.refreshNotifications(true);
     });
 
-    // Refresh with new notification
+    expect(result.current.notifications).toEqual([]);
+
     await act(async () => {
       await result.current.refreshNotifications();
     });
@@ -87,16 +90,19 @@ describe('NotificationContext', () => {
     (NotificationService.getAll as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: '1', content: 'New', isRead: false, type: 'system', createdAt: '2023-01-01' }
+        { id: '1', content: 'New', isRead: false, type: 'system', createdAt: '2023-01-01' },
       ]);
 
     const { result } = renderHook(() => useNotifications(), { wrapper });
 
     await act(async () => {
-      result.current.toggleAlert(); // Disable alert
+      await result.current.refreshNotifications(true);
     });
 
-    // Refresh with new notification
+    await act(async () => {
+      result.current.toggleAlert();
+    });
+
     await act(async () => {
       await result.current.refreshNotifications();
     });
