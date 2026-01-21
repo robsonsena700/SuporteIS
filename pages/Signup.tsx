@@ -112,12 +112,12 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             <div className="size-14 bg-primary rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/40">
               <span className="material-symbols-outlined text-4xl filled">hub</span>
             </div>
-            <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Support<span className="text-primary">Tech</span></h1>
+            <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Support<span className="text-primary">IS</span></h1>
           </div>
           
           <h2 className="text-5xl font-black text-white leading-tight mb-6">Pronto para otimizar sua TI?</h2>
           <p className="text-lg text-text-secondary leading-relaxed mb-12">
-            Junte-se a mais de 500 empresas que utilizam nossa plataforma para reduzir o tempo de inatividade em até 40%.
+            Realize suas solicitações de suporte de forma rápida e eficiente,	unindo performance e satisfação dos usuários.
           </p>
 
           <div className="space-y-6">
@@ -156,7 +156,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
         <main className="flex-1 flex flex-col justify-center px-6 lg:px-24 max-w-2xl mx-auto w-full pb-10">
           <div className="mb-8 lg:mb-10">
             <h2 className="text-3xl lg:text-5xl font-black text-white mb-3 tracking-tight">Criar nova conta</h2>
-            <p className="text-text-secondary text-sm lg:text-base">Inicie seu teste gratuito de 14 dias hoje mesmo.</p>
+            <p className="text-text-secondary text-sm lg:text-base">Realize seu cadastro para começar a utilizar nossos serviços.</p>
           </div>
 
           {error && (
@@ -248,11 +248,11 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Empresa / Unidade</label>
+              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Unidade / Empresa</label>
               <input 
                 required
                 type="text" 
-                placeholder="Ex: TechSolutions Ltda"
+                placeholder="Ex: UBS Sede, Hospital ou Empresa XYZ"
                 value={formData.company}
                 onChange={e => setFormData({...formData, company: e.target.value})}
                 className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
