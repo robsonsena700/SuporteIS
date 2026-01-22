@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { User } from '../types';
+import api from '../services/api';
 
 interface SidebarProps {
   user: User | null;
@@ -12,6 +13,25 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClose }) => {
   const location = useLocation();
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check if web logo exists
+    const checkLogo = async () => {
+      try {
+        const timestamp = Date.now();
+        // Try to load the image
+        const img = new Image();
+        img.src = `http://localhost:5000/assets/logos/web/logo_web.png?t=${timestamp}`;
+        img.onload = () => setLogoUrl(img.src);
+        img.onerror = () => setLogoUrl(null);
+      } catch (e) {
+        setLogoUrl(null);
+      }
+    };
+    checkLogo();
+  }, []);
+
   const allNavItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { label: 'Chamados', path: '/tickets', icon: 'confirmation_number' },
@@ -47,9 +67,17 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
         <div className="p-6 shrink-0 flex items-center justify-between border-b border-white/5">
           <div className="flex gap-3 items-center">
               <div className="flex flex-col overflow-hidden">
-                <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
-                  <span className="text-primary">IS</span> Suporte
-                </h1>
+                {logoUrl ? (
+                  <img 
+                    src={logoUrl} 
+                    alt="Logo da Empresa" 
+                    className="h-12 w-auto object-contain mb-2" 
+                  />
+                ) : (
+                  <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
+                    <span className="text-primary">IS</span> Suporte
+                  </h1>
+                )}
                 <p className="text-text-secondary text-xs font-normal truncate">Sistema de Gerenciamento</p>
               </div>
           </div>

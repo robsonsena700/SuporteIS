@@ -269,7 +269,7 @@ export const SignupScreen = () => {
               <TextInput
                 ref={companyRef}
                 style={styles.input}
-                placeholder="Empresa / Unidade"
+                placeholder="Unidade / Empresa"
                 placeholderTextColor="#6b7280"
                 value={formData.company}
                 onChangeText={(text) => handleChange('company', text)}
