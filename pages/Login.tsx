@@ -67,7 +67,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="p-6 md:p-10 flex flex-col gap-8">
           <div className="text-center">
             <h2 className="text-3xl font-black text-white mb-2">Bem-vindo de volta</h2>
-            <p className="text-text-secondary text-sm">Acesse sua conta para acompanhar e gerenciar seus chamados.</p>
+            <p className="text-text-secondary text-sm">Acesse para acompanhar e gerenciar seus chamados.</p>
           </div>
 
           {error && (

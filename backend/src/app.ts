@@ -11,8 +11,13 @@ import userRoutes from './routes/userRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import chatRoutes from './routes/chatRoutes';
+import logoRoutes from './routes/logoRoutes';
+import path from 'path';
 
 const app = express();
+
+// Serve Static Assets
+app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 // Security Middleware
 app.use(helmet());
@@ -67,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/logos', logoRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

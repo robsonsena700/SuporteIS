@@ -16,6 +16,7 @@ import Users from './pages/Users';
 import Profile from './pages/Profile';
 import NewTicket from './pages/NewTicket';
 import Reports from './pages/Reports';
+import LogoManager from './pages/LogoManager';
 
 // Layout
 import Sidebar from './components/Sidebar';
@@ -143,6 +144,10 @@ const App: React.FC = () => {
       <Route 
         path="/reports" 
         element={isAuthenticated ? layout(<Reports />) : <Navigate to="/login" />} 
+      />
+      <Route 
+        path="/settings/logos" 
+        element={isAuthenticated ? layout(<LogoManager />) : <Navigate to="/login" />} 
       />
       
       <Route path="/" element={<Navigate to="/login" replace />} />

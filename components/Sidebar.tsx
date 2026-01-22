@@ -17,6 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
     { label: 'Chamados', path: '/tickets', icon: 'confirmation_number' },
     { label: 'Usuários', path: '/users', icon: 'group' },
     { label: 'Relatórios', path: '/reports', icon: 'analytics' },
+    { label: 'Logos', path: '/settings/logos', icon: 'image' },
     { label: 'Perfil', path: '/profile', icon: 'settings' },
   ];
 
