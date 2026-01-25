@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, FlatList, ViewStyle, DimensionValue, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, FlatList, ViewStyle, DimensionValue, Image, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare, XCircle, Download } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
@@ -202,8 +202,11 @@ export const TicketDetailScreen = () => {
   const isCreator = user?.id === ticket.creatorId;
   const isAssignedToMe = ticket.technicianId === user?.id;
   const isUnassigned = !ticket.technicianId;
-  const isResolved = ticket.status === TicketStatus.RESOLVED;
-  const canEdit = (isTechnician || isCreator) && !isResolved;
+  const isResolved = ticket.status === TicketStatus.RESOLVED || ticket.status === TicketStatus.CANCELED;
+  
+  const allowedInternalProfiles = ['Administrador', 'Suporte Técnico', 'Líder', 'Suporte'];
+  const canEdit = user && allowedInternalProfiles.includes(user.profile) && !isResolved;
+  
   const canEvaluate = isCreator && isResolved && !ticket.rating;
   
   // Access Control for Rating
@@ -215,7 +218,45 @@ export const TicketDetailScreen = () => {
           case TicketStatus.IN_ANALYSIS: return '#8b5cf6';
           case TicketStatus.IN_PROGRESS: return '#eab308';
           case TicketStatus.RESOLVED: return '#10b981';
+          case TicketStatus.CANCELED: return '#ef4444';
           default: return '#9ca3af';
+      }
+  };
+
+  const getHistoryColor = (type: string) => {
+      switch (type) {
+          case 'Criação': return '#10b981';
+          case 'Status': return '#3b82f6';
+          case 'Mensagem': return '#8b5cf6';
+          case 'Atribuição': return '#eab308';
+          default: return '#9ca3af';
+      }
+  };
+
+  const handleCancelTicket = () => {
+      if (!ticket) return;
+      Alert.alert(
+          'Cancelar Chamado',
+          'Tem certeza que deseja cancelar este chamado? Esta ação não pode ser desfeita.',
+          [
+              { text: 'Não', style: 'cancel' },
+              { text: 'Sim, Cancelar', style: 'destructive', onPress: confirmCancellation }
+          ]
+      );
+  };
+
+  const confirmCancellation = async () => {
+      if (!ticket) return;
+      setResolving(true);
+      try {
+          await TicketService.updateStatus(ticket.id, TicketStatus.CANCELED);
+          fetchTicket();
+          Alert.alert('Sucesso', 'Chamado cancelado com sucesso.');
+          navigation.goBack();
+      } catch (error) {
+           Alert.alert('Erro', 'Falha ao cancelar chamado');
+      } finally {
+          setResolving(false);
       }
   };
 
@@ -232,6 +273,9 @@ export const TicketDetailScreen = () => {
   const renderMessageItem = ({ item }: { item: any }) => {
     const isMe = item.senderId === user?.id;
     const internal = !!item.isInternal;
+    const date = item.createdAt ? new Date(item.createdAt) : new Date();
+    const isValidDate = !isNaN(date.getTime());
+
     return (
       <View
         style={[
@@ -273,7 +317,7 @@ export const TicketDetailScreen = () => {
               )}
             </View>
             <Text style={styles.messageTime}>
-              {format(new Date(item.createdAt), 'HH:mm')}
+              {isValidDate ? format(date, 'HH:mm') : ''}
             </Text>
           </View>
           <Text style={styles.messageText}>{item.content}</Text>
@@ -349,49 +393,51 @@ export const TicketDetailScreen = () => {
 
       <View style={styles.content}>
         {activeTab === 'Mensagens' ? (
-          <>
-            <FlatList
-              ref={flatListRef}
-              data={ticket.messages}
-              keyExtractor={(item) => item.id}
-              renderItem={renderMessageItem}
-              contentContainerStyle={styles.messagesList}
-              inverted={false}
-            />
-            
-            {!isResolved && (
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-                    style={styles.inputContainer}
-                >
-                    {isTechnician && (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          >
+            <View style={{ flex: 1 }}>
+                <FlatList
+                  ref={flatListRef}
+                  data={ticket.messages}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderMessageItem}
+                  contentContainerStyle={styles.messagesList}
+                  inverted={false}
+                />
+                
+                {!isResolved && (
+                    <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                        {isTechnician && (
+                            <TouchableOpacity 
+                                style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
+                                onPress={() => setIsInternal(!isInternal)}
+                            >
+                                <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
+                            </TouchableOpacity>
+                        )}
+                        <TextInput
+                            style={styles.input}
+                            placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
+                            placeholderTextColor="#6b7280"
+                            value={replyText}
+                            onChangeText={setReplyText}
+                            multiline
+                        />
                         <TouchableOpacity 
-                            style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
-                            onPress={() => setIsInternal(!isInternal)}
+                            style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
+                            onPress={handleSendReply}
+                            disabled={!replyText.trim() || sending}
                         >
-                            <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
+                            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
                         </TouchableOpacity>
-                    )}
-                    <TextInput
-                        style={styles.input}
-                        placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
-                        placeholderTextColor="#6b7280"
-                        value={replyText}
-                        onChangeText={setReplyText}
-                        multiline
-                    />
-                    <TouchableOpacity 
-                        style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
-                        onPress={handleSendReply}
-                        disabled={!replyText.trim() || sending}
-                    >
-                        {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
-                    </TouchableOpacity>
-                </KeyboardAvoidingView>
-            )}
-          </>
-        ) : (
+                    </View>
+                )}
+            </View>
+          </KeyboardAvoidingView>
+        ) : activeTab === 'Detalhes' ? (
           <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             {isEditing && (
                  <View style={styles.card}>
@@ -465,6 +511,27 @@ export const TicketDetailScreen = () => {
                 </View>
             </View>
 
+             {/* Technician Card */}
+             <View style={styles.card}>
+                 <View style={styles.cardHeader}>
+                    <UserIcon size={18} color="#3b82f6" />
+                    <Text style={styles.cardTitle}>Responsável Técnico</Text>
+                </View>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                    <View style={[styles.avatar, { backgroundColor: '#374151' }]}>
+                        {ticket.technicianAvatar ? (
+                             <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatarImage} />
+                        ) : (
+                             <UserIcon size={20} color="#9ca3af" />
+                        )}
+                    </View>
+                    <View>
+                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
+                        <Text style={[styles.infoLabel, { fontSize: 12 }]}>{ticket.technician ? 'Técnico Designado' : 'Aguardando atribuição'}</Text>
+                    </View>
+                </View>
+            </View>
+
             {/* Equipment Card */}
             <View style={styles.card}>
                  <View style={styles.cardHeader}>
@@ -494,41 +561,32 @@ export const TicketDetailScreen = () => {
                 <Text style={styles.descriptionText}>{ticket.description}</Text>
             </View>
 
-             {/* Technician Card */}
-             <View style={styles.card}>
-                 <View style={styles.cardHeader}>
-                    <UserIcon size={18} color="#3b82f6" />
-                    <Text style={styles.cardTitle}>Responsável Técnico</Text>
+            {/* Attachments Card */}
+            {ticket.attachment && (
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Paperclip size={18} color="#3b82f6" />
+                        <Text style={styles.cardTitle}>Anexo</Text>
+                    </View>
+                    
+                    {ticket.attachment.match(/\.(jpeg|jpg|gif|png)$/i) || ticket.attachment.startsWith('data:image') ? (
+                        <TouchableOpacity onPress={() => Linking.openURL(ticket.attachment!)}>
+                            <Image 
+                                source={{ uri: ticket.attachment }} 
+                                style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8, resizeMode: 'cover' }} 
+                            />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={styles.attachmentButton}
+                            onPress={() => Linking.openURL(ticket.attachment!)}
+                        >
+                            <Download size={20} color="#3b82f6" />
+                            <Text style={styles.attachmentText}>Baixar Anexo</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-                    <View style={[styles.avatar, { backgroundColor: '#374151' }]}>
-                        {ticket.technicianAvatar ? (
-                             <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatarImage} />
-                        ) : (
-                             <UserIcon size={20} color="#9ca3af" />
-                        )}
-                    </View>
-                    <View>
-                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
-                        <Text style={[styles.infoLabel, { fontSize: 12 }]}>{ticket.technician ? 'Técnico Designado' : 'Aguardando atribuição'}</Text>
-                    </View>
-                </View>
-            </View>
-
-             {/* Attachments Card (Placeholder for now as logic is complex) */}
-             {ticket.attachment && (
-                 <TouchableOpacity style={styles.card}>
-                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-                        <View style={[styles.iconBox, { backgroundColor: '#3b82f620' }]}>
-                            <Paperclip size={20} color="#3b82f6" />
-                        </View>
-                        <View>
-                            <Text style={styles.cardTitle}>Anexo Disponível</Text>
-                            <Text style={styles.infoLabel}>Toque para visualizar</Text>
-                        </View>
-                    </View>
-                 </TouchableOpacity>
-             )}
+            )}
 
             {ticket.rating && canViewRating && (
                 <View style={styles.card}>
@@ -545,12 +603,41 @@ export const TicketDetailScreen = () => {
                 </View>
             )}
 
-            <View style={{marginTop: 20, alignItems: 'center'}}>
-                <Text style={{color: '#4b5563', fontSize: 12}}>
-                    Criado em {format(new Date(ticket.createdAt), "dd/MM/yyyy 'às' HH:mm")}
-                </Text>
-            </View>
+            {/* Cancel Button */}
+            {!isResolved && ticket.status !== TicketStatus.CANCELED && (
+                <TouchableOpacity style={styles.cancelButton} onPress={handleCancelTicket}>
+                    <XCircle size={20} color="#ef4444" />
+                    <Text style={styles.cancelButtonText}>Cancelar Chamado</Text>
+                </TouchableOpacity>
+            )}
 
+          </ScrollView>
+        ) : (
+            <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+             {loadingHistory ? (
+                 <ActivityIndicator color="#3b82f6" style={{marginTop: 20}} />
+             ) : (
+                 history.map((h, index) => (
+                     <View key={index} style={styles.historyItem}>
+                         <View style={styles.historyLeft}>
+                            <View style={[styles.historyIcon, { backgroundColor: getHistoryColor(h.changeType) + '20' }]}>
+                                <HistoryIcon size={16} color={getHistoryColor(h.changeType)} />
+                            </View>
+                            {index < history.length - 1 && <View style={styles.historyLine} />}
+                         </View>
+                         <View style={styles.historyContent}>
+                             <View style={styles.historyHeader}>
+                                 <Text style={styles.historyUser}>{h.userName || 'Sistema'}</Text>
+                                 <Text style={styles.historyTime}>{format(new Date(h.createdAt), "dd/MM HH:mm", { locale: ptBR })}</Text>
+                             </View>
+                             <View style={styles.historyBadge}>
+                                <Text style={styles.historyType}>{h.changeType}</Text>
+                             </View>
+                             <Text style={styles.historyDetails}>{h.details}</Text>
+                         </View>
+                     </View>
+                 ))
+             )}
           </ScrollView>
         )}
       </View>
@@ -874,5 +961,105 @@ const styles = StyleSheet.create({
       color: '#fff',
       fontWeight: 'bold',
       fontSize: 16,
+  },
+  attachmentButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 16,
+      backgroundColor: '#1f2937',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#374151',
+  },
+  attachmentText: {
+      color: '#3b82f6',
+      fontWeight: 'bold',
+  },
+  cancelButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 16,
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.2)',
+      marginBottom: 32,
+  },
+  cancelButtonText: {
+      color: '#ef4444',
+      fontWeight: 'bold',
+      fontSize: 16,
+  },
+  // History Styles
+  historyItem: {
+      flexDirection: 'row',
+      marginBottom: 20,
+  },
+  historyLeft: {
+      alignItems: 'center',
+      marginRight: 12,
+  },
+  historyIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+      zIndex: 1,
+  },
+  historyLine: {
+      flex: 1,
+      width: 2,
+      backgroundColor: '#1f2937',
+      marginTop: 4,
+  },
+  historyContent: {
+      flex: 1,
+      backgroundColor: '#1f2937',
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#374151',
+  },
+  historyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+  },
+  historyUser: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 13,
+  },
+  historyTime: {
+      color: '#9ca3af',
+      fontSize: 11,
+  },
+  historyBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(59, 130, 246, 0.2)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      marginBottom: 6,
+  },
+  historyType: {
+      color: '#3b82f6',
+      fontSize: 10,
+      fontWeight: 'bold',
+  },
+  historyDetails: {
+      color: '#d1d5db',
+      fontSize: 13,
+      lineHeight: 18,
   },
 });

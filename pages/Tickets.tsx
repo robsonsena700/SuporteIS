@@ -36,6 +36,30 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     return notifications.some(n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead);
   };
 
+  const calculateTMR = (createdAt: string | undefined, resolvedAt: string | undefined, status: string) => {
+    if (!createdAt) return 'N/A';
+    const start = new Date(createdAt);
+    const isResolved = status === 'Resolvido' || status === 'Concluído';
+    const end = (isResolved && resolvedAt) ? new Date(resolvedAt) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+
+    if (diffMs < 0) return '0m';
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+        const remainingHours = diffHours % 24;
+        return `${diffDays}d ${remainingHours}h`;
+    }
+    if (diffHours > 0) {
+        const remainingMinutes = diffMinutes % 60;
+        return `${diffHours}h ${remainingMinutes}m`;
+    }
+    return `${diffMinutes}m`;
+  };
+
   const markTicketNotificationsAsRead = async (ticketId: string) => {
     const related = notifications.filter(n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead);
     for (const notification of related) {
@@ -419,6 +443,11 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                       <span className="text-[11px] text-text-muted flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px]">schedule</span>
                         {createdLabel}
+                      </span>
+                      <span className="text-[11px] text-text-muted flex items-center gap-1" title={ticket.status === 'Resolvido' ? 'Tempo Total de Resolução' : 'Tempo em Aberto'}>
+                        <span className="material-symbols-outlined text-[14px]">timer</span>
+                        {ticket.status === 'Resolvido' ? 'TMR: ' : 'Aberto: '}
+                        {calculateTMR(ticket.createdAtIso, ticket.resolvedAt, ticket.status)}
                       </span>
                     </div>
                     <div className="flex flex-col items-end gap-1">

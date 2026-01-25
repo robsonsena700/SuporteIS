@@ -34,9 +34,11 @@ const Dashboard: React.FC = () => {
 
   if (loading && !stats) return <div className="text-white p-8">Carregando dashboard...</div>;
 
+  const canViewRating = user?.role === 'Administrador' || user?.role === 'Cliente' || user?.profile === 'Administrador' || user?.profile === 'Cliente';
+
   const statCards: Stat[] = stats ? [
     { 
-      label: 'Total de Chamados', 
+      label: 'Total de Chamados',  
       value: stats.totalTickets, 
       trend: 'No período', 
       trendType: 'neutral', 
@@ -50,6 +52,14 @@ const Dashboard: React.FC = () => {
       trendType: 'up', 
       icon: 'check_circle', 
       color: 'text-success' 
+    },
+    { 
+      label: 'TMR - Tempo Médio', 
+      value: stats.tmr || '00:00:00', 
+      trend: 'Resolução', 
+      trendType: 'neutral', 
+      icon: 'timer', 
+      color: 'text-purple-400' 
     },
     { 
       label: 'Em Aberto', 
@@ -75,7 +85,10 @@ const Dashboard: React.FC = () => {
       icon: 'star', 
       color: 'text-yellow-400' 
     },
-  ] : [];
+  ].filter(card => {
+      if (card.label === 'Média Satisfação' && !canViewRating) return false;
+      return true;
+  }) : [];
 
   return (
     <div className="flex flex-col gap-8 pb-10">
@@ -118,7 +131,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {statCards.map((stat, idx) => (
           <div key={idx} className="bg-background-card border border-border-dark p-6 rounded-xl shadow-sm hover:border-primary/50 transition-colors group">
             <div className="flex justify-between items-start mb-4">

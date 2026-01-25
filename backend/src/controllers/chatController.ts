@@ -9,10 +9,18 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     if (!senderId) return res.status(401).json({ message: 'Unauthorized' });
 
+    if (!receiverId || !content) {
+        return res.status(400).json({ message: 'Receiver ID and content are required' });
+    }
+
     // Validate permission (Client <-> Client block)
     const sender = await pool.query('SELECT profile FROM users WHERE id = $1', [senderId]);
     const receiver = await pool.query('SELECT profile FROM users WHERE id = $1', [receiverId]);
     
+    if (receiver.rows.length === 0) {
+        return res.status(404).json({ message: 'Destinatário não encontrado' });
+    }
+
     if (sender.rows[0].profile === 'Cliente' && receiver.rows[0].profile === 'Cliente') {
         return res.status(403).json({ message: 'Comunicação entre clientes não permitida' });
     }
@@ -22,10 +30,14 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       [senderId, receiverId, content]
     );
 
+    // Fetch sender name for notification
+    const senderNameRes = await pool.query('SELECT name FROM users WHERE id = $1', [senderId]);
+    const senderName = senderNameRes.rows[0]?.name || 'Usuário';
+
     // Notify receiver (create notification)
     await pool.query(
         'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-        [receiverId, 'new_dm', senderId, `Nova mensagem de ${req.user?.name || 'Usuário'}`]
+        [receiverId, 'new_dm', senderId, `Nova mensagem de ${senderName}`]
     );
 
     res.status(201).json(result.rows[0]);

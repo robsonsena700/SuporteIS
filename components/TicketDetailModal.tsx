@@ -39,6 +39,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   // History State
   const [history, setHistory] = useState<TicketHistory[]>([]);
@@ -276,7 +277,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   const isClient = user?.profile === 'Cliente';
-  const canEdit = user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador';
+  const canEdit = user && (
+    allowedInternalProfiles.includes(user.profile) ||
+    allowedInternalProfiles.includes((user as any).role)
+  );
 
   const filteredHistory = history.filter(h => {
       if (historyFilter && h.changeType !== historyFilter) return false;
@@ -376,6 +380,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       } catch (error) {
           console.error('Error taking ticket', error);
       }
+  };
+
+  const handleCancelTicket = async () => {
+    try {
+        console.log(`Cancelling ticket ${localTicket.id}`);
+        const updated = await TicketService.update(localTicket.id, { status: TicketStatus.CANCELED });
+        onUpdate(updated);
+        setLocalTicket(updated);
+        setShowCancelModal(false);
+        toast.success('Chamado cancelado com sucesso.');
+    } catch (error: any) {
+        console.error('Failed to cancel ticket', error);
+        const errorMessage = error.response?.data?.message || 'Erro ao cancelar chamado.';
+        toast.error(errorMessage);
+    }
   };
 
   const handleChangeType = async () => {
@@ -673,7 +692,56 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                                         </button>
                                     </div>
                                 </div>
-                            </>
+                              {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div 
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+        >
+            <div 
+                className="bg-[#1a2233] border border-[#374151] w-full max-w-md rounded-2xl p-4 md:p-6 shadow-2xl flex flex-col gap-6 animate-slide-up"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-start">
+                    <h3 className="text-white text-xl font-bold">Cancelar Chamado</h3>
+                    <button 
+                        type="button"
+                        onClick={() => setShowCancelModal(false)} 
+                        className="text-[#9ca3af] hover:text-white"
+                    >
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                
+                <div className="flex flex-col gap-4">
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+                        <span className="material-symbols-outlined text-red-500 text-2xl shrink-0">warning</span>
+                        <div className="flex flex-col gap-1">
+                            <h4 className="text-red-500 font-bold text-sm">Atenção</h4>
+                            <p className="text-red-400 text-xs leading-relaxed">
+                                Tem certeza que deseja cancelar este chamado? Esta ação não pode ser desfeita e o chamado será encerrado permanentemente.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setShowCancelModal(false)}
+                        className="flex-1 h-12 bg-[#1f2937] border border-[#374151] text-white font-bold rounded-xl hover:bg-[#374151] transition-all"
+                    >
+                        Não, Manter
+                    </button>
+                    <button 
+                        onClick={handleCancelTicket}
+                        className="flex-1 h-12 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                    >
+                        Sim, Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+    </>
                         )}
                     </div>
                 </>
@@ -1020,15 +1088,34 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         )
                     )
                 ) : (
-                  <button 
-                    onClick={handleResolve}
-                    disabled={isClient && !isCreator}
-                    title={isClient && !isCreator ? 'Apenas usuários autorizados podem modificar este chamado' : ''}
-                    className={`w-full h-11 border text-[11px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${isClient && !isCreator ? 'border-gray-500/30 bg-gray-500/5 text-gray-500 cursor-not-allowed' : 'border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] hover:bg-[#10b981] hover:text-white'}`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    Marcar como Resolvido
-                  </button>
+                  <div className="flex flex-col gap-2">
+                      {localTicket.status !== TicketStatus.CANCELED && (
+                        <button 
+                            onClick={handleResolve}
+                            disabled={isClient && !isCreator}
+                            title={isClient && !isCreator ? 'Apenas usuários autorizados podem modificar este chamado' : ''}
+                            className={`w-full h-11 border text-[11px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 ${isClient && !isCreator ? 'border-gray-500/30 bg-gray-500/5 text-gray-500 cursor-not-allowed' : 'border-[#10b981]/30 bg-[#10b981]/5 text-[#10b981] hover:bg-[#10b981] hover:text-white'}`}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                            Marcar como Resolvido
+                        </button>
+                      )}
+
+                      {localTicket.status !== TicketStatus.CANCELED ? (
+                        <button 
+                            onClick={() => setShowCancelModal(true)}
+                            className="w-full h-11 border border-red-500/30 bg-red-500/5 text-red-500 text-[11px] font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">cancel</span>
+                            Cancelar Chamado
+                        </button>
+                      ) : (
+                        <div className="w-full h-11 border border-red-500/30 bg-red-500/5 text-red-500 text-[11px] font-bold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed">
+                            <span className="material-symbols-outlined text-[18px]">cancel</span>
+                            Chamado Cancelado
+                        </div>
+                      )}
+                  </div>
                 )}
             </div>
 
@@ -1119,6 +1206,44 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 >
                     Confirmar e Resolver
                 </button>
+            </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div 
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+            onClick={() => setShowCancelModal(false)}
+        >
+            <div 
+                className="bg-[#1a2233] border border-[#374151] w-full max-w-sm rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-slide-up"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="size-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-2">
+                         <span className="material-symbols-outlined text-3xl">warning</span>
+                    </div>
+                    <h3 className="text-white text-lg font-bold">Cancelar Chamado?</h3>
+                    <p className="text-text-secondary text-sm">
+                        Tem certeza que deseja cancelar este chamado? Esta ação não pode ser desfeita.
+                    </p>
+                </div>
+                
+                <div className="flex gap-3 mt-2">
+                    <button 
+                        onClick={() => setShowCancelModal(false)}
+                        className="flex-1 h-10 border border-[#374151] bg-[#111827] text-white text-xs font-bold rounded-lg hover:bg-[#1f2937] transition-colors"
+                    >
+                        Não, voltar
+                    </button>
+                    <button 
+                        onClick={handleCancelTicket}
+                        className="flex-1 h-10 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
+                    >
+                        Sim, Cancelar
+                    </button>
+                </div>
             </div>
         </div>
       )}

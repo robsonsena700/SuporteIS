@@ -84,10 +84,38 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const resolvedRes = await pool.query(resolvedQuery, params);
 
     // 5. Average Rating
-    const ratingQuery = `SELECT AVG(rating) as avg_rating FROM tickets t WHERE rating IS NOT NULL ${roleCondition} ${dateFilter}`;
-    const ratingRes = await pool.query(ratingQuery, params);
+    let averageRating = '0';
+    if (user.role === 'Cliente' || user.profile === 'Cliente' || user.role === 'Administrador' || user.profile === 'Administrador') {
+        const ratingQuery = `SELECT AVG(rating) as avg_rating FROM tickets t WHERE rating IS NOT NULL ${roleCondition} ${dateFilter}`;
+        const ratingRes = await pool.query(ratingQuery, params);
+        averageRating = parseFloat(ratingRes.rows[0].avg_rating || '0').toFixed(1);
+    }
 
-    // 6. Recent Activity (Latest tickets)
+    // 6. TMR (Average Resolution Time)
+    // Calculate average seconds between created_at and resolved_at for resolved tickets
+    const tmrQuery = `
+        SELECT EXTRACT(EPOCH FROM AVG(resolved_at - created_at)) as avg_seconds
+        FROM tickets t
+        WHERE status = 'Resolvido' 
+          AND resolved_at IS NOT NULL 
+          ${roleCondition} 
+          ${dateFilter}
+    `;
+    const tmrRes = await pool.query(tmrQuery, params);
+    
+    let tmrString = '00:00:00';
+    if (tmrRes.rows[0].avg_seconds) {
+        const totalSeconds = Math.round(parseFloat(tmrRes.rows[0].avg_seconds));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Format to HH:MM:SS, allowing hours > 24
+        const pad = (num: number) => num.toString().padStart(2, '0');
+        tmrString = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    // 7. Recent Activity (Latest tickets)
     const recentQuery = `
         SELECT t.id, t.code, t.subject, t.status, t.created_at, u.name as technician_name
         FROM tickets t
@@ -103,7 +131,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         byStatus: statusRes.rows,
         chartData: chartData,
         resolvedCount: parseInt(resolvedRes.rows[0].count),
-        averageRating: parseFloat(ratingRes.rows[0].avg_rating || '0').toFixed(1),
+        averageRating: averageRating,
+        tmr: tmrString,
         recentActivity: recentRes.rows
     };
 

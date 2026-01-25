@@ -4,7 +4,7 @@ import { Ticket, TicketPriority, TicketStatus } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, Flag, User, Monitor, AlertCircle, MessageSquare } from 'lucide-react-native';
+import { Clock, Flag, User, Monitor, AlertCircle, MessageSquare, Timer } from 'lucide-react-native';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -60,6 +60,30 @@ export const TicketCard: React.FC<TicketCardProps> = ({
     return '#fcd34d'; // Yellow-300
   };
 
+  const calculateTMR = (createdAt: string | undefined, resolvedAt: string | undefined, status: string) => {
+    if (!createdAt) return '-';
+    const start = new Date(createdAt);
+    const isResolved = status === 'Resolvido' || status === 'Concluído';
+    const end = (isResolved && resolvedAt) ? new Date(resolvedAt) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+
+    if (diffMs < 0) return '0m';
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+        const remainingHours = diffHours % 24;
+        return `${diffDays}d ${remainingHours}h`;
+    }
+    if (diffHours > 0) {
+        const remainingMinutes = diffMinutes % 60;
+        return `${diffHours}h ${remainingMinutes}m`;
+    }
+    return `${diffMinutes}m`;
+  };
+
   return (
     <TouchableOpacity 
       style={styles.card}
@@ -95,6 +119,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             </View>
              <Text style={styles.dateText}>
                 <Clock size={10} color="#6b7280" /> {formatDate(ticket.createdAtIso || ticket.createdAt)}
+            </Text>
+            <Text style={styles.dateText}>
+                <Timer size={10} color="#6b7280" /> {ticket.status === 'Resolvido' ? 'TMR: ' : 'Aberto: '}
+                {calculateTMR(ticket.createdAtIso || ticket.createdAt, ticket.resolvedAt, ticket.status)}
             </Text>
         </View>
       </View>

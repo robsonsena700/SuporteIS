@@ -79,11 +79,14 @@ export const ChatScreen = () => {
 
   const renderItem = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderId === currentUser?.id;
+    const date = item.createdAt ? new Date(item.createdAt) : new Date();
+    const isValidDate = !isNaN(date.getTime());
+
     return (
       <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.otherMessage]}>
         <Text style={styles.messageText}>{item.content}</Text>
         <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.otherTimestamp]}>
-          {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {isValidDate ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
         </Text>
       </View>
     );

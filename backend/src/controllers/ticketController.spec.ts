@@ -304,7 +304,8 @@ describe('getTicketById - restrições para clientes', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(json).toHaveBeenCalledWith({ message: 'Acesso não autorizado' });
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    // Expect 2 calls: 1 for fetching ticket, 1 for logging unauthorized access
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 });
 

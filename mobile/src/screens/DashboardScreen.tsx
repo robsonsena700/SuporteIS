@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/api';
 import { DashboardStats } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Inbox, CheckCircle, Clock, TrendingUp, Star, Plus } from 'lucide-react-native';
+import { Inbox, CheckCircle, Clock, TrendingUp, Star, Plus, Timer } from 'lucide-react-native';
 import { useResponsive } from '../hooks/useResponsive';
 import { StatCard } from '../components/StatCard';
 import { Header } from '../components/Header';
@@ -80,8 +80,9 @@ export const DashboardScreen = () => {
   const treatingCount = inProgressCount + inAnalysisCount + forwardedAcquisitionCount + inRouteCount;
 
   const avgRating = Number(stats?.averageRating || 0);
+  const canViewRating = user?.profile === 'Administrador' || user?.profile === 'Cliente';
 
-  const statItems = [
+  const allStatItems = [
     {
       label: 'Total de Chamados',
       value: totalTickets,
@@ -97,6 +98,14 @@ export const DashboardScreen = () => {
       trendType: 'up',
       icon: CheckCircle,
       color: '#10b981'
+    },
+    {
+      label: 'TMR - Tempo Médio',
+      value: stats?.tmr || '00:00:00',
+      trend: 'Resolução',
+      trendType: 'neutral',
+      icon: Timer,
+      color: '#c084fc'
     },
     {
       label: 'Em Aberto',
@@ -123,6 +132,11 @@ export const DashboardScreen = () => {
       color: '#facc15'
     }
   ];
+
+  const statItems = allStatItems.filter(item => {
+      if (item.label === 'Média Satisfação' && !canViewRating) return false;
+      return true;
+  });
 
   return (
     <View style={styles.container}>

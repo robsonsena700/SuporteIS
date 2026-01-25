@@ -61,6 +61,9 @@ export const TicketsScreen = () => {
   const numColumns = isTablet || isLandscape ? 2 : 1;
   const cardWidth = (screenWidth - 40 - (numColumns - 1) * 16) / numColumns;
 
+  // Access Control for Rating
+  const canViewRating = user?.profile === 'Administrador' || user?.profile === 'Cliente';
+
   const fetchTickets = useCallback(async () => {
     try {
       setError(null);
@@ -311,7 +314,7 @@ export const TicketsScreen = () => {
                 <TicketCard 
                     ticket={item} 
                     onPress={(t) => navigation.navigate('TicketDetail', { ticketId: t.id })}
-                    showRating={activeTab === 'Concluído'}
+                    showRating={activeTab === 'Concluído' && canViewRating}
                 />
             </View>
           )}

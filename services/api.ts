@@ -283,7 +283,7 @@ export const ChatService = {
             receiverId: msg.receiver_id,
             content: msg.content,
             isRead: msg.is_read,
-            createdAt: new Date(msg.created_at).toLocaleString()
+            createdAt: msg.created_at
         }));
     }
 };

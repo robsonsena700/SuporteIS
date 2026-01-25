@@ -110,7 +110,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ recipient, onClose }) => {
                 `}>
                   <p>{msg.content}</p>
                   <span className={`text-[9px] block text-right mt-1 ${isMe ? 'text-white/70' : 'text-text-muted'}`}>
-                    {msg.createdAt.split(',')[1]?.trim().slice(0, 5) || ''}
+                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
                 </div>
               </div>

@@ -5,7 +5,8 @@ export enum TicketStatus {
   IN_PROGRESS = 'Em Andamento',
   FORWARDED_ACQUISITION = 'Encaminhado Aquisição',
   IN_ROUTE = 'Em Rota',
-  RESOLVED = 'Resolvido'
+  RESOLVED = 'Resolvido',
+  CANCELED = 'Cancelado'
 }
 
 export enum TicketPriority {
@@ -106,6 +107,7 @@ export interface DashboardStats {
   chartData: { name: string; chamados: string }[];
   resolvedCount: number;
   averageRating: string;
+  tmr: string;
   recentActivity: any[];
 }
 

@@ -2,6 +2,26 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+// Helper for access control on ratings
+const canViewRating = (user: any) => {
+    if (!user) return false;
+    const profile = user.profile || user.role || '';
+    return profile === 'Cliente' || profile === 'Administrador' || 
+           user.role === 'Cliente' || user.role === 'Administrador';
+};
+
+// Helper to log unauthorized access attempts
+const logUnauthorizedAccess = async (userId: string | undefined, action: string, details: string, entityId: string) => {
+    try {
+        await pool.query(
+            `INSERT INTO audit_logs (action, entity_id, user_id, details) VALUES ($1, $2, $3, $4)`,
+            ['UNAUTHORIZED_ACCESS', entityId, userId || null, `${action}: ${details}`]
+        );
+    } catch (e) {
+        console.error('Failed to log unauthorized access', e);
+    }
+};
+
 // Helper to log ticket history
 const logTicketHistory = async (
   dbClient: any,
@@ -201,7 +221,17 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
     queryText += ` ORDER BY t.created_at DESC`;
 
     const result = await pool.query(queryText, queryParams);
-    res.json(result.rows);
+    
+    // Sanitize results for ratings
+    const tickets = result.rows.map(ticket => {
+        if (!canViewRating(user)) {
+            ticket.rating = null;
+            ticket.feedback = null;
+        }
+        return ticket;
+    });
+
+    res.json(tickets);
   } catch (error) {
     console.error('Get Tickets Error:', error);
     res.status(500).json({ message: 'Erro ao buscar chamados' });
@@ -233,7 +263,14 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
     const isClient = user && (user.role === 'Cliente' || user.profile === 'Cliente');
 
     if (isClient && ticket.user_id !== user.id) {
+      await logUnauthorizedAccess(user.id, 'VIEW_TICKET', 'Tentativa de acessar chamado de outro usuário', ticket.id);
       return res.status(403).json({ message: 'Acesso não autorizado' });
+    }
+
+    // Strict Access Control for Ratings
+    if (!canViewRating(user)) {
+        ticket.rating = null;
+        ticket.feedback = null;
     }
 
     const messagesResult = await pool.query(`
@@ -383,6 +420,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Chamado não encontrado' });
     }
     const currentTicket = currentRes.rows[0];
+    let historyLogs: Promise<any>[] = [];
 
     if ((req.user?.role === 'Cliente' || req.user?.profile === 'Cliente') && currentTicket.user_id !== userId) {
         return res.status(403).json({ message: 'Permissão negada. Apenas o solicitante do chamado pode avaliar ou reabrir este chamado.' });
@@ -406,6 +444,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
                         (req.user?.profile === 'Cliente' || req.user?.role === 'Cliente');
         
         if (!canRate) {
+             await logUnauthorizedAccess(userId, 'RATE_TICKET', 'Tentativa de avaliar chamado sem permissão', currentTicket.id);
              return res.status(403).json({ message: 'Permissão negada. Apenas Administradores e Clientes podem avaliar chamados.' });
         }
 
@@ -421,7 +460,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
         }
     }
 
-    if (currentTicket.status === 'Resolvido' && status && status !== 'Resolvido') {
+    if (currentTicket.status === 'Resolvido' && status && status !== 'Resolvido' && status !== 'Cancelado') {
         const resolvedAt = new Date(currentTicket.resolved_at || currentTicket.updated_at);
         const now = new Date();
         const diffHours = (now.getTime() - resolvedAt.getTime()) / (1000 * 60 * 60);
@@ -432,6 +471,20 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: 'Este chamado foi resolvido há mais de 24 horas. Por favor, abra um novo chamado.' });
         }
         await logTicketHistory(pool, currentTicket.id, userId, 'REOPEN', 'Resolvido', status, 'Chamado reaberto');
+    }
+
+    // Handle Cancellation
+    if (status === 'Cancelado') {
+         if (currentTicket.status === 'Cancelado') {
+             return res.status(400).json({ message: 'Este chamado já está cancelado.' });
+         }
+         // Allow cancellation if not resolved (or re-thinking logic: maybe allow even if resolved? usually only open tickets)
+         // Requirement: "cancelamento de chamados abertos"
+         if (currentTicket.status === 'Resolvido' || currentTicket.status === 'Concluído') {
+             return res.status(400).json({ message: 'Não é possível cancelar um chamado já resolvido.' });
+         }
+
+         historyLogs.push(logTicketHistory(pool, currentTicket.id, userId, 'STATUS', currentTicket.status, 'Cancelado', 'Chamado cancelado pelo usuário'));
     }
 
     // Validate Technician on Resolve/Complete
@@ -446,8 +499,7 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     let updateQuery = 'UPDATE tickets SET updated_at = NOW()';
     const params = [currentTicket.id]; // Use ID for update
     let paramIndex = 2;
-    let historyLogs: Promise<any>[] = [];
-
+    
     if (status && status !== currentTicket.status) {
       updateQuery += `, status = $${paramIndex}`;
       params.push(status);

@@ -40,28 +40,33 @@ export const NotificationModal = ({
     }
   };
 
-  const renderItem = ({ item }: { item: Notification }) => (
-    <TouchableOpacity 
-      style={[styles.item, !item.isRead && styles.unreadItem]} 
-      onPress={() => {
-        onMarkAsRead(item.id);
-        onNotificationClick(item);
-      }}
-    >
-      <View style={styles.iconContainer}>
-        {getIcon(item.type)}
-      </View>
-      <View style={styles.contentContainer}>
-        <Text style={styles.content}>{item.content}</Text>
-        <Text style={styles.time}>
-          {item.createdAtIso 
-            ? format(new Date(item.createdAtIso), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })
-            : item.createdAt}
-        </Text>
-      </View>
-      {!item.isRead && <View style={styles.dot} />}
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }: { item: Notification }) => {
+    const date = item.createdAtIso ? new Date(item.createdAtIso) : null;
+    const isValidDate = date && !isNaN(date.getTime());
+
+    return (
+      <TouchableOpacity 
+        style={[styles.item, !item.isRead && styles.unreadItem]} 
+        onPress={() => {
+          onMarkAsRead(item.id);
+          onNotificationClick(item);
+        }}
+      >
+        <View style={styles.iconContainer}>
+          {getIcon(item.type)}
+        </View>
+        <View style={styles.contentContainer}>
+          <Text style={styles.content}>{item.content}</Text>
+          <Text style={styles.time}>
+            {isValidDate 
+              ? format(date!, "dd 'de' MMM 'às' HH:mm", { locale: ptBR })
+              : item.createdAt}
+          </Text>
+        </View>
+        {!item.isRead && <View style={styles.dot} />}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
