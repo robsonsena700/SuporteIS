@@ -67,6 +67,8 @@ export interface Ticket {
   messages: Message[];
   creatorName?: string;
   creatorId?: string;
+  creatorAvatar?: string;
+  category?: string;
   attachment?: string;
   rating?: number;
   feedback?: string;
@@ -75,6 +77,7 @@ export interface Ticket {
     serialNumber: string;
     warranty: string;
   };
+  serialNumber?: string;
 }
 
 export interface TicketHistory {

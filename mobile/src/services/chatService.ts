@@ -3,16 +3,17 @@ import { ChatMessage } from '../types';
 
 export const ChatService = {
   getMessages: async (otherUserId: string) => {
-    const response = await api.get(`/chat/messages/${otherUserId}`);
+    const response = await api.get(`/chat/${otherUserId}`);
     return response.data;
   },
 
   sendMessage: async (recipientId: string, content: string) => {
-    const response = await api.post('/chat/send', { recipientId, content });
+    const response = await api.post('/chat', { recipientId, content });
     return response.data;
   },
 
   markAsRead: async (senderId: string) => {
-    await api.post(`/chat/read/${senderId}`);
+    // Backend implementation pending for markAsRead in chatRoutes
+    // await api.post(`/chat/read/${senderId}`); 
   }
 };

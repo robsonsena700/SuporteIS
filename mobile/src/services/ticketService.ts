@@ -93,6 +93,16 @@ export const TicketService = {
     return mapTicketFromApi(response.data);
   },
 
+  rate: async (id: string, rating: number, feedback: string) => {
+    const response = await api.put(`/tickets/${id}`, { rating, feedback });
+    return mapTicketFromApi(response.data);
+  },
+
+  updateStatus: async (id: string, status: TicketStatus) => {
+    const response = await api.put(`/tickets/${id}`, { status });
+    return mapTicketFromApi(response.data);
+  },
+
   addMessage: async (id: string, content: string, isInternal: boolean = false) => {
     const response = await api.post(`/tickets/${id}/messages`, {
       content,

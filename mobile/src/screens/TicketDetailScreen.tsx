@@ -133,7 +133,7 @@ export const TicketDetailScreen = () => {
           'Tem certeza que deseja marcar este chamado como resolvido?',
           [
               { text: 'Cancelar', style: 'cancel' },
-              { text: 'Confirmar', onPress: confirmResolution }
+              { text: 'Confirmar', onPress: () => confirmResolution() }
           ]
       );
   };
@@ -481,7 +481,7 @@ export const TicketDetailScreen = () => {
                 </View>
                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
                     <Text style={styles.infoLabel}>Serial</Text>
-                    <Text style={styles.infoValue}>{ticket.serialNumber || 'N/A'}</Text>
+                    <Text style={styles.infoValue}>{ticket.equipmentDetails?.serialNumber || ticket.serialNumber || 'N/A'}</Text>
                 </View>
             </View>
 
