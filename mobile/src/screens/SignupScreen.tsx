@@ -140,9 +140,9 @@ export const SignupScreen = () => {
       if (error.response) {
         msg = error.response.data?.message || msg;
       } else if (error.request) {
-        msg = 'Não foi possível conectar ao servidor. Verifique sua internet ou se o servidor está online.';
-      } else if (error.message?.includes('timeout')) {
-        msg = 'Tempo de conexão esgotado. Tente novamente em instantes.';
+        msg = 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.';
+      } else if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
+        msg = 'O servidor demorou muito para responder. Verifique sua conexão e tente novamente.';
       }
 
       Alert.alert('Falha no Cadastro', msg);

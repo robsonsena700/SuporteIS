@@ -29,6 +29,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Ticket; direction: 'asc' | 'desc' } | null>(null);
   const [technicians, setTechnicians] = useState<User[]>([]);
+  const [showMyTickets, setShowMyTickets] = useState(false); // New state for "Meus Chamados"
 
   // Helper to check for unread messages related to ticket
   const hasUnreadMessages = (ticketId: string) => {
@@ -318,6 +319,20 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
             />
           </div>
           <div className="flex items-center gap-2">
+            {user?.profile !== 'Cliente' && (
+                <button 
+                    onClick={() => setShowMyTickets(!showMyTickets)}
+                    className={`flex items-center gap-2 h-10 px-4 rounded-lg font-bold text-sm transition-all border ${
+                        showMyTickets
+                        ? 'bg-primary/20 text-primary border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
+                        : 'bg-background-input text-text-muted border-border-dark hover:text-white hover:border-text-secondary'
+                    }`}
+                    title={showMyTickets ? "Mostrando apenas meus chamados" : "Mostrar apenas meus chamados"}
+                >
+                    <span className="material-symbols-outlined text-[20px]">person</span>
+                    <span className="hidden md:inline">Meus Chamados</span>
+                </button>
+            )}
             <button 
                 onClick={() => setIsAutoRefresh(!isAutoRefresh)}
                 className={`flex items-center gap-2 h-10 px-4 rounded-lg font-bold text-sm transition-all border ${

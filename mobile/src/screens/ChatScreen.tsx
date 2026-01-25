@@ -101,27 +101,29 @@ export const ChatScreen = () => {
         </View>
       </View>
 
-      <View style={[styles.content, { paddingBottom: insets.bottom }]}>
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.list}
-            inverted={false}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-          />
-        )}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <View style={[styles.content, { paddingBottom: insets.bottom }]}>
+          {loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.list}
+              inverted={false}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+              onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            />
+          )}
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -139,8 +141,8 @@ export const ChatScreen = () => {
               {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

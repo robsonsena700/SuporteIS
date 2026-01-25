@@ -158,7 +158,7 @@ export const ProfileScreen = () => {
           <Text style={profileStyles.sectionTitle}>Informações Pessoais</Text>
           
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Nome Completo</Text>
+            <Text style={profileStyles.label}>Nome</Text>
             <View style={profileStyles.inputContainer}>
               <UserIcon size={20} color="#6b7280" style={profileStyles.inputIcon} />
               <TextInput
@@ -172,7 +172,7 @@ export const ProfileScreen = () => {
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Email Corporativo</Text>
+            <Text style={profileStyles.label}>Email</Text>
             <View style={profileStyles.inputContainer}>
               <Mail size={20} color="#6b7280" style={profileStyles.inputIcon} />
               <TextInput
@@ -200,7 +200,7 @@ export const ProfileScreen = () => {
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Empresa</Text>
+            <Text style={profileStyles.label}>Cliente / Empresa</Text>
             <View style={profileStyles.inputContainer}>
               <Building size={20} color="#6b7280" style={profileStyles.inputIcon} />
               <TextInput

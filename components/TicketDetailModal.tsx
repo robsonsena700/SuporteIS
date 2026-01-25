@@ -399,6 +399,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const isAssignedToMe = localTicket.technicianId && user && localTicket.technicianId === user.id;
   const isCreator = user && localTicket.creatorId && user.id === localTicket.creatorId;
 
+  // Access Control: Rating section visibility
+  // Only Administrators and Clients can view/interact with the rating functionality.
+  // Other profiles (Support, Analyst, etc.) should not see these elements.
+  const canViewRating = user?.profile === 'Administrador' || user?.profile === 'Cliente';
+
   return (
     <>
     <div 
@@ -464,7 +469,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                  </div>
              )}
 
-             {localTicket.status === TicketStatus.RESOLVED && isCreator && !localTicket.rating ? (
+             {localTicket.status === TicketStatus.RESOLVED && isCreator && !localTicket.rating && canViewRating ? (
                  <button 
                     onClick={() => setShowRatingModal(true)}
                     className="lg:hidden h-8 px-3 border border-yellow-500/20 bg-yellow-500/10 text-yellow-500 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-yellow-500/20 animate-pulse"
@@ -983,7 +988,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
              <div className="mt-auto pt-4">
                 {localTicket.status === TicketStatus.RESOLVED ? (
-                    isCreator && !localTicket.rating ? (
+                    isCreator && !localTicket.rating && canViewRating ? (
                         <button 
                             onClick={() => setShowRatingModal(true)}
                             className="w-full h-11 border border-yellow-500/30 bg-yellow-500/10 text-yellow-500 text-[11px] font-bold rounded-xl hover:bg-yellow-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 animate-pulse"
@@ -1043,7 +1048,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       )}
 
       {/* Rating Modal Overlay */}
-      {showRatingModal && (
+      {showRatingModal && canViewRating && (
         <div 
             className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
         >

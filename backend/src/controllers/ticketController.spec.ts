@@ -240,6 +240,38 @@ describe('updateTicket - validações de avaliação', () => {
       message: 'Permissão negada. Apenas o solicitante do chamado pode avaliar ou reabrir este chamado.',
     });
   });
+
+  it('impede suporte técnico de avaliar chamado', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'ticket-4',
+          status: 'Resolvido',
+          user_id: 'client-1',
+          feedback: null,
+        },
+      ],
+    });
+
+    const req: any = {
+      params: { id: 'ticket-4' },
+      body: { rating: 5 },
+      user: { id: 'tech-1', role: 'Técnico', profile: 'Suporte Técnico' },
+    };
+
+    const json = vi.fn();
+    const res: any = {
+      json,
+      status: vi.fn().mockReturnValue({ json }),
+    };
+
+    await updateTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      message: 'Permissão negada. Apenas Administradores e Clientes podem avaliar chamados.',
+    });
+  });
 });
 
 describe('getTicketById - restrições para clientes', () => {

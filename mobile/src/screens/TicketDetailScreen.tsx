@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboa
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
@@ -11,6 +11,9 @@ import { useNotifications } from '../context/NotificationContext';
 import { CustomPicker } from '../components/CustomPicker';
 import { RatingModal } from '../components/RatingModal';
 import { useResponsive } from '../hooks/useResponsive';
+import { Tabs } from '../components/Tabs';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type RootStackParamList = {
   TicketDetail: { ticketId: string };
@@ -28,11 +31,10 @@ export const TicketDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, screenWidth } = useResponsive();
   const isWide = isTablet || isLandscape;
-  const halfWidth: ViewStyle = { width: isWide ? '48%' : '100%' };
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'messages' | 'details' | 'history'>('messages');
+  const [activeTab, setActiveTab] = useState('Mensagens');
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -70,12 +72,6 @@ export const TicketDetailScreen = () => {
     });
   }, [ticket, notifications, markAsRead]);
 
-  useEffect(() => {
-    if (activeTab === 'history' && ticket) {
-      fetchHistory();
-    }
-  }, [activeTab]);
-
   const fetchTicket = async () => {
     try {
       const data = await TicketService.getById(ticketId);
@@ -90,8 +86,6 @@ export const TicketDetailScreen = () => {
     } catch (error: any) {
       console.error('Failed to load ticket', error.message || error);
       if (error.response) {
-          console.error('Response status:', error.response.status);
-          console.error('Response data:', error.response.data);
           if (error.response.status === 403) {
               setUnauthorized(true);
           }
@@ -101,170 +95,81 @@ export const TicketDetailScreen = () => {
     }
   };
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
-    try {
-        const data = await TicketService.getHistory(ticketId);
-        setHistory(data);
-    } catch (error: any) {
-        console.error('Failed to load history', error);
-        if (error.response && error.response.status === 403) {
-            Alert.alert('Acesso não autorizado', 'Você não tem permissão para visualizar o histórico deste chamado.');
-        } else {
-            Alert.alert('Erro', 'Falha ao carregar histórico do chamado.');
-        }
-    } finally {
-        setLoadingHistory(false);
-    }
-  };
-
-  const handleSend = async () => {
-    if (!replyText.trim()) return;
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !ticket) return;
 
     setSending(true);
     try {
-      if (ticket && !ticket.technicianId && user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador')) {
-        try {
-          await TicketService.update(ticket.id, { technicianId: user.id });
-        } catch (err) {
-          console.error('Failed to auto-assign', err);
-        }
-      }
-
-      const canUseInternal =
-        user &&
-        (user.profile === 'Suporte Técnico' ||
-          user.profile === 'Administrador' ||
-          user.profile === 'Líder' ||
-          (typeof user.profile === 'string' && user.profile.includes('Suporte')) ||
-          (typeof user.role === 'string' && user.role.includes('Suporte')));
-
-      await TicketService.addMessage(ticketId, replyText, !!canUseInternal && isInternal);
+      await TicketService.addMessage(ticket.id, replyText, isInternal);
       setReplyText('');
-      setIsInternal(false);
-      await fetchTicket();
-      const related = notifications.filter(
-        n => n.type === 'new_message' && n.referenceId === ticketId && !n.isRead
-      );
-      if (related.length > 0) {
-        related.forEach(n => {
-          markAsRead(n.id).catch(error => {
-            console.log('Failed to mark notification as read after reply (mobile)', ticketId, error);
-          });
-        });
-      }
+      fetchTicket();
+      // Scroll to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 500);
     } catch (error) {
-      Alert.alert('Erro', 'Falha ao enviar mensagem');
+      Alert.alert('Erro', 'Não foi possível enviar a mensagem');
     } finally {
       setSending(false);
     }
   };
 
-  const handleUpdate = async () => {
-    if (!ticket) return;
-    
-    try {
-        await TicketService.update(ticket.id, editForm);
-        setIsEditing(false);
-        fetchTicket();
-        Alert.alert('Sucesso', 'Chamado atualizado');
-    } catch (error) {
-        Alert.alert('Erro', 'Falha ao atualizar chamado');
-    }
-  };
-
-  const handleTakeTicket = async () => {
-      if (!user || !ticket) return;
+  const handleSaveEdit = async () => {
+      if (!ticket) return;
       try {
-          await TicketService.update(ticket.id, { technicianId: user.id });
-          await fetchTicket();
-          Alert.alert('Sucesso', 'Chamado atribuído a você.');
+          await TicketService.update(ticket.id, editForm);
+          setIsEditing(false);
+          fetchTicket();
+          Alert.alert('Sucesso', 'Chamado atualizado');
       } catch (error) {
-          Alert.alert('Erro', 'Falha ao assumir chamado.');
+          Alert.alert('Erro', 'Falha ao atualizar chamado');
       }
-  };
-
-  const handleChangeType = () => {
-    Alert.alert(
-        'Confirmar Alteração',
-        'Tem certeza que deseja alterar o tipo deste chamado para Equipamento (EQP)? Esta ação gerará um novo código e não pode ser desfeita.',
-        [
-            { text: 'Cancelar', style: 'cancel' },
-            { 
-                text: 'Alterar', 
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await TicketService.changeType(ticketId);
-                        Alert.alert('Sucesso', 'Tipo de chamado alterado com sucesso!');
-                        fetchTicket();
-                    } catch (error) {
-                         Alert.alert('Erro', 'Falha ao alterar tipo do chamado.');
-                    }
-                }
-            }
-        ]
-    );
   };
 
   const handleResolvePress = () => {
-      if (!ticket || !user) return;
-
-      if (!ticket.technicianId) {
-          Alert.alert('Aviso', 'Não é possível encerrar o chamado sem um Responsável Técnico definido.');
-          return;
-      }
-
-      const isCreator = user.id === ticket.creatorId;
-      
-      if (isCreator) {
-          setShowRatingModal(true);
-      } else {
-          Alert.alert(
-              'Confirmar Resolução',
-              'Deseja realmente marcar este chamado como resolvido? O solicitante será notificado.',
-              [
-                  { text: 'Cancelar', style: 'cancel' },
-                  { text: 'Resolver', onPress: () => confirmResolution() }
-              ]
-          );
-      }
+      if (!ticket) return;
+      Alert.alert(
+          'Resolver Chamado',
+          'Tem certeza que deseja marcar este chamado como resolvido?',
+          [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Confirmar', onPress: confirmResolution }
+          ]
+      );
   };
 
   const confirmResolution = async (rating?: number, feedback?: string) => {
       if (!ticket) return;
       setResolving(true);
       try {
-          const updateData: any = { status: TicketStatus.RESOLVED };
-          if (rating) updateData.rating = rating;
-          if (feedback) updateData.feedback = feedback;
-
-          await TicketService.update(ticket.id, updateData);
+          if (rating) {
+              await TicketService.rate(ticket.id, rating, feedback || '');
+          } else {
+              await TicketService.updateStatus(ticket.id, TicketStatus.RESOLVED);
+          }
           setShowRatingModal(false);
-          await fetchTicket();
+          fetchTicket();
           Alert.alert('Sucesso', 'Chamado resolvido com sucesso!');
-      } catch (error: any) {
-          console.error('Failed to resolve ticket', error?.response?.data || error);
-          const message = error?.response?.data?.message || 'Falha ao resolver chamado.';
-          Alert.alert('Erro', message);
+          navigation.goBack();
+      } catch (error) {
+          Alert.alert('Erro', 'Falha ao resolver chamado');
       } finally {
           setResolving(false);
       }
   };
 
-  const getStatusColor = (status: TicketStatus) => {
-    switch (status) {
-      case TicketStatus.OPEN: return '#3b82f6';
-      case TicketStatus.IN_ANALYSIS: return '#f59e0b';
-      case TicketStatus.IN_PROGRESS: return '#8b5cf6';
-      case TicketStatus.FORWARDED_ACQUISITION: return '#6366f1';
-      case TicketStatus.IN_ROUTE: return '#06b6d4';
-      case TicketStatus.RESOLVED: return '#10b981';
-      default: return '#9ca3af';
-    }
+  const handleTakeTicket = async () => {
+      if (!ticket || !user) return;
+      try {
+          await TicketService.update(ticket.id, { technicianId: user.id, status: TicketStatus.IN_PROGRESS });
+          fetchTicket();
+          Alert.alert('Sucesso', 'Chamado atribuído a você');
+      } catch (error) {
+          Alert.alert('Erro', 'Falha ao assumir chamado');
+      }
   };
 
-  if (loading && !ticket) {
+  if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -272,325 +177,381 @@ export const TicketDetailScreen = () => {
     );
   }
 
-  if (!ticket) {
-    return (
-        <View style={[styles.container, styles.center]}>
-            <Text style={{color: '#fff'}}>
-                {unauthorized ? 'Acesso não autorizado ao chamado.' : 'Chamado não encontrado'}
-            </Text>
-        </View>
-    )
+  if (unauthorized) {
+      return (
+          <View style={[styles.container, styles.center]}>
+              <Lock size={48} color="#ef4444" />
+              <Text style={{color: '#fff', marginTop: 16, fontSize: 18, fontWeight: 'bold'}}>Acesso Negado</Text>
+              <Text style={{color: '#9ca3af', marginTop: 8}}>Você não tem permissão para ver este chamado.</Text>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop: 24, padding: 12, backgroundColor: '#374151', borderRadius: 8}}>
+                  <Text style={{color: '#fff'}}>Voltar</Text>
+              </TouchableOpacity>
+          </View>
+      );
   }
 
-  const canEdit = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico';
-  const isTechnician = user?.profile === 'Suporte Técnico' || user?.profile === 'Administrador';
+  if (!ticket) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={{color: '#fff'}}>Chamado não encontrado</Text>
+      </View>
+    );
+  }
+
+  const isTechnician = user?.profile === 'Técnico' || user?.profile === 'Admin';
+  const isCreator = user?.id === ticket.creatorId;
+  const isAssignedToMe = ticket.technicianId === user?.id;
   const isUnassigned = !ticket.technicianId;
   const isResolved = ticket.status === TicketStatus.RESOLVED;
-  const isCreator = user?.id === ticket.creatorId;
-  const canEvaluate = isResolved && isCreator && !ticket.rating;
+  const canEdit = (isTechnician || isCreator) && !isResolved;
+  const canEvaluate = isCreator && isResolved && !ticket.rating;
+  
+  // Access Control for Rating
+  const canViewRating = user?.profile === 'Administrador' || user?.profile === 'Cliente';
+
+  const getStatusColor = (status: TicketStatus) => {
+      switch (status) {
+          case TicketStatus.OPEN: return '#3b82f6';
+          case TicketStatus.IN_ANALYSIS: return '#8b5cf6';
+          case TicketStatus.IN_PROGRESS: return '#eab308';
+          case TicketStatus.RESOLVED: return '#10b981';
+          default: return '#9ca3af';
+      }
+  };
+
+  const getPriorityColor = (priority: TicketPriority) => {
+      switch (priority) {
+          case TicketPriority.CRITICAL: return '#ef4444';
+          case TicketPriority.HIGH: return '#f97316';
+          case TicketPriority.MEDIUM: return '#eab308';
+          case TicketPriority.LOW: return '#3b82f6';
+          default: return '#9ca3af';
+      }
+  };
+
+  const renderMessageItem = ({ item }: { item: any }) => {
+    const isMe = item.senderId === user?.id;
+    const internal = !!item.isInternal;
+    return (
+      <View
+        style={[
+          styles.messageRow,
+          isMe ? styles.myMessageRow : styles.otherMessageRow,
+        ]}
+      >
+        {!isMe && (
+          <View style={styles.messageAvatar}>
+            {item.senderAvatar ? (
+              <Image
+                source={{ uri: item.senderAvatar }}
+                style={styles.messageAvatarImage}
+              />
+            ) : (
+              <View style={[styles.messageAvatarPlaceholder, { backgroundColor: '#374151' }]}>
+                <Text style={styles.messageAvatarInitials}>
+                    {item.senderName?.substring(0, 2).toUpperCase() || 'US'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        <View
+          style={[
+            styles.messageBubble,
+            isMe ? styles.myMessage : styles.otherMessage,
+            internal && styles.internalMessage,
+          ]}
+        >
+          <View style={styles.messageHeader}>
+            <View style={styles.messageHeaderLeft}>
+              <Text style={styles.senderName}>{item.senderName}</Text>
+              {internal && (
+                  <View style={styles.internalBadge}>
+                      <Lock size={10} color="#000" />
+                      <Text style={styles.internalText}>Interna</Text>
+                  </View>
+              )}
+            </View>
+            <Text style={styles.messageTime}>
+              {format(new Date(item.createdAt), 'HH:mm')}
+            </Text>
+          </View>
+          <Text style={styles.messageText}>{item.content}</Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ArrowLeft color="#fff" size={24} />
         </TouchableOpacity>
+        
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{ticket.code || 'Chamado'}</Text>
+          <Text style={styles.headerCode}>{ticket.code || `#${ticket.id.substring(0,6)}`}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(ticket.status) }]}>{ticket.status}</Text>
+             <Text style={[styles.statusText, { color: getStatusColor(ticket.status) }]}>{ticket.status}</Text>
           </View>
         </View>
         
         <View style={styles.headerActions}>
             {isTechnician && isUnassigned && !isResolved && (
                 <TouchableOpacity onPress={handleTakeTicket} style={styles.actionButton}>
-                    <UserPlus color="#3b82f6" size={22} />
+                    <UserPlus color="#3b82f6" size={20} />
                 </TouchableOpacity>
             )}
 
-            {canEvaluate ? (
+            {canEvaluate && canViewRating ? (
                 <TouchableOpacity onPress={() => setShowRatingModal(true)} style={styles.actionButton}>
-                    <Star color="#fbbf24" size={22} />
+                    <Star color="#fbbf24" size={20} />
                 </TouchableOpacity>
             ) : (
                 !isResolved && (
                     <TouchableOpacity onPress={handleResolvePress} style={styles.actionButton}>
-                        <CheckCircle color="#10b981" size={22} />
+                        <CheckCircle color="#10b981" size={20} />
                     </TouchableOpacity>
                 )
             )}
 
             {canEdit && !isResolved && (
                 <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.actionButton}>
-                    <Edit2 color={isEditing ? "#3b82f6" : "#fff"} size={22} />
+                    <Edit2 color={isEditing ? "#3b82f6" : "#fff"} size={20} />
                 </TouchableOpacity>
             )}
         </View>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'messages' && styles.activeTab]}
-          onPress={() => setActiveTab('messages')}
-        >
-          <Text style={[styles.tabText, activeTab === 'messages' && styles.activeTabText]}>Mensagens</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'details' && styles.activeTab]}
-          onPress={() => setActiveTab('details')}
-        >
-          <Text style={[styles.tabText, activeTab === 'details' && styles.activeTabText]}>Detalhes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-          onPress={() => setActiveTab('history')}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>Histórico</Text>
-        </TouchableOpacity>
+      {/* Ticket Main Info */}
+      <View style={styles.mainInfo}>
+          <Text style={styles.ticketTitle}>{ticket.subject}</Text>
+          <View style={styles.creatorInfo}>
+              <View style={styles.avatarSmall}>
+                  {ticket.creatorAvatar ? (
+                       <Image source={{ uri: ticket.creatorAvatar }} style={styles.avatarImage} />
+                  ) : (
+                       <UserIcon size={14} color="#9ca3af" />
+                  )}
+              </View>
+              <Text style={styles.creatorName}>{ticket.creatorName} • {format(new Date(ticket.createdAt), "dd 'de' MMM, HH:mm", { locale: ptBR })}</Text>
+          </View>
       </View>
 
-      {/* Content */}
-      <View style={[styles.content, { paddingBottom: insets.bottom }]}>
-        {activeTab === 'messages' ? (
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-            style={{ flex: 1 }}
-          >
+      <View style={{ paddingHorizontal: 16 }}>
+        <Tabs 
+            tabs={['Mensagens', 'Detalhes']} 
+            activeTab={activeTab} 
+            onTabChange={setActiveTab} 
+        />
+      </View>
+
+      <View style={styles.content}>
+        {activeTab === 'Mensagens' ? (
+          <>
             <FlatList
               ref={flatListRef}
               data={ticket.messages}
               keyExtractor={(item) => item.id}
+              renderItem={renderMessageItem}
               contentContainerStyle={styles.messagesList}
-              renderItem={({ item }) => {
-                const isMe = item.senderId === user?.id;
-                const internal = !!item.isInternal;
-                return (
-                  <View
-                    style={[
-                      styles.messageRow,
-                      isMe ? styles.myMessageRow : styles.otherMessageRow,
-                    ]}
-                  >
-                    {!isMe && (
-                      <View style={styles.messageAvatar}>
-                        {item.senderAvatar ? (
-                          <Image
-                            source={{ uri: item.senderAvatar }}
-                            style={styles.messageAvatarImage}
-                          />
-                        ) : (
-                          <Text style={styles.messageAvatarInitials}>
-                            {item.senderName?.substring(0, 2).toUpperCase() || 'US'}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                    <View
-                      style={[
-                        styles.messageBubble,
-                        isMe ? styles.myMessage : styles.otherMessage,
-                        internal && styles.internalMessage,
-                      ]}
-                    >
-                      <View style={styles.messageHeader}>
-                        <View style={styles.messageHeaderLeft}>
-                          <Text style={styles.senderName}>{item.senderName}</Text>
-                          {internal && (
-                            <View style={styles.internalBadge}>
-                              <Lock size={12} color="#facc15" />
-                              <Text style={styles.internalBadgeText}>Privado</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.timestamp}>
-                          {new Date(item.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.messageText,
-                          isMe ? styles.myMessageText : styles.otherMessageText,
-                        ]}
-                      >
-                        {item.content}
-                      </Text>
-                    </View>
-                    {isMe && (
-                      <View style={styles.messageAvatar}>
-                        {user?.avatar ? (
-                          <Image
-                            source={{ uri: user.avatar }}
-                            style={styles.messageAvatarImage}
-                          />
-                        ) : (
-                          <Text style={styles.messageAvatarInitials}>
-                            {user?.name?.substring(0, 2).toUpperCase() || 'EU'}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                );
-              }}
+              inverted={false}
             />
             
             {!isResolved && (
-                <>
-                    <View style={styles.inputContainer}>
-                        <TextInput
-                            style={styles.input}
-                            value={replyText}
-                            onChangeText={setReplyText}
-                            placeholder="Digite sua resposta..."
-                            placeholderTextColor="#6b7280"
-                            multiline
-                        />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                    style={styles.inputContainer}
+                >
+                    {isTechnician && (
                         <TouchableOpacity 
-                            style={[styles.sendButton, !replyText.trim() && styles.sendButtonDisabled]} 
-                            onPress={handleSend}
-                            disabled={!replyText.trim() || sending}
+                            style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
+                            onPress={() => setIsInternal(!isInternal)}
                         >
-                            {sending ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <Send color="#fff" size={20} />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                    {user && (user.profile === 'Suporte Técnico' || user.profile === 'Administrador' || user.profile === 'Líder') && ticket.status === TicketStatus.OPEN && !ticket.code?.startsWith('EQP') && (
-                        <TouchableOpacity 
-                            style={[styles.saveButton, { marginTop: 16, backgroundColor: 'rgba(99, 102, 241, 0.2)', borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.4)' }]} 
-                            onPress={handleChangeType}
-                        >
-                            <Text style={[styles.saveButtonText, { color: '#818cf8' }]}>Alterar para Equipamento</Text>
+                            <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
                         </TouchableOpacity>
                     )}
-                </>
-            )}
-          </KeyboardAvoidingView>
-        ) : activeTab === 'details' ? (
-          <ScrollView style={styles.detailsContainer}>
-            {isEditing ? (
-                <View style={styles.formSection}>
-                    <CustomPicker
-                        label="Prioridade"
-                        value={editForm.priority || TicketPriority.LOW}
-                        options={[
-                            { label: 'Baixa', value: TicketPriority.LOW },
-                            { label: 'Média', value: TicketPriority.MEDIUM },
-                            { label: 'Alta', value: TicketPriority.HIGH },
-                            { label: 'Crítica', value: TicketPriority.CRITICAL },
-                        ]}
-                        onSelect={(v) => setEditForm(p => ({...p, priority: v as TicketPriority}))}
+                    <TextInput
+                        style={styles.input}
+                        placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
+                        placeholderTextColor="#6b7280"
+                        value={replyText}
+                        onChangeText={setReplyText}
+                        multiline
                     />
-
-                    <CustomPicker
-                        label="Status"
-                        value={editForm.status || TicketStatus.OPEN}
-                        options={[
-                            { label: 'Aberto', value: TicketStatus.OPEN },
-                            { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
-                            { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
-                            { label: 'Encaminhado Aquisição', value: TicketStatus.FORWARDED_ACQUISITION },
-                            { label: 'Em Rota', value: TicketStatus.IN_ROUTE },
-                            { label: 'Resolvido', value: TicketStatus.RESOLVED },
-                        ]}
-                        onSelect={(v) => setEditForm(p => ({...p, status: v as TicketStatus}))}
-                    />
-
-                    <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
-                        <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+                    <TouchableOpacity 
+                        style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
+                        onPress={handleSendReply}
+                        disabled={!replyText.trim() || sending}
+                    >
+                        {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
                     </TouchableOpacity>
+                </KeyboardAvoidingView>
+            )}
+          </>
+        ) : (
+          <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+            {isEditing && (
+                 <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Edição Rápida</Text>
+                    <View style={styles.formSection}>
+                        <CustomPicker
+                            label="Prioridade"
+                            value={editForm.priority || TicketPriority.LOW}
+                            options={[
+                                { label: 'Baixa', value: TicketPriority.LOW },
+                                { label: 'Média', value: TicketPriority.MEDIUM },
+                                { label: 'Alta', value: TicketPriority.HIGH },
+                                { label: 'Crítica', value: TicketPriority.CRITICAL },
+                            ]}
+                            onSelect={(v) => setEditForm(p => ({...p, priority: v as TicketPriority}))}
+                        />
+
+                        <CustomPicker
+                            label="Status"
+                            value={editForm.status || TicketStatus.OPEN}
+                            options={[
+                                { label: 'Aberto', value: TicketStatus.OPEN },
+                                { label: 'Em Análise', value: TicketStatus.IN_ANALYSIS },
+                                { label: 'Em Andamento', value: TicketStatus.IN_PROGRESS },
+                                { label: 'Encaminhado Aquisição', value: TicketStatus.FORWARDED_ACQUISITION },
+                                { label: 'Em Rota', value: TicketStatus.IN_ROUTE },
+                                { label: 'Resolvido', value: TicketStatus.RESOLVED },
+                            ]}
+                            onSelect={(v) => setEditForm(p => ({...p, status: v as TicketStatus}))}
+                        />
+
+                        <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
+                            <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            ) : (
-                <View style={styles.infoSection}>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Equipamento:</Text>
-                        <Text style={styles.infoValue}>{ticket.equipment}</Text>
-                    </View>
-                    
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Cliente:</Text>
-                        <Text style={styles.infoValue}>{ticket.clientName}</Text>
-                    </View>
+            )}
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Departamento:</Text>
-                        <Text style={styles.infoValue}>{ticket.municipality || 'N/A'}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Técnico:</Text>
-                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Prioridade:</Text>
-                        <Text style={[styles.infoValue, { 
-                            color: ticket.priority === TicketPriority.CRITICAL ? '#ef4444' : '#fff' 
-                        }]}>
-                            {ticket.priority === TicketPriority.CRITICAL ? 'Crítica' :
-                             ticket.priority === TicketPriority.HIGH ? 'Alta' :
-                             ticket.priority === TicketPriority.MEDIUM ? 'Média' : 'Baixa'}
+            {/* General Info Card */}
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <AlertTriangle size={18} color="#3b82f6" />
+                    <Text style={styles.cardTitle}>Informações Gerais</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Prioridade</Text>
+                    <View style={[styles.badge, { backgroundColor: getPriorityColor(ticket.priority) + '20' }]}>
+                        <Text style={[styles.badgeText, { color: getPriorityColor(ticket.priority) }]}>
+                            {ticket.priority}
                         </Text>
                     </View>
                 </View>
-            )}
 
-            <View style={styles.descriptionSection}>
-                <Text style={styles.descriptionLabel}>Descrição do Problema</Text>
-                <View style={styles.descriptionBox}>
-                    <Text style={styles.descriptionText}>{ticket.description}</Text>
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Categoria</Text>
+                    <Text style={styles.infoValue}>{ticket.category || 'Geral'}</Text>
+                </View>
+
+                 <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Cliente</Text>
+                    <Text style={styles.infoValue}>{ticket.clientName || 'N/A'}</Text>
+                </View>
+
+                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.infoLabel}>Local</Text>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                        <MapPin size={14} color="#9ca3af" />
+                        <Text style={styles.infoValue}>{ticket.municipality || 'Não informado'}</Text>
+                    </View>
                 </View>
             </View>
 
-            {ticket.rating && (
-                <View style={styles.ratingSection}>
-                    <Text style={styles.ratingLabel}>Avaliação do Cliente</Text>
-                    <View style={styles.ratingBox}>
-                        <View style={{flexDirection:'row', marginBottom: 8}}>
-                             {[1,2,3,4,5].map(s => (
-                                 <Text key={s} style={{fontSize: 20, color: s <= ticket.rating! ? '#eab308' : '#4b5563'}}>★</Text>
-                             ))}
+            {/* Equipment Card */}
+            <View style={styles.card}>
+                 <View style={styles.cardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={styles.iconBox}>
+                             <Text style={{fontSize: 16}}>🖥️</Text>
                         </View>
-                        {ticket.feedback && <Text style={styles.feedbackText}>{ticket.feedback}</Text>}
+                        <Text style={styles.cardTitle}>Equipamento</Text>
                     </View>
+                </View>
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Modelo</Text>
+                    <Text style={styles.infoValue}>{ticket.equipment || 'N/A'}</Text>
+                </View>
+                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.infoLabel}>Serial</Text>
+                    <Text style={styles.infoValue}>{ticket.serialNumber || 'N/A'}</Text>
+                </View>
+            </View>
+
+            {/* Description Card */}
+            <View style={styles.card}>
+                 <View style={styles.cardHeader}>
+                    <FileText size={18} color="#3b82f6" />
+                    <Text style={styles.cardTitle}>Descrição</Text>
+                </View>
+                <Text style={styles.descriptionText}>{ticket.description}</Text>
+            </View>
+
+             {/* Technician Card */}
+             <View style={styles.card}>
+                 <View style={styles.cardHeader}>
+                    <UserIcon size={18} color="#3b82f6" />
+                    <Text style={styles.cardTitle}>Responsável Técnico</Text>
+                </View>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                    <View style={[styles.avatar, { backgroundColor: '#374151' }]}>
+                        {ticket.technicianAvatar ? (
+                             <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatarImage} />
+                        ) : (
+                             <UserIcon size={20} color="#9ca3af" />
+                        )}
+                    </View>
+                    <View>
+                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
+                        <Text style={[styles.infoLabel, { fontSize: 12 }]}>{ticket.technician ? 'Técnico Designado' : 'Aguardando atribuição'}</Text>
+                    </View>
+                </View>
+            </View>
+
+             {/* Attachments Card (Placeholder for now as logic is complex) */}
+             {ticket.attachment && (
+                 <TouchableOpacity style={styles.card}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                        <View style={[styles.iconBox, { backgroundColor: '#3b82f620' }]}>
+                            <Paperclip size={20} color="#3b82f6" />
+                        </View>
+                        <View>
+                            <Text style={styles.cardTitle}>Anexo Disponível</Text>
+                            <Text style={styles.infoLabel}>Toque para visualizar</Text>
+                        </View>
+                    </View>
+                 </TouchableOpacity>
+             )}
+
+            {ticket.rating && canViewRating && (
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Star size={18} color="#fbbf24" />
+                        <Text style={styles.cardTitle}>Avaliação</Text>
+                    </View>
+                    <View style={{flexDirection:'row', marginBottom: 8}}>
+                            {[1,2,3,4,5].map(s => (
+                                <Text key={s} style={{fontSize: 24, color: s <= ticket.rating! ? '#eab308' : '#4b5563'}}>★</Text>
+                            ))}
+                    </View>
+                    {ticket.feedback && <Text style={[styles.descriptionText, { fontStyle: 'italic', color: '#9ca3af' }]}>"{ticket.feedback}"</Text>}
                 </View>
             )}
 
+            <View style={{marginTop: 20, alignItems: 'center'}}>
+                <Text style={{color: '#4b5563', fontSize: 12}}>
+                    Criado em {format(new Date(ticket.createdAt), "dd/MM/yyyy 'às' HH:mm")}
+                </Text>
+            </View>
+
           </ScrollView>
-        ) : (
-          <View style={styles.historyContainer}>
-              {loadingHistory ? (
-                  <ActivityIndicator color="#3b82f6" />
-              ) : (
-                  <FlatList
-                    data={history}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <View style={styles.historyItem}>
-                            <View style={styles.historyIcon}>
-                                <Clock size={16} color="#9ca3af" />
-                            </View>
-                            <View style={styles.historyContent}>
-                                <Text style={styles.historyAction}>{item.changeType}</Text>
-                                <Text style={styles.historyDetails}>
-                                    {item.userName} • {new Date(item.createdAt).toLocaleString()}
-                                </Text>
-                                {item.details && <Text style={styles.historyMeta}>{item.details}</Text>}
-                            </View>
-                        </View>
-                    )}
-                  />
-              )}
-          </View>
         )}
       </View>
 
@@ -617,174 +578,84 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
     backgroundColor: '#111827',
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 12,
     padding: 4,
   },
   headerInfo: {
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 18,
+  headerCode: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#9ca3af',
+    marginBottom: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 4,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   headerActions: {
       flexDirection: 'row',
-      gap: 12,
+      gap: 8,
   },
   actionButton: {
       padding: 8,
       backgroundColor: '#1f2937',
       borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#374151',
   },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+  mainInfo: {
+      paddingHorizontal: 16,
+      paddingBottom: 16,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  ticketTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#fff',
+      marginBottom: 8,
+      lineHeight: 28,
   },
-  activeTab: {
-    borderBottomColor: '#3b82f6',
+  creatorInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
   },
-  tabText: {
-    color: '#9ca3af',
-    fontWeight: '600',
+  avatarSmall: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: '#374151',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
   },
-  activeTabText: {
-    color: '#3b82f6',
+  creatorName: {
+      color: '#9ca3af',
+      fontSize: 12,
   },
   content: {
     flex: 1,
+    backgroundColor: '#0f141f', // Slightly darker for contrast with cards
   },
   messagesList: {
     padding: 16,
     gap: 16,
   },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#3b82f6',
-    borderBottomRightRadius: 4,
-  },
-  otherMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#1f2937',
-    borderBottomLeftRadius: 4,
-  },
-  messageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-    gap: 8,
-  },
-  senderName: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'rgba(255,255,255,0.7)',
-  },
-  timestamp: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  myMessageText: {
-    color: '#fff',
-  },
-  otherMessageText: {
-    color: '#e5e7eb',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: '#1f2937',
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  inputActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#374151',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingRight: 16,
-    color: '#fff',
-    maxHeight: 100,
-  },
-  sendButton: {
-    backgroundColor: '#3b82f6',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#4b5563',
-    opacity: 0.5,
-  },
-  privateToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#4b5563',
-    backgroundColor: '#111827',
-    gap: 4,
-  },
-  privateToggleActive: {
-    borderColor: '#facc15',
-    backgroundColor: 'rgba(250, 204, 21, 0.12)',
-  },
-  privateToggleText: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  privateToggleTextActive: {
-    color: '#facc15',
-    fontWeight: '600',
-  },
   messageRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 16,
+    maxWidth: '100%',
   },
   myMessageRow: {
     justifyContent: 'flex-end',
@@ -793,126 +664,204 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: 8,
+    alignSelf: 'flex-end',
+  },
+  messageAvatarPlaceholder: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   messageAvatarImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
   },
   messageAvatarInitials: {
-    color: '#e5e7eb',
-    fontWeight: 'bold',
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: 'bold',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+  },
+  myMessage: {
+    backgroundColor: '#3b82f6',
+    borderBottomRightRadius: 4,
+    borderBottomLeftRadius: 16,
+  },
+  otherMessage: {
+    backgroundColor: '#1f2937',
   },
   internalMessage: {
+    backgroundColor: '#451a03', // Dark amber
     borderWidth: 1,
-    borderColor: '#facc15',
+    borderColor: '#f59e0b',
   },
-  messageHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  internalBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: 'rgba(250, 204, 21, 0.16)',
-  },
-  internalBadgeText: {
-    fontSize: 10,
-    color: '#facc15',
-    fontWeight: '600',
-  },
-  detailsContainer: {
-    padding: 20,
-  },
-  infoSection: {
-    backgroundColor: '#1f2937',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
-  },
-  infoRow: {
+  messageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    marginBottom: 4,
+    gap: 8,
+  },
+  messageHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  messageTime: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#fff',
+    lineHeight: 20,
+  },
+  internalBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: '#f59e0b',
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderRadius: 4,
+  },
+  internalText: {
+      fontSize: 8,
+      color: '#000',
+      fontWeight: 'bold',
+  },
+  inputContainer: {
+    padding: 12,
+    backgroundColor: '#1f2937',
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    color: '#fff',
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#374151',
+    opacity: 0.5,
+  },
+  internalToggle: {
+      padding: 8,
+      borderRadius: 20,
+      backgroundColor: '#111827',
+  },
+  internalToggleActive: {
+      backgroundColor: '#451a03',
+      borderWidth: 1,
+      borderColor: '#f59e0b',
+  },
+  // Details Tab Styles
+  detailsContainer: {
+    padding: 16,
+  },
+  card: {
+      backgroundColor: '#1f2937',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: '#374151',
+  },
+  cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#374151',
+  },
+  cardTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#fff',
+  },
+  infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: '#37415150',
   },
   infoLabel: {
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  infoValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  descriptionSection: {
-      marginBottom: 20,
-  },
-  descriptionLabel: {
       color: '#9ca3af',
       fontSize: 14,
-      marginBottom: 8,
+  },
+  infoValue: {
+      color: '#fff',
+      fontSize: 14,
       fontWeight: '500',
   },
-  descriptionBox: {
-      backgroundColor: '#1f2937',
-      borderRadius: 16,
-      padding: 16,
+  badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+  },
+  badgeText: {
+      fontSize: 12,
+      fontWeight: 'bold',
   },
   descriptionText: {
       color: '#e5e7eb',
-      fontSize: 15,
+      fontSize: 14,
       lineHeight: 22,
   },
-  historyContainer: {
-      padding: 20,
-  },
-  historyItem: {
-      flexDirection: 'row',
-      marginBottom: 24,
-  },
-  historyIcon: {
-      marginRight: 16,
+  avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
   },
-  historyContent: {
-      flex: 1,
+  avatarImage: {
+      width: '100%',
+      height: '100%',
   },
-  historyAction: {
-      color: '#fff',
-      fontWeight: 'bold',
-      fontSize: 14,
-      marginBottom: 4,
-  },
-  historyDetails: {
-      color: '#9ca3af',
-      fontSize: 12,
-      marginBottom: 2,
-  },
-  historyMeta: {
-      color: '#6b7280',
-      fontSize: 12,
-      fontStyle: 'italic',
+  iconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      backgroundColor: '#374151',
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   formSection: {
       gap: 16,
-      marginBottom: 20,
   },
   saveButton: {
       backgroundColor: '#3b82f6',
@@ -926,22 +875,4 @@ const styles = StyleSheet.create({
       fontWeight: 'bold',
       fontSize: 16,
   },
-  ratingSection: {
-      marginTop: 10,
-  },
-  ratingLabel: {
-      color: '#9ca3af',
-      fontSize: 14,
-      marginBottom: 8,
-      fontWeight: '500',
-  },
-  ratingBox: {
-      backgroundColor: '#1f2937',
-      borderRadius: 16,
-      padding: 16,
-  },
-  feedbackText: {
-      color: '#e5e7eb',
-      fontStyle: 'italic',
-  }
 });

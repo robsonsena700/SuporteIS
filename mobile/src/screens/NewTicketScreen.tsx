@@ -212,7 +212,7 @@ export const NewTicketScreen = () => {
               style={[styles.typeButton, ticketType === 'Sistema' && styles.typeButtonActive]}
               onPress={() => setTicketType('Sistema')}
             >
-              <Text style={[styles.typeText, ticketType === 'Sistema' && styles.typeTextActive]}>Sistema</Text>
+              <Text style={[styles.typeText, ticketType === 'Sistema' && styles.typeTextActive]}>Serviço</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.typeButton, ticketType === 'Equipamento' && styles.typeButtonActive]}

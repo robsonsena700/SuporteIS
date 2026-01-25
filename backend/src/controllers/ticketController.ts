@@ -399,6 +399,16 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
     }
 
     if (rating !== undefined) {
+        // Access Control: Rating Permission
+        // Only Administrators and Clients are allowed to rate tickets.
+        // Support staff and other profiles are strictly prohibited.
+        const canRate = (req.user?.profile === 'Administrador' || req.user?.role === 'Administrador') || 
+                        (req.user?.profile === 'Cliente' || req.user?.role === 'Cliente');
+        
+        if (!canRate) {
+             return res.status(403).json({ message: 'Permissão negada. Apenas Administradores e Clientes podem avaliar chamados.' });
+        }
+
         const ratingNum = Number(rating);
         if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
             return res.status(400).json({ message: 'Avaliação deve ser um número entre 1 e 5.' });

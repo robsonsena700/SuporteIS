@@ -67,3 +67,16 @@ Foi padronizado o fluxo de avaliação de chamados entre as versões Web e Mobil
 - **Segurança e permissões**:
   - O backend valida se o usuário autenticado é o **solicitante do chamado** antes de aceitar a avaliação ou tentativa de reabertura.
   - Atualizações diretas na API que tentem avaliar chamados de outros usuários são rejeitadas com erro de permissão.
+
+## 6. Controle de Acesso e Visualização
+
+Reforçamos as regras de visibilidade e acesso para perfis específicos, garantindo uma interface mais limpa e segura.
+
+### Filtro "Meus Chamados"
+- **Clientes**: O botão de filtro "Meus Chamados" foi completamente removido da interface (Web e Mobile). Clientes visualizam, por padrão e exclusivamente, seus próprios chamados.
+- **Backend**: O sistema garante que usuários com perfil "Cliente" só tenham acesso aos chamados criados por eles, independente dos parâmetros de filtro enviados.
+
+### Seção de Avaliação
+- **Visibilidade Restrita**: A funcionalidade e os componentes visuais de avaliação (botões, modais, estrelas) são exibidos **apenas** para usuários com perfil de **Administrador** ou **Cliente**.
+- **Outros Perfis**: Usuários de Suporte Técnico, Líderes e Analistas **não visualizam** a opção de avaliar chamados, evitando ruídos na interface.
+- **Validação de Segurança**: O backend implementa uma verificação estrita que rejeita qualquer tentativa de avaliação vinda de usuários que não sejam Administradores ou Clientes, retornando erro de permissão (403 Forbidden).

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { ErrorModal, ErrorDetails } from '../components/ErrorModal';
 
 export const LoginScreen = () => {
   const navigation = useNavigation();
@@ -13,9 +14,18 @@ export const LoginScreen = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn } = useAuth();
 
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [currentError, setCurrentError] = useState<ErrorDetails | null>(null);
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      setCurrentError({
+        title: 'Campos Obrigatórios',
+        message: 'Por favor, preencha seu e-mail e senha para continuar.',
+        suggestion: 'Certifique-se de que nenhum campo está vazio.',
+        technicalDetails: 'Validation Error: Empty fields'
+      });
+      setErrorModalVisible(true);
       return;
     }
 
@@ -24,24 +34,66 @@ export const LoginScreen = () => {
       await signIn(email, password);
     } catch (error: any) {
       console.error('Login error:', error);
+      
+      let title = 'Falha no Login';
       let msg = 'Erro ao realizar login. Verifique suas credenciais.';
+      let suggestion = 'Tente digitar sua senha novamente.';
+      let code = error.code || 'UNKNOWN';
 
       if (error.response) {
         msg = error.response.data?.message || msg;
+        code = error.response.status;
+        
+        if (code === 404) {
+             title = 'Usuário não encontrado';
+             suggestion = 'Verifique se o endereço de e-mail está correto. Se não tiver conta, cadastre-se.';
+        } else if (code === 401) {
+             title = 'Credenciais Inválidas';
+             suggestion = 'A senha informada está incorreta. Use a opção "Esqueceu a senha?" se necessário.';
+        }
       } else if (error.request) {
-        msg = 'Não foi possível conectar ao servidor. Verifique sua internet ou se o servidor está online.';
-      } else if (error.message?.includes('timeout')) {
-        msg = 'Tempo de conexão esgotado. Tente novamente em instantes.';
+        msg = 'Não foi possível conectar ao servidor. O servidor pode estar offline ou inacessível.';
+        suggestion = 'Verifique sua conexão com a internet e tente novamente.';
+        code = 'NO_RESPONSE';
+      } else if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
+        msg = 'O servidor demorou muito para responder.';
+        suggestion = 'Sua conexão pode estar lenta. Tente novamente em alguns instantes.';
+        code = 'TIMEOUT';
+      } else if (error.message === 'Network Error') {
+        msg = 'Erro de conexão com a rede.';
+        suggestion = 'Verifique se o Wi-Fi ou dados móveis estão ativos.';
+        code = 'NETWORK_ERROR';
       }
 
-      Alert.alert('Falha no Login', msg);
+      setCurrentError({
+        title,
+        message: msg,
+        code: code.toString(),
+        technicalDetails: error.message || JSON.stringify(error),
+        suggestion
+      });
+      setErrorModalVisible(true);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleReportError = () => {
+      // Stub implementation for reporting error
+      console.log('Reporting error:', currentError);
+      Alert.alert('Relatório Enviado', 'Obrigado por nos ajudar a melhorar. Nossa equipe analisará o erro.');
+      setErrorModalVisible(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      <ErrorModal
+        visible={errorModalVisible}
+        onClose={() => setErrorModalVisible(false)}
+        error={currentError}
+        onRetry={handleLogin}
+        onReport={handleReportError}
+      />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
