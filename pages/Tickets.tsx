@@ -142,6 +142,15 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
 
     if (!matchesFilter) return false;
 
+    if (showMyTickets && user) {
+        const isClient = user.profile === 'Cliente';
+        if (isClient) {
+            if (t.creatorId !== user.id) return false;
+        } else {
+            if (t.technicianId !== user.id && t.creatorId !== user.id) return false;
+        }
+    }
+
     if (activeTab === 'Concluído') {
         return t.status === TicketStatus.RESOLVED;
     }

@@ -715,6 +715,18 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
                         'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
                         [currentTechnicianId, 'new_message', ticketId, `Nova mensagem de ${senderName}`]
                     );
+                } else {
+                    // Notify all Admins if ticket is unassigned
+                    const admins = await pool.query("SELECT id FROM users WHERE role = 'Administrador' OR profile = 'Administrador'");
+                    for (const admin of admins.rows) {
+                         // Avoid duplicate notifications if admin is also the sender (unlikely here but good practice)
+                         if (admin.id !== senderId) {
+                            await pool.query(
+                                'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
+                                [admin.id, 'new_message', ticketId, `Nova mensagem de ${senderName} em chamado não atribuído`]
+                            );
+                         }
+                    }
                 }
             } else {
                 if (ticketOwnerId) {
