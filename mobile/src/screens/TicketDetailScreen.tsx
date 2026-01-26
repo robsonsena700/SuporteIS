@@ -14,6 +14,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { Tabs } from '../components/Tabs';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { API_URL } from '../api/api';
 
 type RootStackParamList = {
   TicketDetail: { ticketId: string };
@@ -21,6 +22,16 @@ type RootStackParamList = {
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, 'TicketDetail'>;
 type TicketDetailNavigationProp = StackNavigationProp<RootStackParamList>;
+
+const getAttachmentUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+    // If path is like "uploads\file.jpg" (windows style), fix it? 
+    // Usually URLs use forward slashes.
+    const normalizedPath = path.replace(/\\/g, '/');
+    return `${baseUrl}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+};
 
 export const TicketDetailScreen = () => {
   const navigation = useNavigation<TicketDetailNavigationProp>();
@@ -374,7 +385,7 @@ export const TicketDetailScreen = () => {
           <View style={styles.creatorInfo}>
               <View style={styles.avatarSmall}>
                   {ticket.creatorAvatar ? (
-                       <Image source={{ uri: ticket.creatorAvatar }} style={styles.avatarImage} />
+                       <Image source={{ uri: getAttachmentUrl(ticket.creatorAvatar) }} style={styles.avatarImage} />
                   ) : (
                        <UserIcon size={14} color="#9ca3af" />
                   )}
@@ -520,7 +531,7 @@ export const TicketDetailScreen = () => {
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
                     <View style={[styles.avatar, { backgroundColor: '#374151' }]}>
                         {ticket.technicianAvatar ? (
-                             <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatarImage} />
+                             <Image source={{ uri: getAttachmentUrl(ticket.technicianAvatar) }} style={styles.avatarImage} />
                         ) : (
                              <UserIcon size={20} color="#9ca3af" />
                         )}
@@ -569,22 +580,27 @@ export const TicketDetailScreen = () => {
                         <Text style={styles.cardTitle}>Anexo</Text>
                     </View>
                     
-                    {ticket.attachment.match(/\.(jpeg|jpg|gif|png)$/i) || ticket.attachment.startsWith('data:image') ? (
-                        <TouchableOpacity onPress={() => Linking.openURL(ticket.attachment!)}>
-                            <Image 
-                                source={{ uri: ticket.attachment }} 
-                                style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8, resizeMode: 'cover' }} 
-                            />
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity 
-                            style={styles.attachmentButton}
-                            onPress={() => Linking.openURL(ticket.attachment!)}
-                        >
-                            <Download size={20} color="#3b82f6" />
-                            <Text style={styles.attachmentText}>Baixar Anexo</Text>
-                        </TouchableOpacity>
-                    )}
+                    {(() => {
+                        const fullUrl = getAttachmentUrl(ticket.attachment!);
+                        const isImage = ticket.attachment!.match(/\.(jpeg|jpg|gif|png)$/i) || ticket.attachment!.startsWith('data:image');
+                        
+                        return isImage ? (
+                            <TouchableOpacity onPress={() => Linking.openURL(fullUrl)}>
+                                <Image 
+                                    source={{ uri: fullUrl }} 
+                                    style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8, resizeMode: 'cover' }} 
+                                />
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity 
+                                style={styles.attachmentButton}
+                                onPress={() => Linking.openURL(fullUrl)}
+                            >
+                                <Download size={20} color="#3b82f6" />
+                                <Text style={styles.attachmentText}>Baixar Anexo</Text>
+                            </TouchableOpacity>
+                        );
+                    })()}
                 </View>
             )}
 

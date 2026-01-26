@@ -202,12 +202,12 @@ export const getTickets = async (req: AuthRequest, res: Response) => {
         paramIndex++;
     }
 
-    // Category Filter (Sistema vs Equipamento)
-    if (category && (category === 'Sistema' || category === 'Equipamento')) {
-        const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro'];
+    // Category Filter (Sistema/Serviço vs Equipamento)
+    if (category && (category === 'Sistema' || category === 'Serviço' || category === 'Equipamento')) {
+        const keywords = ['sistema', 'software', 'site', 'app', 'aplicativo', 'erp', 'banco', 'email', 'outlook', 'office', 'windows', 'linux', 'internet', 'rede', 'vpn', 'bug', 'erro', 'serviço', 'suporte'];
         const regexPattern = keywords.join('|');
         
-        if (category === 'Sistema') {
+        if (category === 'Sistema' || category === 'Serviço') {
             queryText += ` AND (COALESCE(t.equipment, '') || ' ' || t.subject) ~* $${paramIndex}`;
             queryParams.push(regexPattern);
             paramIndex++;

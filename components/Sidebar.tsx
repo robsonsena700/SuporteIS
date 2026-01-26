@@ -42,8 +42,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
   ];
 
   const navItems = allNavItems.filter(item => {
+    // Hide 'Logos' for non-admin users
+    if (item.label === 'Logos' && user?.profile !== 'Administrador') {
+      return false;
+    }
+
     if (user?.profile === 'Cliente') {
-      return !['Equipamentos', 'Usuários'].includes(item.label);
+      return !['Equipamentos', 'Usuários', 'Logos'].includes(item.label);
     }
     return true;
   });

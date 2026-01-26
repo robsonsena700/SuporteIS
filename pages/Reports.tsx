@@ -200,7 +200,7 @@ const Reports: React.FC = () => {
                             onChange={e => setFilterCategory(e.target.value)}
                         >
                             <option value="">Todas</option>
-                            <option value="Sistema">Sistema</option>
+                            <option value="Serviço">Serviço</option>
                             <option value="Equipamento">Equipamento</option>
                         </select>
                     </div>

@@ -18,10 +18,10 @@ const getBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const DEV_API_URL = getBaseUrl();
+export const API_URL = getBaseUrl();
 
 export const api = axios.create({
-  baseURL: DEV_API_URL,
+  baseURL: API_URL,
   timeout: 15000, // Increased timeout for mobile networks
 });
 

@@ -116,6 +116,18 @@ export const TicketService = {
     return response.data.map(mapHistoryFromApi);
   },
 
+  getReport: async (params: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    priority?: string;
+    search?: string;
+    category?: string;
+  }) => {
+    const response = await api.get('/tickets', { params });
+    return response.data.map(mapTicketFromApi);
+  },
+
   changeType: async (id: string) => {
     const response = await api.patch(`/tickets/${id}/type`);
     return mapTicketFromApi(response.data);
