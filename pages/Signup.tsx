@@ -22,6 +22,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
 
@@ -264,14 +266,18 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
               <div className="relative">
                 <input 
                   required
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   placeholder="Mínimo 8 caracteres (letras e números)"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   className="w-full h-12 px-4 pr-12 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
-                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-[20px]">visibility</span>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility' : 'visibility_off'}</span>
                 </button>
               </div>
             </div>
@@ -281,7 +287,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
               <div className="relative">
                 <input 
                   required
-                  type="password" 
+                  type={showConfirmPassword ? "text" : "password"} 
                   placeholder="Confirme sua senha"
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
@@ -291,6 +297,13 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                     : 'border-border-dark'
                   }`}
                 />
+                 <button 
+                  type="button" 
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showConfirmPassword ? 'visibility' : 'visibility_off'}</span>
+                </button>
               </div>
             </div>
 

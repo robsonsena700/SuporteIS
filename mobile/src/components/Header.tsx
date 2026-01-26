@@ -155,7 +155,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         <View style={styles.content}>
           <View style={styles.leftContainer}>
             {showUserInfo ? (
-              <View style={styles.userInfo}>
+              <TouchableOpacity style={styles.userInfo} onPress={handleOpenProfileMenu}>
                 <View style={styles.userAvatar}>
                   {user?.avatar ? (
                     <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
@@ -171,7 +171,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
                     {user?.profile} | Último acesso: {lastAccess}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ) : (
               <Text style={styles.title}>{title}</Text>
             )}
@@ -204,9 +204,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleLogout} style={styles.iconButton}>
-              <LogOut color="#ef4444" size={20} />
-            </TouchableOpacity>
+
           </View>
         </View>
       </View>
