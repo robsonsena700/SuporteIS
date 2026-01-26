@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboa
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare, XCircle, Download } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare, XCircle, Download, Smile } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
@@ -21,6 +21,7 @@ type RootStackParamList = {
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, 'TicketDetail'>;
 type TicketDetailNavigationProp = StackNavigationProp<RootStackParamList>;
+const COMMON_EMOJIS = ["👍", "👎", "😊", "😂", "🤔", "👀", "✅", "❌", "🎉", "🔥", "❤️", "🙏", "👋", "😁", "😢", "😡", "🚀", "💻", "🐛", "🔧"];
 
 export const TicketDetailScreen = () => {
   const navigation = useNavigation<TicketDetailNavigationProp>();
@@ -39,6 +40,11 @@ export const TicketDetailScreen = () => {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   
+  // Input State
+  const [inputHeight, setInputHeight] = useState(40);
+  const [isFocused, setIsFocused] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   // History
   const [history, setHistory] = useState<TicketHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -395,7 +401,7 @@ export const TicketDetailScreen = () => {
         {activeTab === 'Mensagens' ? (
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <View style={{ flex: 1 }}>
@@ -406,33 +412,85 @@ export const TicketDetailScreen = () => {
                   renderItem={renderMessageItem}
                   contentContainerStyle={styles.messagesList}
                   inverted={false}
+                  onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                  onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
                 />
                 
                 {!isResolved && (
-                    <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                        {isTechnician && (
-                            <TouchableOpacity 
-                                style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
-                                onPress={() => setIsInternal(!isInternal)}
-                            >
-                                <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
-                            </TouchableOpacity>
+                    <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                        {/* Emoji Picker */}
+                        {showEmojiPicker && (
+                            <View style={styles.emojiPicker}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                    {COMMON_EMOJIS.map(emoji => (
+                                        <TouchableOpacity 
+                                            key={emoji} 
+                                            onPress={() => setReplyText(prev => prev + emoji)}
+                                            style={styles.emojiButton}
+                                        >
+                                            <Text style={styles.emojiText}>{emoji}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
                         )}
-                        <TextInput
-                            style={styles.input}
-                            placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
-                            placeholderTextColor="#6b7280"
-                            value={replyText}
-                            onChangeText={setReplyText}
-                            multiline
-                        />
-                        <TouchableOpacity 
-                            style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
-                            onPress={handleSendReply}
-                            disabled={!replyText.trim() || sending}
-                        >
-                            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
-                        </TouchableOpacity>
+
+                        <View style={[
+                            styles.inputContainer, 
+                            isFocused && styles.inputContainerFocused
+                        ]}>
+                            {isTechnician && (
+                                <TouchableOpacity 
+                                    style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
+                                    onPress={() => setIsInternal(!isInternal)}
+                                    accessibilityLabel={isInternal ? "Nota interna ativada" : "Nota interna desativada"}
+                                    accessibilityHint="Alterna entre mensagem pública e nota interna"
+                                >
+                                    <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
+                                </TouchableOpacity>
+                            )}
+
+                            <TouchableOpacity 
+                                onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+                                style={styles.iconButton}
+                                accessibilityLabel="Inserir emoji"
+                            >
+                                <Smile size={20} color={showEmojiPicker ? "#3b82f6" : "#9ca3af"} />
+                            </TouchableOpacity>
+
+                            <TextInput
+                                style={[
+                                    styles.input, 
+                                    { height: Math.min(Math.max(40, inputHeight), 120) }
+                                ]}
+                                placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
+                                placeholderTextColor="#6b7280"
+                                value={replyText}
+                                onChangeText={setReplyText}
+                                multiline
+                                onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
+                                onFocus={() => {
+                                    setIsFocused(true);
+                                    setShowEmojiPicker(false);
+                                }}
+                                onBlur={() => setIsFocused(false)}
+                                accessibilityLabel="Campo de mensagem"
+                                accessibilityHint="Digite sua mensagem para o chamado"
+                            />
+                            
+                            <TouchableOpacity 
+                                style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
+                                onPress={handleSendReply}
+                                disabled={!replyText.trim() || sending}
+                                accessibilityLabel="Enviar mensagem"
+                                accessibilityState={{ disabled: !replyText.trim() || sending }}
+                            >
+                                {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
+                            </TouchableOpacity>
+                        </View>
+                        {replyText.length > 0 && (
+                             <Text style={styles.charCount}>{replyText.length} caracteres</Text>
+                        )}
                     </View>
                 )}
             </View>
@@ -830,23 +888,63 @@ const styles = StyleSheet.create({
       color: '#000',
       fontWeight: 'bold',
   },
-  inputContainer: {
+  inputWrapper: {
     padding: 12,
     backgroundColor: '#1f2937',
     borderTopWidth: 1,
     borderTopColor: '#374151',
+  },
+  inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-end',
+    gap: 8,
+    backgroundColor: '#111827',
+    borderRadius: 24,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  inputContainerFocused: {
+    borderColor: '#3b82f6',
   },
   input: {
     flex: 1,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     color: '#fff',
-    maxHeight: 100,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 8,
+    fontSize: 15,
+  },
+  emojiPicker: {
+    marginBottom: 12,
+    height: 40,
+  },
+  emojiButton: {
+      paddingHorizontal: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#374151',
+      marginRight: 8,
+      borderRadius: 8,
+      height: 40,
+      width: 40,
+  },
+  emojiText: {
+      fontSize: 20,
+  },
+  iconButton: {
+      padding: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: 40,
+      width: 40,
+  },
+  charCount: {
+      fontSize: 10,
+      color: '#6b7280',
+      textAlign: 'right',
+      marginTop: 4,
+      marginRight: 8,
   },
   sendButton: {
     width: 40,
