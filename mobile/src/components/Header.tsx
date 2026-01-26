@@ -49,7 +49,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
   };
 
   const handleTeamClick = () => {
-    if (user && (user.profile === 'Administrador' || user.profile === 'Suporte Técnico' || user.profile === 'Líder')) {
+    if (user && (user.profile === 'Administrador' || user.profile === 'Suporte Técnico' || user.profile === 'Suporte' || user.profile === 'Líder')) {
       setShowTeamModal(true);
       loadTeamUsers();
     } else {
@@ -64,6 +64,8 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
       let filtered = all.filter((u: User) => u.id !== user?.id);
       filtered = filtered.filter((u: User) => u.profile !== 'Cliente');
 
+      // Show all team members for authorized roles, not just online ones
+      /*
       if (user?.profile !== 'Administrador') {
         filtered = filtered.filter((u: User) => {
           const isOnline = u.calculatedStatus === 'online';
@@ -71,6 +73,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
           return isOnline || isBusy;
         });
       }
+      */
 
       setTeamUsers(filtered);
     } catch (error) {
@@ -147,7 +150,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
     ? new Date(user.lastAccess).toLocaleString('pt-BR') 
     : new Date().toLocaleString('pt-BR');
 
-  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico' || user?.profile === 'Líder';
+  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico' || user?.profile === 'Suporte' || user?.profile === 'Líder';
 
   return (
     <>
@@ -230,7 +233,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         <View style={styles.teamOverlay}>
           <View style={styles.teamContainer}>
             <View style={styles.teamHeader}>
-              <Text style={styles.teamTitle}>Equipe Online</Text>
+              <Text style={styles.teamTitle}>Equipe</Text>
               <TouchableOpacity onPress={() => setShowTeamModal(false)}>
                 <Text style={styles.teamCloseText}>Fechar</Text>
               </TouchableOpacity>
