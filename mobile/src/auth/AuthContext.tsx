@@ -9,6 +9,7 @@ interface AuthContextData {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  googleSignIn: (googleUser: any, token: string) => Promise<void>;
   signUp: (data: any) => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -112,6 +113,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  async function googleSignIn(googleUser: any, token: string) {
+    try {
+      // In a real production app, you should send the token to your backend
+      // for verification and user creation/retrieval.
+      // For this dev environment configuration, we'll simulate the login locally.
+      
+      const mappedUser: User = {
+        id: googleUser.id,
+        name: googleUser.name,
+        email: googleUser.email,
+        role: 'Técnico', // Default role for dev
+        avatar: googleUser.picture,
+        status: 'Ativo',
+        chatStatus: 'online',
+        calculatedStatus: 'online',
+        lastAccess: new Date().toISOString(),
+        profile: 'Suporte Técnico',
+        company: 'Empresa Teste',
+        department: 'TI'
+      };
+
+      await setStorageItem('token', token);
+      
+      // Don't store avatar in SecureStore to avoid size limits
+      const userToStore = { ...mappedUser, avatar: null };
+      await setStorageItem('user', JSON.stringify(userToStore));
+      
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(mappedUser);
+    } catch (error) {
+      console.error('Google SignIn Error:', error);
+      throw error;
+    }
+  }
+
   async function signUp(data: any) {
     try {
       console.log('Sending register payload:', data);
@@ -146,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, signIn, googleSignIn, signUp, signOut, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

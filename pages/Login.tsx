@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthService, api } from '../services/api';
 import { User, LogoConfig } from '../types';
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -68,6 +70,39 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleSuccess = (credentialResponse: any) => {
+    try {
+        const decoded: any = jwtDecode(credentialResponse.credential);
+        console.log('Google User:', decoded);
+
+        // In a real app, send credentialResponse.credential to backend for verification
+        // For now, we simulate a login with the data from the token
+        const user: User = {
+            id: decoded.sub,
+            name: decoded.name,
+            email: decoded.email,
+            role: 'Técnico', // Default role for Google Login
+            avatar: decoded.picture,
+            status: 'Ativo',
+            lastAccess: new Date().toLocaleString(),
+            profile: 'Suporte Técnico', // Default profile
+            chatStatus: 'online'
+        };
+        
+        localStorage.setItem('token', credentialResponse.credential); // Store Google JWT as token for now
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        onLogin(user);
+    } catch (error) {
+        console.error('Google Login Error:', error);
+        setError('Falha ao processar login com Google.');
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Login com Google falhou. Tente novamente.');
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-background-dark justify-center items-center p-4">
       <div className="w-full max-w-md bg-background-card border border-border-dark rounded-3xl overflow-hidden shadow-2xl animate-fade-in">
@@ -98,7 +133,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
 
           <form className="flex flex-col gap-5" onSubmit={handleLoginSubmit}>
-            <div className="flex flex-col gap-2">
+            
+            <div className="relative flex items-center gap-4 my-2">
+                <div className="h-px bg-border-dark flex-1"></div>
+                <span className="text-text-muted text-xs uppercase font-bold">Ou entre com email</span>
+                <div className="h-px bg-border-dark flex-1"></div>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-text-secondary text-xs font-bold uppercase tracking-widest">E-mail ou Usuário</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-muted text-[20px]">mail</span>
@@ -155,14 +197,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <button className="h-10 border border-border-dark rounded-lg flex items-center justify-center gap-2 hover:bg-background-input transition-all">
-                <img src="https://www.google.com/favicon.ico" className="w-4" alt="" />
-                <span className="text-xs text-text-primary font-bold">Google</span>
-              </button>
-              <button className="h-10 border border-border-dark rounded-lg flex items-center justify-center gap-2 hover:bg-background-input transition-all">
-                <span className="material-symbols-outlined text-text-primary text-[18px]">domain</span>
-                <span className="text-xs text-text-primary font-bold">Login IS</span>
-              </button>
+            {/* Google Login Button */}
+            <div className="flex justify-center items-center w-full h-20">
+                <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="filled_blue"
+                    shape="pill"
+                    text="continue_with"
+                    width="100%"
+                />
+            </div>
+
             </div>
 
              <p className="text-sm text-text-secondary mt-4">

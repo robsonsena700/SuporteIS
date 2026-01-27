@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image, PixelRatio } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+
+WebBrowser.maybeCompleteAuthSession();
 import { api } from '../api/api';
 import { LogoConfig } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,13 +20,57 @@ export const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, googleSignIn } = useAuth();
   const { theme } = useTheme();
 
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [currentError, setCurrentError] = useState<ErrorDetails | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loadingLogo, setLoadingLogo] = useState(true);
+
+  // Google Auth Config
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID', // Replace with your ID
+    iosClientId: 'YOUR_IOS_CLIENT_ID',         // Replace with your ID
+    webClientId: 'YOUR_WEB_CLIENT_ID',         // Replace with your ID
+    scopes: ['profile', 'email'],
+  });
+
+  useEffect(() => {
+    // Log the Redirect URI for the user to add to Google Console
+    const redirectUri = makeRedirectUri({ scheme: 'suporteis' });
+    console.log('>>> URI de Redirecionamento para o Google Console:', redirectUri);
+  }, []);
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        fetchUserInfo(authentication.accessToken);
+      }
+    }
+  }, [response]);
+
+  const fetchUserInfo = async (token: string) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userGoogle = await res.json();
+      
+      console.log('Google User:', userGoogle);
+      
+      // Authenticate with the app context
+      await googleSignIn(userGoogle, token);
+      
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Falha ao realizar login com Google. Verifique sua conexão.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchLogo = async () => {
@@ -199,6 +248,27 @@ export const LoginScreen = () => {
             )}
           </TouchableOpacity>
 
+          {/* Google Login Button */}
+          <TouchableOpacity 
+            style={[styles.googleButton, (!request || isSubmitting) && { opacity: 0.7 }]} 
+            onPress={() => promptAsync()}
+            disabled={!request || isSubmitting}
+            activeOpacity={0.8}
+          >
+            {(!request || isSubmitting) ? (
+              <ActivityIndicator color="#1F2937" />
+            ) : (
+              <>
+                <Image 
+                  source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }} 
+                  style={styles.googleLogo} 
+                  resizeMode="contain"
+                />
+                <Text style={styles.googleButtonText}>Continuar com o Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.subtext }]}>Não tem uma conta?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Signup' as never)}>
@@ -276,6 +346,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    height: 56,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 12,
+    width: '100%',
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  googleLogo: {
+    width: 24,
+    height: 24,
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
