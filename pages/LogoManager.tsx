@@ -115,8 +115,8 @@ const LogoManager: React.FC = () => {
             ) : logos ? (
                 <div className="space-y-6">
                     <div>
-                        <h4 className="text-sm font-medium text-gray-500 mb-2">Web (Desktop)</h4>
-                        <div className="bg-gray-100 p-4 rounded flex justify-center border border-gray-200">
+                        <h4 className="text-sm font-medium text-text-secondary mb-2">Web (Desktop)</h4>
+                        <div className="bg-background-surface p-4 rounded flex justify-center border border-border-dark">
                             <img 
                                 src={`${logos.web}?t=${Date.now()}`} 
                                 alt="Logo Web" 
@@ -127,8 +127,8 @@ const LogoManager: React.FC = () => {
                     </div>
 
                     <div>
-                        <h4 className="text-sm font-medium text-gray-500 mb-2">Mobile (App)</h4>
-                        <div className="bg-gray-800 p-4 rounded flex justify-center border border-gray-700">
+                        <h4 className="text-sm font-medium text-text-secondary mb-2">Mobile (App)</h4>
+                        <div className="bg-background-surface p-4 rounded flex justify-center border border-border-dark">
                             <img 
                                 src={`${logos.mobile.x1}?t=${Date.now()}`} 
                                 alt="Logo Mobile" 
@@ -136,8 +136,8 @@ const LogoManager: React.FC = () => {
                                 onError={(e) => (e.currentTarget.style.display = 'none')}
                             />
                         </div>
-                        <div className="text-xs text-gray-400 mt-1 text-center">
-                            Exibido em fundo escuro (simulação)
+                        <div className="text-xs text-text-muted mt-1 text-center">
+                            Exibido com fundo do tema atual
                         </div>
                     </div>
                 </div>
