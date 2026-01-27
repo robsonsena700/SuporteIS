@@ -111,7 +111,7 @@ export const LoginScreen = () => {
             <TextInput
               style={[styles.input, { color: theme.text }]}
               placeholder="E-mail"
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -124,7 +124,7 @@ export const LoginScreen = () => {
             <TextInput
               style={[styles.input, { color: theme.text }]}
               placeholder="Senha"
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}

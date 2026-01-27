@@ -348,7 +348,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
               placeholder="Buscar por ID, assunto, status, prioridade, relator ou técnico..." 
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="w-full pl-10 pr-4 h-10 bg-background-input border border-border-dark rounded-lg text-white focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted/50"
+              className="w-full pl-10 pr-4 h-10 bg-background-input border border-border-dark rounded-lg text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted/50"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -358,7 +358,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                     className={`flex items-center gap-2 h-10 px-4 rounded-lg font-bold text-sm transition-all border ${
                         showMyTickets
                         ? 'bg-primary/20 text-primary border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
-                        : 'bg-background-input text-text-muted border-border-dark hover:text-white hover:border-text-secondary'
+                        : 'bg-background-input text-text-muted border-border-dark hover:text-text-primary hover:border-text-secondary'
                     }`}
                     title={showMyTickets ? "Mostrando apenas meus chamados" : "Mostrar apenas meus chamados"}
                 >
@@ -371,7 +371,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                 className={`flex items-center gap-2 h-10 px-4 rounded-lg font-bold text-sm transition-all border ${
                     isAutoRefresh 
                     ? 'bg-success/10 text-success border-success/20' 
-                    : 'bg-background-input text-text-muted border-border-dark hover:text-white'
+                    : 'bg-background-input text-text-muted border-border-dark hover:text-text-primary'
                 }`}
                 title={isAutoRefresh ? "Atualização automática ligada" : "Atualização automática desligada"}
             >
@@ -380,7 +380,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
             </button>
             <button 
                 onClick={handleManualRefresh}
-                className="flex items-center gap-2 h-10 px-4 bg-background-input text-text-secondary border border-border-dark rounded-lg font-bold text-sm hover:text-white hover:border-text-secondary transition-all"
+                className="flex items-center gap-2 h-10 px-4 bg-background-input text-text-secondary border border-border-dark rounded-lg font-bold text-sm hover:text-text-primary hover:border-text-secondary transition-all"
                 title="Atualizar agora"
             >
                 <span className="material-symbols-outlined text-[20px]">refresh</span>

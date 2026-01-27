@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Star, X } from 'lucide-react-native';
 
+import { useTheme } from '../context/ThemeContext';
+
 interface RatingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -10,6 +12,7 @@ interface RatingModalProps {
 }
 
 export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSubmit, loading = false }) => {
+  const { theme } = useTheme();
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
 
@@ -34,15 +37,15 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.header}>
-            <Text style={styles.title}>Avaliar Atendimento</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Avaliar Atendimento</Text>
             <TouchableOpacity onPress={onClose} disabled={loading}>
-              <X stroke="#9ca3af" size={24} />
+              <X stroke={theme.subtext} size={24} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: theme.subtext }]}>
             Por favor, avalie o atendimento recebido para finalizarmos o chamado.
           </Text>
 
@@ -56,7 +59,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
               >
                 <Star
                   size={32}
-                  color={star <= rating ? '#fbbf24' : '#374151'}
+                  color={star <= rating ? '#fbbf24' : theme.border}
                   fill={star <= rating ? '#fbbf24' : 'none'}
                   style={styles.star}
                 />
@@ -66,9 +69,9 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
 
           {rating > 0 && rating <= 2 && (
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }]}
               placeholder="Por favor, conte-nos brevemente o que houve..."
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.placeholder}
               multiline
               numberOfLines={4}
               value={feedback}
@@ -80,6 +83,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ visible, onClose, onSu
           <TouchableOpacity
             style={[
               styles.submitButton,
+              { backgroundColor: theme.success },
               (rating === 0 || loading) && styles.disabledButton
             ]}
             onPress={handleSubmit}

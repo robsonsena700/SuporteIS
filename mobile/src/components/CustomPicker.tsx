@@ -54,7 +54,7 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
         style={[styles.selector, disabled && styles.disabled, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]} 
         onPress={() => !disabled && setModalVisible(true)}
       >
-        <Text style={[styles.valueText, !selectedOption && styles.placeholder, { color: !selectedOption ? theme.subtext : theme.text }]}>
+        <Text style={[styles.valueText, !selectedOption && styles.placeholder, { color: !selectedOption ? theme.placeholder : theme.text }]}>
           {selectedOption ? selectedOption.label : placeholder}
         </Text>
         <ChevronDown size={20} color={theme.subtext} />
@@ -81,7 +81,7 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
                 <TextInput
                   style={[styles.searchInput, { color: theme.text }]}
                   placeholder="Pesquisar..."
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   value={searchText}
                   onChangeText={setSearchText}
                   autoCapitalize="none"

@@ -238,7 +238,7 @@ export const NewTicketScreen = () => {
               value={formData.subject}
               onChangeText={(text) => setFormData(prev => ({ ...prev, subject: text }))}
               placeholder="Resumo do problema"
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
             />
           </View>
 
@@ -259,7 +259,7 @@ export const NewTicketScreen = () => {
                     value={formData.otherEquipment}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, otherEquipment: text }))}
                     placeholder="Qual equipamento?"
-                    placeholderTextColor={theme.subtext}
+                    placeholderTextColor={theme.placeholder}
                   />
                 </View>
               )}
@@ -383,7 +383,7 @@ export const NewTicketScreen = () => {
               multiline
               numberOfLines={4}
               placeholder="Descreva o problema com detalhes..."
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               textAlignVertical="top"
             />
           </View>

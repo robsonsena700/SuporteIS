@@ -466,7 +466,7 @@ export const TicketDetailScreen = () => {
                                     { height: Math.min(Math.max(40, inputHeight), 120) }
                                 ]}
                                 placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
-                                placeholderTextColor="#6b7280"
+                                placeholderTextColor={theme.placeholder}
                                 value={replyText}
                                 onChangeText={setReplyText}
                                 multiline

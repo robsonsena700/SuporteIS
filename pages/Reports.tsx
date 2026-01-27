@@ -187,7 +187,7 @@ const Reports: React.FC = () => {
                         <input 
                             type="text" 
                             placeholder="Buscar por assunto, ID, técnico..."
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterText}
                             onChange={e => setFilterText(e.target.value)}
                         />
@@ -195,7 +195,7 @@ const Reports: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <label className="text-text-secondary text-sm font-bold">Categoria</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterCategory}
                             onChange={e => setFilterCategory(e.target.value)}
                         >
@@ -208,7 +208,7 @@ const Reports: React.FC = () => {
                         <label className="text-text-secondary text-sm font-bold">Data Inicial</label>
                         <input 
                             type="date" 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
                         />
@@ -217,7 +217,7 @@ const Reports: React.FC = () => {
                         <label className="text-text-secondary text-sm font-bold">Data Final</label>
                         <input 
                             type="date" 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={endDate}
                             onChange={e => setEndDate(e.target.value)}
                         />
@@ -225,7 +225,7 @@ const Reports: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <label className="text-text-secondary text-sm font-bold">Status</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterStatus}
                             onChange={e => setFilterStatus(e.target.value)}
                         >
@@ -239,7 +239,7 @@ const Reports: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <label className="text-text-secondary text-sm font-bold">Prioridade</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterPriority}
                             onChange={e => setFilterPriority(e.target.value)}
                         >

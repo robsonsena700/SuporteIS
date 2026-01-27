@@ -109,7 +109,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                   value={formData.name}
                   onChangeText={t => setFormData({...formData, name: t})}
                   placeholder="Nome completo"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
@@ -123,7 +123,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                   value={formData.email}
                   onChangeText={t => setFormData({...formData, email: t})}
                   placeholder="email@exemplo.com"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -140,7 +140,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                     value={formData.password}
                     onChangeText={t => setFormData({...formData, password: t})}
                     placeholder="Senha inicial"
-                    placeholderTextColor={theme.subtext}
+                    placeholderTextColor={theme.placeholder}
                     secureTextEntry
                   />
                 </View>
@@ -183,7 +183,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                   value={formData.profile}
                   onChangeText={t => setFormData({...formData, profile: t})}
                   placeholder="Ex: Suporte Técnico"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
@@ -197,7 +197,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                   value={formData.department}
                   onChangeText={t => setFormData({...formData, department: t})}
                   placeholder="Departamento"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
@@ -211,7 +211,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                   value={formData.phone}
                   onChangeText={t => setFormData({...formData, phone: t})}
                   placeholder="(00) 00000-0000"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -307,7 +307,7 @@ const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit:
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Mínimo 6 caracteres"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   secureTextEntry
                 />
               </View>
@@ -331,6 +331,7 @@ const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit:
 
 export const UsersScreen = () => {
   const { user: currentUser } = useAuth();
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

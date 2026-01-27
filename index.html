@@ -23,11 +23,11 @@
         --bg-main: #f3f4f6;
         --bg-surface: #ffffff;
         --bg-card: #ffffff;
-        --bg-input: #f9fafb;
-        --border-main: #e5e7eb;
+        --bg-input: #ffffff; /* Changed from #f9fafb for better contrast */
+        --border-main: #6b7280; /* Changed from #e5e7eb for WCAG AA (4.6:1) */
         --text-main: #111827;
-        --text-secondary: #6b7280;
-        --text-muted: #9ca3af;
+        --text-secondary: #4b5563; /* Darkened from #6b7280 */
+        --text-muted: #6b7280; /* Darkened from #9ca3af */
       }
 
       .dark {
@@ -35,11 +35,11 @@
         --bg-main: #101622;
         --bg-surface: #111722;
         --bg-card: #1a2332;
-        --bg-input: #192233;
-        --border-main: #2a3649;
+        --bg-input: #111827; /* Darker input bg */
+        --border-main: #9ca3af; /* Lightened from #2a3649 for visibility */
         --text-main: #ffffff;
-        --text-secondary: #92a4c9;
-        --text-muted: #63748e;
+        --text-secondary: #d1d5db; /* Lightened from #92a4c9 */
+        --text-muted: #9ca3af; /* Lightened from #63748e */
       }
 
       body {

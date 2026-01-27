@@ -139,7 +139,7 @@ export const ChatScreen = () => {
               value={inputText}
               onChangeText={setInputText}
               placeholder="Digite sua mensagem..."
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               multiline
             />
             <TouchableOpacity

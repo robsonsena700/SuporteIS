@@ -112,12 +112,12 @@ export const SignupScreen = () => {
     !!formData.confirmPassword &&
     !!formData.agreeTerms;
 
-  const hasErrors = Object.values(errors).some(message => message);
+  const hasErrors = Object.values(errors).some((message: string) => !!message);
   const canSubmit = areRequiredFieldsFilled && !hasErrors && !isSubmitting;
 
   const handleSignup = async () => {
     const validationErrors = runAllValidations(formData);
-    if (Object.values(validationErrors).some(message => message)) {
+    if (Object.values(validationErrors).some((message: string) => !!message)) {
       Alert.alert('Erro', 'Por favor, corrija os campos destacados.');
       return;
     }
@@ -182,7 +182,7 @@ export const SignupScreen = () => {
                 <TextInput
                   style={[styles.input, { color: theme.text }]}
                   placeholder="Nome"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   value={formData.firstName}
                   onChangeText={(text) => handleChange('firstName', text)}
                   autoCapitalize="words"
@@ -195,7 +195,7 @@ export const SignupScreen = () => {
                   ref={lastNameRef}
                   style={[styles.input, { color: theme.text }]}
                   placeholder="Sobrenome"
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                   value={formData.lastName}
                   onChangeText={(text) => handleChange('lastName', text)}
                   autoCapitalize="words"
@@ -211,7 +211,7 @@ export const SignupScreen = () => {
                 ref={emailRef}
                 style={[styles.input, { color: theme.text }]}
                 placeholder="E-mail"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
                 value={formData.email}
                 onChangeText={(text) => handleChange('email', text)}
                 autoCapitalize="none"
@@ -272,7 +272,7 @@ export const SignupScreen = () => {
                 ref={companyRef}
                 style={[styles.input, { color: theme.text }]}
                 placeholder="Unidade / Empresa"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
                 value={formData.company}
                 onChangeText={(text) => handleChange('company', text)}
                 autoCapitalize="words"
@@ -288,7 +288,7 @@ export const SignupScreen = () => {
                 ref={passwordRef}
                 style={[styles.input, { color: theme.text }]}
                 placeholder="Senha"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
                 value={formData.password}
                 onChangeText={(text) => handleChange('password', text)}
                 secureTextEntry={!showPassword}
@@ -313,7 +313,7 @@ export const SignupScreen = () => {
                 ref={confirmPasswordRef}
                 style={[styles.input, { color: theme.text }]}
                 placeholder="Confirmar Senha"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
                 value={formData.confirmPassword}
                 onChangeText={(text) => handleChange('confirmPassword', text)}
                 secureTextEntry={!showConfirmPassword}

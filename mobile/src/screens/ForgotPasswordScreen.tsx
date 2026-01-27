@@ -11,7 +11,7 @@ export const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = () => {
     if (!email) {
       Alert.alert('Erro', 'Por favor, informe seu e-mail.');
       return;
@@ -57,7 +57,7 @@ export const ForgotPasswordScreen = () => {
             <TextInput
               style={[styles.input, { color: theme.text }]}
               placeholder="E-mail"
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"

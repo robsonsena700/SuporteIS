@@ -168,7 +168,7 @@ export const ProfileScreen = () => {
                 value={formData.name}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
                 placeholder="Seu nome"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
@@ -181,7 +181,7 @@ export const ProfileScreen = () => {
                 style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                 value={user?.email || ''}
                 editable={false}
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
@@ -195,7 +195,7 @@ export const ProfileScreen = () => {
                 value={formData.phone}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
                 placeholder="(00) 00000-0000"
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
                 keyboardType="phone-pad"
               />
             </View>
@@ -209,7 +209,7 @@ export const ProfileScreen = () => {
                 style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                 value={user?.company || ''}
                 editable={false}
-                placeholderTextColor={theme.subtext}
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
@@ -227,7 +227,7 @@ export const ProfileScreen = () => {
                   style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                   value={user?.role || ''}
                   editable={false}
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
@@ -251,7 +251,7 @@ export const ProfileScreen = () => {
                   style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                   value={user?.profile || ''}
                   editable={false}
-                  placeholderTextColor={theme.subtext}
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>

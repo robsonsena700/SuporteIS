@@ -111,7 +111,7 @@ export const TicketsScreen = () => {
   }, [fetchTickets]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isAutoRefresh) {
       fetchTickets(); // Initial fetch when enabled
       interval = setInterval(() => {
@@ -119,7 +119,9 @@ export const TicketsScreen = () => {
       }, 30000);
     }
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval !== undefined) {
+        clearInterval(interval);
+      }
     };
   }, [isAutoRefresh, fetchTickets]);
 
@@ -246,7 +248,7 @@ export const TicketsScreen = () => {
                     <TextInput
                         style={[styles.searchInput, { color: theme.text }]}
                         placeholder="Buscar..."
-                        placeholderTextColor={theme.subtext}
+                        placeholderTextColor={theme.placeholder}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />

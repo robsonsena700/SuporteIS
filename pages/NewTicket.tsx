@@ -206,21 +206,21 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
     <div className="max-w-4xl mx-auto pb-10">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate('/tickets')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-          <span className="material-symbols-outlined text-white">arrow_back</span>
+          <span className="material-symbols-outlined text-text-primary">arrow_back</span>
         </button>
-        <h1 className="text-2xl font-bold text-white">Novo Chamado</h1>
+        <h1 className="text-2xl font-bold text-text-primary">Novo Chamado</h1>
       </div>
 
       <div className="bg-background-card border border-border-light rounded-xl p-1 mb-8 flex">
         <button
           onClick={() => setTicketType('Sistema')}
-          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Sistema' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
+          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Sistema' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-text-primary'}`}
         >
           Serviço
         </button>
         <button
           onClick={() => setTicketType('Equipamento')}
-          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Equipamento' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
+          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${ticketType === 'Equipamento' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-text-primary'}`}
         >
           Equipamento
         </button>
@@ -229,20 +229,20 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Common Fields: Client Location */}
         <div className="bg-background-card border border-border-light rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">location_on</span>
                 Localização e Contato
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
-                    <label className="text-white text-sm font-medium">Cliente *</label>
+                    <label className="text-text-primary text-sm font-medium">Cliente *</label>
                     {canSelectClient ? (
                         <select
                             name="clientName"
                             value={formData.clientName}
                             onChange={handleChange}
-                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                             required
                         >
                             <option value="">Selecione um cliente...</option>
@@ -256,7 +256,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                             name="clientName"
                             value={formData.clientName}
                             onChange={handleChange}
-                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all opacity-70 cursor-not-allowed"
+                            className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all opacity-70 cursor-not-allowed"
                             placeholder="Nome do Cliente"
                             required
                             readOnly
@@ -264,13 +264,13 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                     )}
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-white text-sm font-medium">Unidade *</label>
+                    <label className="text-text-primary text-sm font-medium">Unidade *</label>
                     <input
                         type="text"
                         name="unit"
                         value={formData.unit}
                         onChange={handleChange}
-                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="Unidade"
                         required
                         readOnly={isClient}
@@ -281,13 +281,13 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 flex flex-col gap-1">
-                    <label className="text-white text-sm font-medium">Município *</label>
+                    <label className="text-text-primary text-sm font-medium">Município *</label>
                     <input
                         type="text"
                         name="municipality"
                         value={formData.municipality}
                         onChange={handleChange}
-                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="Município"
                         required
                         readOnly={isClient}
@@ -295,14 +295,14 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
                     />
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-white text-sm font-medium">UF *</label>
+                    <label className="text-text-primary text-sm font-medium">UF *</label>
                     <input
                         type="text"
                         name="uf"
                         value={formData.uf}
                         onChange={handleChange}
                         maxLength={2}
-                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all uppercase ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all uppercase ${isClient ? 'opacity-70 cursor-not-allowed' : ''}`}
                         placeholder="UF"
                         required
                         readOnly={isClient}
@@ -314,19 +314,19 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
 
         {/* Specific Fields */}
         <div className="bg-background-card border border-border-light rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">info</span>
                 Detalhes do Chamado
             </h2>
 
             <div className="flex flex-col gap-1">
-                <label className="text-white text-sm font-medium">Assunto *</label>
+                <label className="text-text-primary text-sm font-medium">Assunto *</label>
                 <input
                     type="text"
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
-                    className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                    className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                     placeholder="Resumo do problema"
                     required
                 />
@@ -334,12 +334,12 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
 
             {ticketType === 'Equipamento' && (
                 <div className="flex flex-col gap-1">
-                    <label className="text-white text-sm font-medium">Equipamento, infra ou hardware *</label>
+                    <label className="text-text-primary text-sm font-medium">Equipamento, infra ou hardware *</label>
                     <select
                         name="equipment"
                         value={formData.equipment}
                         onChange={handleChange}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                         required
                     >
                         <option value="">Selecione...</option>
@@ -352,13 +352,13 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
 
             {ticketType === 'Equipamento' && formData.equipment === 'Outros' && (
                  <div className="flex flex-col gap-1 animate-fade-in">
-                    <label className="text-white text-sm font-medium">Especifique o equipamento (Outros) *</label>
+                    <label className="text-text-primary text-sm font-medium">Especifique o equipamento (Outros) *</label>
                     <input
                         type="text"
                         name="otherEquipment"
                         value={formData.otherEquipment}
                         onChange={handleChange}
-                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                        className="h-12 bg-background-input border border-border-dark rounded-lg px-4 text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                         placeholder="Digite o nome do equipamento..."
                         required
                     />
@@ -366,7 +366,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
             )}
 
             <div className="flex flex-col gap-2">
-                <label className="text-white text-sm font-medium">Urgência *</label>
+                <label className="text-text-primary text-sm font-medium">Urgência *</label>
                 <div className="flex flex-wrap gap-4">
                     {[
                         { label: 'Baixa', value: TicketPriority.LOW, color: 'bg-green-500/20 text-green-500 border-green-500/30' },
@@ -394,11 +394,11 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
             </div>
 
             <div className="flex flex-col gap-1">
-                <label className="text-white text-sm font-medium">Descrição Detalhada *</label>
+                <label className="text-text-primary text-sm font-medium">Descrição Detalhada *</label>
                 <textarea
                     value={formData.description}
                     onChange={(e) => handleDescriptionChange(e.target.value)}
-                    className="w-full h-[200px] bg-white text-black p-4 rounded-lg outline-none focus:ring-2 focus:ring-primary resize-y"
+                    className="w-full h-[200px] bg-background-input text-text-primary border border-border-dark p-4 rounded-lg outline-none focus:ring-2 focus:ring-primary resize-y"
                     placeholder="Descreva o problema detalhadamente..."
                     required
                 />
@@ -408,7 +408,7 @@ const NewTicket: React.FC<NewTicketProps> = ({ onAdd }) => {
         {/* Attachments */}
         <div className="bg-background-card border border-border-light rounded-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">attach_file</span>
                     Anexos (Obrigatório)
                 </h2>

@@ -67,7 +67,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className="p-6 md:p-10 flex flex-col gap-8">
           <div className="text-center">
-            <h2 className="text-3xl font-black text-white mb-2">Bem-vindo de volta</h2>
+            <h2 className="text-3xl font-black text-text-primary mb-2">Bem-vindo de volta</h2>
             <p className="text-text-secondary text-sm">Acesse para acompanhar e gerenciar seus chamados.</p>
           </div>
 
@@ -79,7 +79,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <form className="flex flex-col gap-5" onSubmit={handleLoginSubmit}>
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest">E-mail ou Usuário</label>
+              <label className="text-text-secondary text-xs font-bold uppercase tracking-widest">E-mail ou Usuário</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-muted text-[20px]">mail</span>
                 <input 
@@ -88,14 +88,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="usuario@empresa.com"
-                  className="w-full h-12 pl-12 pr-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                  className="w-full h-12 pl-12 pr-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center">
-                <label className="text-white text-xs font-bold uppercase tracking-widest">Senha</label>
+                <label className="text-text-secondary text-xs font-bold uppercase tracking-widest">Senha</label>
                 <button type="button" onClick={() => navigate('/recovery')} className="text-[11px] text-primary font-bold hover:underline">Esqueceu a senha?</button>
               </div>
               <div className="relative">
@@ -106,12 +106,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="******"
-                  className="w-full h-12 pl-12 pr-12 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                  className="w-full h-12 pl-12 pr-12 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors focus:outline-none"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors focus:outline-none"
                   aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   <span className="material-symbols-outlined text-[20px]">
@@ -137,11 +137,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <div className="grid grid-cols-2 gap-3">
               <button className="h-10 border border-border-dark rounded-lg flex items-center justify-center gap-2 hover:bg-background-input transition-all">
                 <img src="https://www.google.com/favicon.ico" className="w-4" alt="" />
-                <span className="text-xs text-white font-bold">Google</span>
+                <span className="text-xs text-text-primary font-bold">Google</span>
               </button>
               <button className="h-10 border border-border-dark rounded-lg flex items-center justify-center gap-2 hover:bg-background-input transition-all">
-                <span className="material-symbols-outlined text-white text-[18px]">domain</span>
-                <span className="text-xs text-white font-bold">SSO Empresa</span>
+                <span className="material-symbols-outlined text-text-primary text-[18px]">domain</span>
+                <span className="text-xs text-text-primary font-bold">SSO Empresa</span>
               </button>
             </div>
 

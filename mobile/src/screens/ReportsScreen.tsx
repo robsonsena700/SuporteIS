@@ -18,7 +18,11 @@ import * as XLSX from 'xlsx';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+  // Check if we are running on the New Architecture (Fabric) to avoid warnings
+  const isFabric = (global as any).nativeFabricUIManager != null;
+  if (!isFabric) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
 }
 
 export const ReportsScreen = () => {
@@ -252,7 +256,7 @@ export const ReportsScreen = () => {
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
               placeholder="Buscar..."
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={theme.placeholder}
               value={searchText}
               onChangeText={setSearchText}
               returnKeyType="search"
@@ -305,7 +309,7 @@ export const ReportsScreen = () => {
                   <TextInput
                     style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                     placeholder="DD/MM/AAAA"
-                    placeholderTextColor={theme.subtext}
+                    placeholderTextColor={theme.placeholder}
                     value={startDate}
                     onChangeText={(text) => handleDateChange(text, setStartDate)}
                     keyboardType="numeric"
@@ -317,7 +321,7 @@ export const ReportsScreen = () => {
                   <TextInput
                     style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                     placeholder="DD/MM/AAAA"
-                    placeholderTextColor={theme.subtext}
+                    placeholderTextColor={theme.placeholder}
                     value={endDate}
                     onChangeText={(text) => handleDateChange(text, setEndDate)}
                     keyboardType="numeric"
