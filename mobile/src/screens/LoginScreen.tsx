@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +14,7 @@ export const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn } = useAuth();
+  const { theme } = useTheme();
 
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [currentError, setCurrentError] = useState<ErrorDetails | null>(null);
@@ -86,7 +88,7 @@ export const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ErrorModal
         visible={errorModalVisible}
         onClose={() => setErrorModalVisible(false)}
@@ -99,17 +101,17 @@ export const LoginScreen = () => {
         style={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>SuporteIS</Text>
-          <Text style={styles.subtitle}>Entre para acessar seus chamados</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>SuporteIS</Text>
+          <Text style={[styles.subtitle, { color: theme.subtext }]}>Entre para acessar seus chamados</Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+            <Mail color={theme.subtext} size={20} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               placeholder="E-mail"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.subtext}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -117,21 +119,21 @@ export const LoginScreen = () => {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+            <Lock color={theme.subtext} size={20} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               placeholder="Senha"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.subtext}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
               {showPassword ? (
-                <EyeOff color="#9ca3af" size={20} />
+                <EyeOff color={theme.subtext} size={20} />
               ) : (
-                <Eye color="#9ca3af" size={20} />
+                <Eye color={theme.subtext} size={20} />
               )}
             </TouchableOpacity>
           </View>
@@ -140,11 +142,11 @@ export const LoginScreen = () => {
             style={styles.forgotPasswordContainer}
             onPress={() => navigation.navigate('ForgotPassword' as never)}
           >
-            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+            <Text style={[styles.forgotPasswordText, { color: theme.primary }]}>Esqueceu a senha?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.button} 
+            style={[styles.button, { backgroundColor: theme.primary }]} 
             onPress={handleLogin}
             disabled={isSubmitting}
           >
@@ -156,9 +158,9 @@ export const LoginScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Não tem uma conta?</Text>
+            <Text style={[styles.footerText, { color: theme.subtext }]}>Não tem uma conta?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Signup' as never)}>
-              <Text style={styles.signupText}>Crie agora</Text>
+              <Text style={[styles.signupText, { color: theme.primary }]}>Crie agora</Text>
             </TouchableOpacity>
           </View>
         </View>

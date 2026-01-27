@@ -310,7 +310,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-white text-3xl font-black">Central de Atendimento</h1>
+          <h1 className="text-text-primary text-3xl font-black">Central de Atendimento</h1>
           <p className="text-text-secondary">Gerenciamento de fila de suporte técnico</p>
         </div>
         <div className="flex items-center gap-3">
@@ -329,7 +329,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                     className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
                         activeTab === tab 
                         ? 'bg-primary text-white shadow-lg' 
-                        : 'text-text-secondary hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-background-input'
                     }`}
                 >
                     {tab}
@@ -473,7 +473,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                       <span className="material-symbols-outlined text-[18px] text-primary shrink-0">description</span>
                       <div className="flex-1">
                         <p
-                          className={`text-sm font-semibold text-white ${
+                          className={`text-sm font-semibold text-text-primary ${
                             expandedTicketId === ticket.id ? '' : 'line-clamp-2'
                           }`}
                         >
@@ -498,7 +498,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                   <div className="mt-3 grid grid-cols-1 gap-2">
                     <div className="flex items-center gap-2 text-[12px] text-text-secondary">
                       <span className="material-symbols-outlined text-[16px] text-text-muted">person</span>
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-text-primary">
                         {ticket.creatorName || 'Sistema'}
                       </span>
                       {ticket.municipality && (
@@ -514,7 +514,7 @@ const Tickets: React.FC<TicketsProps> = ({ tickets, onUpdate }) => {
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-medium text-white">
+                        <span className="text-xs font-medium text-text-primary">
                           {ticket.technician || 'Sem responsável'}
                         </span>
                         <span className="text-[11px] text-text-muted">Suporte Técnico</span>

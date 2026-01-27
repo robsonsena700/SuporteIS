@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { User } from '../types';
 import { AuthService } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 interface ProfileProps {
   user: User | null;
@@ -12,6 +13,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  const { theme, setTheme } = useTheme();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -237,11 +240,52 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
           </div>
         )}
 
+        <div className="bg-background-card rounded-2xl border border-border-dark overflow-hidden">
+          <div className="p-6 border-b border-border-dark flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary">settings_brightness</span>
+            <h3 className="text-white text-lg font-bold">Preferências</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-text-secondary text-sm font-medium">Aparência</label>
+              <div className="flex items-center justify-between p-4 bg-background-input border border-border-dark rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className="material-symbols-outlined text-[20px]">
+                      {theme === 'dark' ? 'dark_mode' : 'light_mode'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-text-primary text-sm font-bold">Modo Escuro</span>
+                    <span className="text-text-secondary text-xs">
+                      {theme === 'dark' ? 'O tema escuro está ativado' : 'O tema escuro está desativado'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${
+                    theme === 'dark' ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 left-1 bg-white w-5 h-5 rounded-full shadow-sm transform transition-transform duration-300 ${
+                      theme === 'dark' ? 'translate-x-7' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-wrap justify-end gap-4 mt-2">
            <button 
              type="button" 
              onClick={() => window.history.back()}
-             className="px-6 h-12 border border-border-dark text-white font-bold rounded-lg hover:bg-background-input transition-all"
+             className="px-6 h-12 border border-border-dark text-text-primary font-bold rounded-lg hover:bg-background-input transition-all"
            >
             Cancelar
           </button>

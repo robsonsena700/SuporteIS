@@ -17,6 +17,44 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+      :root {
+        /* Light Mode Defaults */
+        --bg-main: #f3f4f6;
+        --bg-surface: #ffffff;
+        --bg-card: #ffffff;
+        --bg-input: #f9fafb;
+        --border-main: #e5e7eb;
+        --text-main: #111827;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+      }
+
+      .dark {
+        /* Dark Mode Overrides */
+        --bg-main: #101622;
+        --bg-surface: #111722;
+        --bg-card: #1a2332;
+        --bg-input: #192233;
+        --border-main: #2a3649;
+        --text-main: #ffffff;
+        --text-secondary: #92a4c9;
+        --text-muted: #63748e;
+      }
+
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      }
+      
+      /* Apply transitions to all relevant properties for smooth theme switching */
+      *, *::before, *::after {
+        transition-property: background-color, border-color, color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 200ms;
+      }
+    </style>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -29,18 +67,19 @@
                 light: 'rgba(19, 91, 236, 0.1)',
               },
               background: {
-                dark: '#101622',
-                surface: '#111722',
-                card: '#1a2332',
-                input: '#192233'
+                dark: 'var(--bg-main)',     // Mapped to variable
+                surface: 'var(--bg-surface)', // Mapped to variable
+                card: 'var(--bg-card)',       // Mapped to variable
+                input: 'var(--bg-input)'      // Mapped to variable
               },
               border: {
-                dark: '#2a3649',
+                dark: 'var(--border-main)',   // Mapped to variable
                 light: '#324467'
               },
               text: {
-                secondary: '#92a4c9',
-                muted: '#63748e'
+                primary: 'var(--text-main)', // New semantic color
+                secondary: 'var(--text-secondary)', // Mapped to variable
+                muted: 'var(--text-muted)'     // Mapped to variable
               },
               success: '#0bda5e',
               warning: '#fa6238',
@@ -48,8 +87,8 @@
             fontFamily: {
               sans: ['Manrope', 'Noto Sans', 'sans-serif'],
             },
-          },
-        },
+          }
+        }
       }
     </script>
     <style>

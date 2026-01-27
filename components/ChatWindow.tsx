@@ -77,11 +77,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ recipient, onClose }) => {
             }`}></div>
           </div>
           <div className="flex flex-col">
-             <span className="text-white text-sm font-bold truncate max-w-[150px]">{recipient.name}</span>
+             <span className="text-text-primary text-sm font-bold truncate max-w-[150px]">{recipient.name}</span>
              <span className="text-[10px] text-text-secondary">{recipient.profile}</span>
           </div>
         </div>
-        <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-text-secondary hover:text-white">
+        <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-text-secondary hover:text-text-primary">
           <span className="material-symbols-outlined text-[20px]">close</span>
         </button>
       </div>

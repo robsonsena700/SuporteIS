@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface StatCardProps {
   label: string;
@@ -21,17 +22,18 @@ export const StatCard: React.FC<StatCardProps> = ({
   color,
   width = '100%'
 }) => {
+  const { theme } = useTheme();
   
   const getTrendColor = () => {
     switch (trendType) {
-      case 'up': return '#10b981'; // success
-      case 'down': return '#ef4444'; // error
-      default: return '#9ca3af'; // gray
+      case 'up': return theme.secondary; // success
+      case 'down': return theme.danger; // error
+      default: return theme.subtext; // gray
     }
   };
 
   return (
-    <View style={[styles.card, { width: width as any }]}>
+    <View style={[styles.card, { width: width as any, backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
           <Icon size={20} color={color} />
@@ -42,8 +44,8 @@ export const StatCard: React.FC<StatCardProps> = ({
       </View>
       
       <View style={styles.content}>
-        <Text style={styles.value}>{value}</Text>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.value, { color: theme.text }]}>{value}</Text>
+        <Text style={[styles.label, { color: theme.subtext }]}>{label}</Text>
       </View>
     </View>
   );
@@ -51,11 +53,9 @@ export const StatCard: React.FC<StatCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1f2937',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#374151',
   },
   header: {
     flexDirection: 'row',
@@ -77,11 +77,9 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   label: {
     fontSize: 12,
-    color: '#9ca3af',
   },
 });

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 interface Logos {
   web: string;
@@ -12,10 +14,19 @@ interface Logos {
 }
 
 const LogoManager: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [logos, setLogos] = useState<Logos | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (!authLoading && user && user.profile !== 'Administrador') {
+      addToast('Acesso negado: Apenas administradores podem gerenciar logos.', 'error');
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate, addToast]);
 
   useEffect(() => {
     fetchLogos();

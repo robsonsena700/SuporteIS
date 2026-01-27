@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Paperclip, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../api/api';
 import { CustomPicker } from '../components/CustomPicker';
 import { TicketPriority, User } from '../types';
@@ -23,6 +24,7 @@ const EQUIPMENT_OPTIONS = [
 export const NewTicketScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   
   const isClient = user?.profile === 'Cliente';
   const [loading, setLoading] = useState(false);
@@ -195,42 +197,48 @@ export const NewTicketScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color="#fff" size={24} />
+          <ArrowLeft color={theme.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novo Chamado</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Novo Chamado</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           {/* Ticket Type */}
-          <View style={[styles.typeContainer, { width: '100%' }]}>
+          <View style={[styles.typeContainer, { width: '100%', backgroundColor: theme.card }]}>
             <TouchableOpacity 
-              style={[styles.typeButton, ticketType === 'Sistema' && styles.typeButtonActive]}
+              style={[
+                styles.typeButton, 
+                ticketType === 'Sistema' && { backgroundColor: theme.primary }
+              ]}
               onPress={() => setTicketType('Sistema')}
             >
-              <Text style={[styles.typeText, ticketType === 'Sistema' && styles.typeTextActive]}>Serviço</Text>
+              <Text style={[styles.typeText, ticketType === 'Sistema' ? { color: '#fff' } : { color: theme.subtext }]}>Serviço</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.typeButton, ticketType === 'Equipamento' && styles.typeButtonActive]}
+              style={[
+                styles.typeButton, 
+                ticketType === 'Equipamento' && { backgroundColor: theme.primary }
+              ]}
               onPress={() => setTicketType('Equipamento')}
             >
-              <Text style={[styles.typeText, ticketType === 'Equipamento' && styles.typeTextActive]}>Equipamento</Text>
+              <Text style={[styles.typeText, ticketType === 'Equipamento' ? { color: '#fff' } : { color: theme.subtext }]}>Equipamento</Text>
             </TouchableOpacity>
           </View>
 
           {/* Form Fields */}
           <View style={[styles.inputGroup, { width: '100%' }]}>
-            <Text style={styles.label}>Assunto</Text>
+            <Text style={[styles.label, { color: theme.subtext }]}>Assunto</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
               value={formData.subject}
               onChangeText={(text) => setFormData(prev => ({ ...prev, subject: text }))}
               placeholder="Resumo do problema"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.subtext}
             />
           </View>
 
@@ -245,13 +253,13 @@ export const NewTicketScreen = () => {
               />
               {formData.equipment === 'Outros' && (
                 <View style={[styles.inputGroup, halfWidth]}>
-                  <Text style={styles.label}>Especifique</Text>
+                  <Text style={[styles.label, { color: theme.subtext }]}>Especifique</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
                     value={formData.otherEquipment}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, otherEquipment: text }))}
                     placeholder="Qual equipamento?"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={theme.subtext}
                   />
                 </View>
               )}
@@ -261,9 +269,9 @@ export const NewTicketScreen = () => {
           {/* Client Selection (Admin/Support) or Readonly (Client) */}
           {user?.profile === 'Cliente' ? (
             <View style={[styles.inputGroup, halfWidth]}>
-              <Text style={styles.label}>Cliente</Text>
+              <Text style={[styles.label, { color: theme.subtext }]}>Cliente</Text>
               <TextInput
-                style={[styles.input, styles.disabledInput]}
+                style={[styles.input, styles.disabledInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.subtext }]}
                 value={formData.clientName}
                 editable={false}
               />
@@ -279,9 +287,13 @@ export const NewTicketScreen = () => {
           )}
 
           <View style={[styles.inputGroup, halfWidth]}>
-            <Text style={styles.label}>Unidade</Text>
+            <Text style={[styles.label, { color: theme.subtext }]}>Unidade</Text>
             <TextInput
-              style={[styles.input, isClient && styles.disabledInput]}
+              style={[
+                styles.input, 
+                isClient && styles.disabledInput, 
+                { backgroundColor: theme.card, borderColor: theme.border, color: isClient ? theme.subtext : theme.text }
+              ]}
               value={formData.unit}
               onChangeText={(text) => setFormData(prev => ({ ...prev, unit: text }))}
               editable={!isClient}
@@ -291,18 +303,18 @@ export const NewTicketScreen = () => {
           {isClient ? (
             <>
               <View style={[styles.inputGroup, halfWidth]}>
-                <Text style={styles.label}>Município</Text>
+                <Text style={[styles.label, { color: theme.subtext }]}>Município</Text>
                 <TextInput
-                  style={[styles.input, styles.disabledInput]}
+                  style={[styles.input, styles.disabledInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.subtext }]}
                   value={formData.municipality}
                   editable={false}
                 />
               </View>
 
               <View style={[styles.inputGroup, halfWidth]}>
-                <Text style={styles.label}>UF</Text>
+                <Text style={[styles.label, { color: theme.subtext }]}>UF</Text>
                 <TextInput
-                  style={[styles.input, styles.disabledInput]}
+                  style={[styles.input, styles.disabledInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.subtext }]}
                   value={formData.uf}
                   editable={false}
                 />
@@ -363,25 +375,28 @@ export const NewTicketScreen = () => {
           />
 
           <View style={[styles.inputGroup, { width: '100%' }]}>
-            <Text style={styles.label}>Descrição Detalhada</Text>
+            <Text style={[styles.label, { color: theme.subtext }]}>Descrição Detalhada</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
               value={formData.description}
               onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
               multiline
               numberOfLines={4}
               placeholder="Descreva o problema com detalhes..."
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.subtext}
               textAlignVertical="top"
             />
           </View>
 
           {/* Attachments */}
           <View style={[styles.inputGroup, { width: '100%' }]}>
-            <Text style={styles.label}>Anexos (Máx 3)</Text>
-            <TouchableOpacity style={styles.attachButton} onPress={handleAttachment}>
-              <Paperclip size={20} color="#3b82f6" />
-              <Text style={styles.attachButtonText}>Adicionar Foto/Arquivo</Text>
+            <Text style={[styles.label, { color: theme.subtext }]}>Anexos (Máx 3)</Text>
+            <TouchableOpacity 
+              style={[styles.attachButton, { borderColor: theme.primary, backgroundColor: theme.primary + '10' }]} 
+              onPress={handleAttachment}
+            >
+              <Paperclip size={20} color={theme.primary} />
+              <Text style={[styles.attachButtonText, { color: theme.primary }]}>Adicionar Foto/Arquivo</Text>
             </TouchableOpacity>
 
             <View style={styles.attachmentsList}>
@@ -400,7 +415,7 @@ export const NewTicketScreen = () => {
           </View>
 
           <TouchableOpacity 
-            style={[styles.submitButton, { width: '100%' }]}
+            style={[styles.submitButton, { width: '100%', backgroundColor: theme.primary }]}
             onPress={handleSubmit}
             disabled={loading}
           >

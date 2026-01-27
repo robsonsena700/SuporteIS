@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock, Flag, User, Monitor, AlertCircle, MessageSquare, Timer } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -19,6 +20,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onPress,
   showRating = false 
 }) => {
+  const { theme } = useTheme();
   const [expanded, setExpanded] = useState(false);
 
   const getStatusColor = (status: TicketStatus) => {
@@ -86,15 +88,15 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
   return (
     <TouchableOpacity 
-      style={styles.card}
+      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
       onPress={() => onPress(ticket)}
       activeOpacity={0.7}
     >
       {/* Header: Code, Unread, Date, Status, Priority */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.codeContainer}>
-            <Text style={styles.codeText}>
+          <View style={[styles.codeContainer, { backgroundColor: theme.background }]}>
+            <Text style={[styles.codeText, { color: theme.subtext }]}>
               {ticket.code || `CH-${ticket.id.slice(0, 4).toUpperCase()}`}
             </Text>
           </View>
@@ -130,14 +132,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       {/* Subject */}
       <View style={styles.content}>
         <Text 
-            style={styles.subject} 
+            style={[styles.subject, { color: theme.text }]} 
             numberOfLines={expanded ? undefined : 2}
         >
             {ticket.subject}
         </Text>
         {ticket.subject && ticket.subject.length > 80 && (
             <TouchableOpacity onPress={() => setExpanded(!expanded)} hitSlop={{ top: 10, bottom: 10 }}>
-                <Text style={styles.expandText}>{expanded ? 'Ver menos' : 'Ver mais'}</Text>
+                <Text style={[styles.expandText, { color: theme.primary }]}>{expanded ? 'Ver menos' : 'Ver mais'}</Text>
             </TouchableOpacity>
         )}
       </View>
@@ -146,8 +148,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       <View style={styles.footer}>
         {/* Creator */}
         <View style={styles.personRow}>
-            <User size={14} color="#9ca3af" />
-            <Text style={styles.personName} numberOfLines={1}>
+            <User size={14} color={theme.subtext} />
+            <Text style={[styles.personName, { color: theme.subtext }]} numberOfLines={1}>
                 {ticket.creatorName || 'Sistema'}
                 {ticket.municipality && <Text style={styles.personDetail}> • {ticket.municipality}</Text>}
             </Text>
@@ -159,14 +161,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 {ticket.technicianAvatar ? (
                     <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatar} />
                 ) : (
-                    <Monitor size={14} color="#9ca3af" />
+                    <Monitor size={14} color={theme.subtext} />
                 )}
             </View>
             <View>
-                <Text style={styles.personName} numberOfLines={1}>
+                <Text style={[styles.personName, { color: theme.subtext }]} numberOfLines={1}>
                     {ticket.technician || 'Sem responsável'}
                 </Text>
-                <Text style={styles.roleText}>Suporte Técnico</Text>
+                <Text style={[styles.roleText, { color: theme.subtext }]}>Suporte Técnico</Text>
             </View>
         </View>
 
@@ -175,10 +177,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
              <View style={styles.ratingContainer}>
                 <View style={styles.starsRow}>
                     {[1, 2, 3, 4, 5].map((star) => (
-                        <Text key={star} style={{ color: ticket.rating && ticket.rating >= star ? getRatingColor(ticket.rating) : '#4b5563', fontSize: 14 }}>★</Text>
+                        <Text key={star} style={{ color: ticket.rating && ticket.rating >= star ? getRatingColor(ticket.rating) : theme.border, fontSize: 14 }}>★</Text>
                     ))}
                 </View>
-                <Text style={styles.ratingText}>
+                <Text style={[styles.ratingText, { color: theme.subtext }]}>
                     {ticket.rating ? `${ticket.rating.toFixed(1)} / 5` : 'Não avaliado'}
                 </Text>
              </View>

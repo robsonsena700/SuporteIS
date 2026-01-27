@@ -58,12 +58,12 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
         {onToggleSidebar && (
           <button 
             onClick={onToggleSidebar}
-            className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-white"
+            className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-text-primary"
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
         )}
-        <h2 className="text-white font-bold text-lg">
+        <h2 className="text-text-primary font-bold text-lg">
            SupportTech Pro
         </h2>
       </div>
@@ -75,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
           <div className="relative">
             <button 
               onClick={() => { setShowUserList(!showUserList); setShowNotifications(false); }}
-              className="size-10 rounded-xl bg-background-input hover:bg-background-card border border-border-dark flex items-center justify-center text-text-secondary hover:text-white transition-all relative"
+              className="size-10 rounded-xl bg-background-input hover:bg-background-card border border-border-dark flex items-center justify-center text-text-secondary hover:text-text-primary transition-all relative"
               title="Equipe & Chat"
             >
               <span className="material-symbols-outlined">group</span>
@@ -133,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
 
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-start">
-            <span className="text-sm font-bold text-white">{user?.name}</span>
+            <span className="text-sm font-bold text-text-primary">{user?.name}</span>
             <span className="text-[10px] text-text-secondary">{user?.profile}</span>
           </div>
           {onLogout && (

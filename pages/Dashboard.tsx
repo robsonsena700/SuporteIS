@@ -32,7 +32,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading && !stats) return <div className="text-white p-8">Carregando dashboard...</div>;
+  if (loading && !stats) return <div className="text-text-primary p-8">Carregando dashboard...</div>;
 
   const canViewRating = user?.role === 'Administrador' || user?.role === 'Cliente' || user?.profile === 'Administrador' || user?.profile === 'Cliente';
 
@@ -41,7 +41,7 @@ const Dashboard: React.FC = () => {
       label: 'Total de Chamados',  
       value: stats.totalTickets, 
       trend: 'No período', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'inbox', 
       color: 'text-primary' 
     },
@@ -49,7 +49,7 @@ const Dashboard: React.FC = () => {
       label: 'Chamados Resolvidos', 
       value: stats.resolvedCount, 
       trend: `${((stats.resolvedCount / (stats.totalTickets || 1)) * 100).toFixed(1)}% taxa`, 
-      trendType: 'up', 
+      trendType: 'up' as const, 
       icon: 'check_circle', 
       color: 'text-success' 
     },
@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
       label: 'TMR - Tempo Médio', 
       value: stats.tmr || '00:00:00', 
       trend: 'Resolução', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'timer', 
       color: 'text-purple-400' 
     },
@@ -65,7 +65,7 @@ const Dashboard: React.FC = () => {
       label: 'Em Aberto', 
       value: stats.byStatus.find(s => s.status === 'Aberto')?.count || 0, 
       trend: 'Aguardando', 
-      trendType: 'down', 
+      trendType: 'down' as const, 
       icon: 'pending', 
       color: 'text-warning' 
     },
@@ -73,7 +73,7 @@ const Dashboard: React.FC = () => {
       label: 'Em Andamento', 
       value: (Number(stats.byStatus.find(s => s.status === 'Em Andamento')?.count || 0)) + (Number(stats.byStatus.find(s => s.status === 'Em Análise')?.count || 0)), 
       trend: 'Em tratativa', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'trending_up', 
       color: 'text-blue-400' 
     },
@@ -81,7 +81,7 @@ const Dashboard: React.FC = () => {
       label: 'Média Satisfação', 
       value: stats.averageRating, 
       trend: 'Avaliação', 
-      trendType: Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down', 
+      trendType: (Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down') as 'up' | 'neutral' | 'down', 
       icon: 'star', 
       color: 'text-yellow-400' 
     },

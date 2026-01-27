@@ -6,10 +6,12 @@ import { CustomPicker } from '../components/CustomPicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, User, Briefcase, ArrowLeft, CheckSquare, Square, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export const SignupScreen = () => {
   const navigation = useNavigation();
   const { signUp } = useAuth();
+  const { theme } = useTheme();
   const { estados, municipios, loadingEstados, loadingMunicipios, error, fetchMunicipios, clearMunicipios } = useLocationIBGE();
   
   const [formData, setFormData] = useState({
@@ -152,7 +154,7 @@ export const SignupScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
@@ -164,23 +166,23 @@ export const SignupScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ArrowLeft color="#9ca3af" size={24} />
-            <Text style={styles.backText}>Voltar</Text>
+            <ArrowLeft color={theme.subtext} size={24} />
+            <Text style={[styles.backText, { color: theme.subtext }]}>Voltar</Text>
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Crie sua conta</Text>
-            <Text style={styles.subtitle}>Preencha os dados abaixo para começar</Text>
+            <Text style={[styles.title, { color: theme.primary }]}>Crie sua conta</Text>
+            <Text style={[styles.subtitle, { color: theme.subtext }]}>Preencha os dados abaixo para começar</Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.row}>
-              <View style={[styles.inputContainer, styles.halfInput, errors.firstName && styles.inputError]}>
-                <User color="#9ca3af" size={20} style={styles.inputIcon} />
+              <View style={[styles.inputContainer, styles.halfInput, errors.firstName && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <User color={theme.subtext} size={20} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Nome"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.subtext}
                   value={formData.firstName}
                   onChangeText={(text) => handleChange('firstName', text)}
                   autoCapitalize="words"
@@ -188,12 +190,12 @@ export const SignupScreen = () => {
                   onSubmitEditing={() => lastNameRef.current?.focus()}
                 />
               </View>
-              <View style={[styles.inputContainer, styles.halfInput, errors.lastName && styles.inputError]}>
+              <View style={[styles.inputContainer, styles.halfInput, errors.lastName && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
                 <TextInput
                   ref={lastNameRef}
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Sobrenome"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.subtext}
                   value={formData.lastName}
                   onChangeText={(text) => handleChange('lastName', text)}
                   autoCapitalize="words"
@@ -203,13 +205,13 @@ export const SignupScreen = () => {
               </View>
             </View>
 
-            <View style={[styles.inputContainer, errors.email && styles.inputError]}>
-              <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
+            <View style={[styles.inputContainer, errors.email && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Mail color={theme.subtext} size={20} style={styles.inputIcon} />
               <TextInput
                 ref={emailRef}
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="E-mail"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.subtext}
                 value={formData.email}
                 onChangeText={(text) => handleChange('email', text)}
                 autoCapitalize="none"
@@ -258,19 +260,19 @@ export const SignupScreen = () => {
             />
             {loadingMunicipios ? (
               <View style={styles.loadingMunicipios}>
-                <ActivityIndicator color="#9ca3af" />
+                <ActivityIndicator color={theme.subtext} />
               </View>
             ) : null}
             {errors.municipality ? <Text style={styles.errorText}>{errors.municipality}</Text> : null}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <View style={[styles.inputContainer, errors.company && styles.inputError]}>
-              <Briefcase color="#9ca3af" size={20} style={styles.inputIcon} />
+            <View style={[styles.inputContainer, errors.company && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Briefcase color={theme.subtext} size={20} style={styles.inputIcon} />
               <TextInput
                 ref={companyRef}
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="Unidade / Empresa"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.subtext}
                 value={formData.company}
                 onChangeText={(text) => handleChange('company', text)}
                 autoCapitalize="words"
@@ -280,13 +282,13 @@ export const SignupScreen = () => {
             </View>
             {errors.company ? <Text style={styles.errorText}>{errors.company}</Text> : null}
 
-            <View style={[styles.inputContainer, errors.password && styles.inputError]}>
-              <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
+            <View style={[styles.inputContainer, errors.password && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Lock color={theme.subtext} size={20} style={styles.inputIcon} />
               <TextInput
                 ref={passwordRef}
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="Senha"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.subtext}
                 value={formData.password}
                 onChangeText={(text) => handleChange('password', text)}
                 secureTextEntry={!showPassword}
@@ -296,22 +298,22 @@ export const SignupScreen = () => {
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 {showPassword ? (
-                  <EyeOff color="#9ca3af" size={20} />
+                  <EyeOff color={theme.subtext} size={20} />
                 ) : (
-                  <Eye color="#9ca3af" size={20} />
+                  <Eye color={theme.subtext} size={20} />
                 )}
               </TouchableOpacity>
             </View>
 
             {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
-            <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError]}>
-              <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
+            <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Lock color={theme.subtext} size={20} style={styles.inputIcon} />
               <TextInput
                 ref={confirmPasswordRef}
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="Confirmar Senha"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.subtext}
                 value={formData.confirmPassword}
                 onChangeText={(text) => handleChange('confirmPassword', text)}
                 secureTextEntry={!showConfirmPassword}
@@ -321,9 +323,9 @@ export const SignupScreen = () => {
               />
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
                 {showConfirmPassword ? (
-                  <EyeOff color="#9ca3af" size={20} />
+                  <EyeOff color={theme.subtext} size={20} />
                 ) : (
-                  <Eye color="#9ca3af" size={20} />
+                  <Eye color={theme.subtext} size={20} />
                 )}
               </TouchableOpacity>
             </View>
@@ -334,18 +336,18 @@ export const SignupScreen = () => {
               onPress={() => handleChange('agreeTerms', !formData.agreeTerms)}
             >
               {formData.agreeTerms ? (
-                <CheckSquare color="#3b82f6" size={24} />
+                <CheckSquare color={theme.primary} size={24} />
               ) : (
-                <Square color="#6b7280" size={24} />
+                <Square color={theme.subtext} size={24} />
               )}
-              <Text style={styles.termsText}>
-                Eu concordo com os <Text style={styles.linkText}>Termos de Serviço</Text> e confirmo que li a <Text style={styles.linkText}>Política de Privacidade</Text>.
+              <Text style={[styles.termsText, { color: theme.subtext }]}>
+                Eu concordo com os <Text style={[styles.linkText, { color: theme.primary }]}>Termos de Serviço</Text> e confirmo que li a <Text style={[styles.linkText, { color: theme.primary }]}>Política de Privacidade</Text>.
               </Text>
             </TouchableOpacity>
             {errors.agreeTerms ? <Text style={styles.errorText}>{errors.agreeTerms}</Text> : null}
 
             <TouchableOpacity 
-              style={[styles.button, !canSubmit && styles.buttonDisabled]} 
+              style={[styles.button, { backgroundColor: theme.primary }, !canSubmit && styles.buttonDisabled]} 
               onPress={handleSignup}
               disabled={!canSubmit}
             >

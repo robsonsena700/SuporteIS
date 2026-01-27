@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Activity
 import { Header } from '../components/Header';
 import { TicketService } from '../services/ticketService';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Ticket } from '../types';
 import { Search, SlidersHorizontal, FileText, Download, Share2, FileSpreadsheet } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export const ReportsScreen = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   
@@ -202,10 +204,13 @@ export const ReportsScreen = () => {
       XLSX.utils.book_append_sheet(wb, ws, "Relatório");
 
       const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-      const uri = FileSystem.documentDirectory + 'relatorio_chamados.xlsx';
       
-      await FileSystem.writeAsStringAsync(uri, wbout, {
-        encoding: FileSystem.EncodingType.Base64
+      // Use cast to any to avoid linter errors with expo-file-system types
+      const fs = FileSystem as any;
+      const uri = (fs.documentDirectory || fs.cacheDirectory) + 'relatorio_chamados.xlsx';
+      
+      await fs.writeAsStringAsync(uri, wbout, {
+        encoding: fs.EncodingType.Base64
       });
 
       await Sharing.shareAsync(uri, {
@@ -221,25 +226,33 @@ export const ReportsScreen = () => {
 
   const FilterOption = ({ label, value, selected, onSelect }: any) => (
     <TouchableOpacity 
-      style={[styles.filterChip, selected === value && styles.filterChipSelected]} 
+      style={[
+        styles.filterChip, 
+        { backgroundColor: theme.card, borderColor: theme.border },
+        selected === value && { backgroundColor: theme.primary + '20', borderColor: theme.primary }
+      ]} 
       onPress={() => onSelect(value === selected ? '' : value)}
     >
-      <Text style={[styles.filterChipText, selected === value && styles.filterChipTextSelected]}>{label}</Text>
+      <Text style={[
+        styles.filterChipText, 
+        { color: theme.subtext },
+        selected === value && { color: theme.primary, fontWeight: 'bold' }
+      ]}>{label}</Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Header title="Relatórios" />
       
       <View style={styles.content}>
         <View style={styles.toolbar}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#9ca3af" />
+          <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Search size={20} color={theme.subtext} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: theme.text }]}
               placeholder="Buscar..."
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.subtext}
               value={searchText}
               onChangeText={setSearchText}
               returnKeyType="search"
@@ -248,10 +261,14 @@ export const ReportsScreen = () => {
           </View>
           
           <TouchableOpacity 
-            style={[styles.filterButton, showFilters && styles.filterButtonActive]} 
+            style={[
+              styles.filterButton, 
+              { backgroundColor: theme.card, borderColor: theme.border },
+              showFilters && { backgroundColor: theme.primary, borderColor: theme.primary }
+            ]} 
             onPress={toggleFilters}
           >
-            <SlidersHorizontal size={20} color="#fff" />
+            <SlidersHorizontal size={20} color={showFilters ? '#fff' : theme.text} />
             {getActiveFilterCount() > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{getActiveFilterCount()}</Text>
@@ -261,9 +278,9 @@ export const ReportsScreen = () => {
         </View>
 
         {showFilters && (
-          <View style={styles.filtersContainer}>
+          <View style={[styles.filtersContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Categoria</Text>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Categoria</Text>
               <View style={styles.filterRow}>
                 <FilterOption 
                   label="Sistema" 
@@ -281,14 +298,14 @@ export const ReportsScreen = () => {
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Período</Text>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Período</Text>
               <View style={styles.dateRow}>
                 <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>De</Text>
+                  <Text style={[styles.dateLabel, { color: theme.subtext }]}>De</Text>
                   <TextInput
-                    style={styles.dateInput}
+                    style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                     placeholder="DD/MM/AAAA"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={theme.subtext}
                     value={startDate}
                     onChangeText={(text) => handleDateChange(text, setStartDate)}
                     keyboardType="numeric"
@@ -296,11 +313,11 @@ export const ReportsScreen = () => {
                   />
                 </View>
                 <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateLabel}>Até</Text>
+                  <Text style={[styles.dateLabel, { color: theme.subtext }]}>Até</Text>
                   <TextInput
-                    style={styles.dateInput}
+                    style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                     placeholder="DD/MM/AAAA"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={theme.subtext}
                     value={endDate}
                     onChangeText={(text) => handleDateChange(text, setEndDate)}
                     keyboardType="numeric"
@@ -311,7 +328,7 @@ export const ReportsScreen = () => {
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Status</Text>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Status</Text>
               <View style={styles.filterWrap}>
                 {['Aberto', 'Em Andamento', 'Em Análise', 'Resolvido'].map(s => (
                   <FilterOption 
@@ -326,7 +343,7 @@ export const ReportsScreen = () => {
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Prioridade</Text>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Prioridade</Text>
               <View style={styles.filterRow}>
                 {['Baixa', 'Média', 'Alta'].map(p => (
                   <FilterOption 
@@ -340,9 +357,9 @@ export const ReportsScreen = () => {
               </View>
             </View>
 
-            <View style={styles.actionButtons}>
+            <View style={[styles.actionButtons, { borderTopColor: theme.border }]}>
                <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
-                <Text style={styles.clearButtonText}>Limpar Filtros</Text>
+                <Text style={[styles.clearButtonText, { color: theme.subtext }]}>Limpar Filtros</Text>
               </TouchableOpacity>
               
               <View style={styles.exportButtons}>
@@ -360,15 +377,15 @@ export const ReportsScreen = () => {
         )}
 
         <View style={styles.summaryContainer}>
-          <Text style={styles.summaryText}>
-            Total encontrado: <Text style={styles.summaryHighlight}>{tickets.length}</Text>
+          <Text style={[styles.summaryText, { color: theme.subtext }]}>
+            Total encontrado: <Text style={[styles.summaryHighlight, { color: theme.primary }]}>{tickets.length}</Text>
           </Text>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text style={styles.loadingText}>Carregando relatórios...</Text>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.subtext }]}>Carregando relatórios...</Text>
           </View>
         ) : (
           <FlatList
@@ -383,8 +400,8 @@ export const ReportsScreen = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <FileText size={48} color="#374151" />
-                <Text style={styles.emptyText}>Nenhum registro encontrado</Text>
+                <FileText size={48} color={theme.subtext} />
+                <Text style={[styles.emptyText, { color: theme.subtext }]}>Nenhum registro encontrado</Text>
               </View>
             }
           />

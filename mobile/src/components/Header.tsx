@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { LogOut, Bell, Users, User as UserIcon, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ interface HeaderProps {
 export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { notifications, unreadCount, loading, alertEnabled, markAsRead, markAllAsRead, refreshNotifications, toggleAlert } = useNotifications();
+  const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   

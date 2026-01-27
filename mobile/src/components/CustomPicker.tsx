@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet, Platform, ViewStyle, TextInput } from 'react-native';
 import { ChevronDown, X, Search } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface Option {
   label: string;
@@ -28,6 +29,7 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
   containerStyle,
   searchable = false
 }) => {
+  const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
 
@@ -47,15 +49,15 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: theme.subtext }]}>{label}</Text>
       <TouchableOpacity 
-        style={[styles.selector, disabled && styles.disabled]} 
+        style={[styles.selector, disabled && styles.disabled, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]} 
         onPress={() => !disabled && setModalVisible(true)}
       >
-        <Text style={[styles.valueText, !selectedOption && styles.placeholder]}>
+        <Text style={[styles.valueText, !selectedOption && styles.placeholder, { color: !selectedOption ? theme.subtext : theme.text }]}>
           {selectedOption ? selectedOption.label : placeholder}
         </Text>
-        <ChevronDown size={20} color="#9ca3af" />
+        <ChevronDown size={20} color={theme.subtext} />
       </TouchableOpacity>
 
       <Modal
@@ -65,21 +67,21 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
         onRequestClose={handleClose}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label}</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>{label}</Text>
               <TouchableOpacity onPress={handleClose}>
-                <X size={24} color="#9ca3af" />
+                <X size={24} color={theme.subtext} />
               </TouchableOpacity>
             </View>
 
             {searchable && (
-              <View style={styles.searchContainer}>
-                <Search size={20} color="#9ca3af" style={styles.searchIcon} />
+              <View style={[styles.searchContainer, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+                <Search size={20} color={theme.subtext} style={styles.searchIcon} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { color: theme.text }]}
                   placeholder="Pesquisar..."
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.subtext}
                   value={searchText}
                   onChangeText={setSearchText}
                   autoCapitalize="none"
@@ -94,7 +96,8 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
                 <TouchableOpacity 
                   style={[
                     styles.optionItem, 
-                    item.value === value && styles.selectedOption
+                    item.value === value && { backgroundColor: theme.background },
+                    { borderBottomColor: theme.border }
                   ]}
                   onPress={() => {
                     onSelect(item.value);
@@ -103,7 +106,8 @@ export const CustomPicker: React.FC<CustomPickerProps> = ({
                 >
                   <Text style={[
                     styles.optionText,
-                    item.value === value && styles.selectedOptionText
+                    item.value === value && { color: theme.primary, fontWeight: 'bold' },
+                    { color: item.value === value ? theme.primary : theme.text }
                   ]}>
                     {item.label}
                   </Text>

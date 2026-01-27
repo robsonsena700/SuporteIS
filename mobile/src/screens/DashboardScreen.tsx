@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, RefreshControl, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../api/api';
 import { DashboardStats } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 export const DashboardScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,8 +62,8 @@ export const DashboardScreen = () => {
 
   if (loading && !stats) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -89,7 +91,7 @@ export const DashboardScreen = () => {
       trend: 'No período',
       trendType: 'neutral',
       icon: Inbox,
-      color: '#3b82f6'
+      color: theme.primary
     },
     {
       label: 'Chamados Resolvidos',
@@ -97,7 +99,7 @@ export const DashboardScreen = () => {
       trend: `${resolutionRate}% taxa`,
       trendType: 'up',
       icon: CheckCircle,
-      color: '#10b981'
+      color: theme.secondary
     },
     {
       label: 'TMR - Tempo Médio',
@@ -113,7 +115,7 @@ export const DashboardScreen = () => {
       trend: 'Aguardando',
       trendType: 'down',
       icon: Clock,
-      color: '#f59e0b'
+      color: theme.warning
     },
     {
       label: 'Em Tratativa',
@@ -121,7 +123,7 @@ export const DashboardScreen = () => {
       trend: 'Andamento/Análise',
       trendType: 'neutral',
       icon: TrendingUp,
-      color: '#60a5fa'
+      color: theme.info
     },
     {
       label: 'Média Satisfação',
@@ -139,12 +141,14 @@ export const DashboardScreen = () => {
   });
 
   return (
-    <View style={styles.container}>
-      <Header showUserInfo={true} />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Header title="Dashboard" showUserInfo />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+        }
       >
         <View style={styles.grid}>
           {statItems.map((item, index) => (
@@ -159,9 +163,9 @@ export const DashboardScreen = () => {
         
         {/* Placeholder for future charts or lists */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Atalhos Rápidos</Text>
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderText}>Gráficos de evolução em breve</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Atalhos Rápidos</Text>
+          <View style={[styles.placeholderCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.placeholderText, { color: theme.subtext }]}>Gráficos de evolução em breve</Text>
           </View>
         </View>
 
@@ -169,7 +173,7 @@ export const DashboardScreen = () => {
 
       {user?.role !== 'Técnico' && (
         <TouchableOpacity 
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: theme.primary }]}
           onPress={() => navigation.navigate('NewTicket' as never)}
         >
           <Plus color="#fff" size={24} />
