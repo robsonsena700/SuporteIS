@@ -62,14 +62,13 @@ const Header: React.FC<HeaderProps> = ({ user, onChatSelect, onToggleSidebar, on
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
-        )}
-        <h2 className="text-text-primary font-bold text-lg">
-           SupportTech Pro
-        </h2>
+        )}        
+      </div>
+      <div className="flex items-left gap-4">
       </div>
 
       {/* Right side - Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-left gap-4">
         {/* Team / Users Dropdown - Only for non-clients */}
         {canShowTeamButton && (
           <div className="relative">

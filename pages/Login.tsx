@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthService } from '../services/api';
-import { User } from '../types';
+import { AuthService, api } from '../services/api';
+import { User, LogoConfig } from '../types';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -14,6 +14,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const response = await api.get<LogoConfig>('/logos');
+        if (response.data && response.data.web) {
+          setLogoUrl(response.data.web);
+        }
+      } catch (error) {
+        console.log('Failed to fetch logo configuration', error);
+      }
+    };
+    
+    fetchLogo();
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +75,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
            <img className="w-full h-full object-cover opacity-20" src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800" alt="" />
            <div className="absolute inset-0 bg-gradient-to-t from-background-card to-transparent"></div>
            <div className="absolute inset-0 flex items-center justify-center">
-             <div className="size-16 bg-primary/20 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
-               <span className="material-symbols-outlined text-4xl filled">security</span>
+             <div className="size-16 bg-primary/20 rounded-2xl flex items-center justify-center text-primary border border-primary/20 overflow-hidden">
+               {logoUrl ? (
+                 <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+               ) : (
+                 <span className="material-symbols-outlined text-4xl filled">security</span>
+               )}
              </div>
            </div>
         </div>
@@ -141,7 +161,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </button>
               <button className="h-10 border border-border-dark rounded-lg flex items-center justify-center gap-2 hover:bg-background-input transition-all">
                 <span className="material-symbols-outlined text-text-primary text-[18px]">domain</span>
-                <span className="text-xs text-text-primary font-bold">SSO Empresa</span>
+                <span className="text-xs text-text-primary font-bold">Login IS</span>
               </button>
             </div>
 

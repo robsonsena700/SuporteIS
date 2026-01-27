@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image, PixelRatio } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { api } from '../api/api';
+import { LogoConfig } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +20,36 @@ export const LoginScreen = () => {
 
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [currentError, setCurrentError] = useState<ErrorDetails | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [loadingLogo, setLoadingLogo] = useState(true);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const response = await api.get<LogoConfig>('/logos');
+        const data = response.data;
+        if (data && data.mobile) {
+            const pixelDensity = PixelRatio.get();
+            let selectedLogo = data.mobile.x1;
+            
+            // Choose resolution based on pixel density
+            if (pixelDensity >= 3 && data.mobile.x3) {
+                selectedLogo = data.mobile.x3;
+            } else if (pixelDensity >= 2 && data.mobile.x2) {
+                selectedLogo = data.mobile.x2;
+            }
+            
+            setLogoUrl(selectedLogo);
+        }
+      } catch (error) {
+        console.log('Failed to fetch logo configuration', error);
+      } finally {
+        setLoadingLogo(false);
+      }
+    };
+    
+    fetchLogo();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -63,15 +95,18 @@ export const LoginScreen = () => {
         code = 'TIMEOUT';
       } else if (error.message === 'Network Error') {
         msg = 'Erro de conexão com a rede.';
-        suggestion = 'Verifique se o Wi-Fi ou dados móveis estão ativos.';
+        suggestion = 'Verifique se o Wi-Fi ou dados móveis estão ativos. O IP do servidor pode ter mudado.';
         code = 'NETWORK_ERROR';
       }
+
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'Unknown URL';
+      const techDetails = `${error.message || JSON.stringify(error)}\nTarget: ${apiUrl}`;
 
       setCurrentError({
         title,
         message: msg,
         code: code.toString(),
-        technicalDetails: error.message || JSON.stringify(error),
+        technicalDetails: techDetails,
         suggestion
       });
       setErrorModalVisible(true);
@@ -101,6 +136,13 @@ export const LoginScreen = () => {
         style={styles.content}
       >
         <View style={styles.header}>
+          {logoUrl ? (
+            <Image 
+              source={{ uri: logoUrl }} 
+              style={styles.logo} 
+              resizeMode="contain"
+            />
+          ) : null}
           <Text style={[styles.title, { color: theme.primary }]}>SuporteIS</Text>
           <Text style={[styles.subtitle, { color: theme.subtext }]}>Entre para acessar seus chamados</Text>
         </View>
@@ -182,6 +224,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 48,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,

@@ -94,12 +94,6 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col gap-8 pb-10">
       {/* User Info & Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Olá, {user?.name || 'Usuário'}</h1>
-          <p className="text-text-secondary">
-            {user?.role} | {user?.department || 'Geral'} | Último acesso: {user?.lastAccess || 'Hoje'}
-          </p>
-        </div>
         <div className="flex flex-wrap gap-3">
           <select 
             value={period}

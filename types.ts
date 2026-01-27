@@ -1,4 +1,13 @@
 
+export interface LogoConfig {
+  web: string;
+  mobile: {
+    x1: string;
+    x2: string;
+    x3: string;
+  };
+}
+
 export enum TicketStatus {
   OPEN = 'Aberto',
   IN_ANALYSIS = 'Em Análise',

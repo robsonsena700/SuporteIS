@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Ticket, TicketStatus, TicketPriority, User, Message, Notification, DirectMessage } from '../types';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: '/api', // Use Vite Proxy
 });
 
