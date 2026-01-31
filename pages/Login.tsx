@@ -198,17 +198,26 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             
             <div className="grid grid-cols-2 gap-3">
             {/* Google Login Button */}
-            <div className="flex justify-center items-center w-full h-20">
+            <div className="flex justify-center items-center w-full h-10">
                 <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
                     theme="filled_blue"
                     shape="pill"
-                    text="continue_with"
+                    text="signin"
                     width="100%"
                 />
             </div>
-
+            
+            {/* Login com IS Button */}
+            <button
+                type="button"
+                className="w-full h-10 flex items-center justify-center gap-2 bg-background-input hover:bg-background-card border border-border-dark rounded-full text-text-primary text-sm font-medium transition-colors"
+                onClick={() => alert('Login com IS em desenvolvimento')}
+            >
+                <span className="material-symbols-outlined text-[20px] text-primary">stethoscope_check</span>
+                Login IS
+            </button>
             </div>
 
              <p className="text-sm text-text-secondary mt-4">

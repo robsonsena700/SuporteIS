@@ -10,7 +10,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { api } from '../api/api';
 import { LogoConfig } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ErrorModal, ErrorDetails } from '../components/ErrorModal';
 
@@ -248,26 +248,39 @@ export const LoginScreen = () => {
             )}
           </TouchableOpacity>
 
-          {/* Google Login Button */}
-          <TouchableOpacity 
-            style={[styles.googleButton, (!request || isSubmitting) && { opacity: 0.7 }]} 
-            onPress={() => promptAsync()}
-            disabled={!request || isSubmitting}
-            activeOpacity={0.8}
-          >
-            {(!request || isSubmitting) ? (
-              <ActivityIndicator color="#1F2937" />
-            ) : (
-              <>
-                <Image 
-                  source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }} 
-                  style={styles.googleLogo} 
-                  resizeMode="contain"
-                />
-                <Text style={styles.googleButtonText}>Continuar com o Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {/* Social Login Buttons */}
+          <View style={styles.socialButtonsContainer}>
+            {/* Google Login Button */}
+            <TouchableOpacity 
+              style={[styles.socialButton, (!request || isSubmitting) && { opacity: 0.7 }]} 
+              onPress={() => promptAsync()}
+              disabled={!request || isSubmitting}
+              activeOpacity={0.8}
+            >
+              {(!request || isSubmitting) ? (
+                <ActivityIndicator color="#1F2937" size="small" />
+              ) : (
+                <>
+                  <Image 
+                    source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }} 
+                    style={styles.socialIcon} 
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.socialButtonText}>Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Login com IS Button */}
+            <TouchableOpacity 
+              style={styles.socialButton} 
+              onPress={() => Alert.alert('Em breve', 'Login com IS em desenvolvimento')}
+              activeOpacity={0.8}
+            >
+              <Shield color="#3b82f6" size={24} style={styles.socialIcon} />
+              <Text style={styles.socialButtonText}>IS Login</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.subtext }]}>Não tem uma conta?</Text>
@@ -347,25 +360,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  googleButton: {
+  socialButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  socialButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     height: 56,
     borderRadius: 12,
-    marginTop: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    gap: 12,
-    width: '100%',
+    gap: 8,
   },
-  googleButtonText: {
+  socialButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
   },
-  googleLogo: {
+  socialIcon: {
     width: 24,
     height: 24,
   },

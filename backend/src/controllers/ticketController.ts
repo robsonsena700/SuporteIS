@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { AuditService } from '../services/AuditService';
 
 // Helper for access control on ratings
 const canViewRating = (user: any) => {
@@ -371,10 +372,22 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
 
         // Create initial message if description is provided
         if (description) {
-             await client.query(
-                'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4)',
+             const msgResult = await client.query(
+                'INSERT INTO messages (ticket_id, sender_id, content, is_internal) VALUES ($1, $2, $3, $4) RETURNING *',
                 [ticket.id, userId, description, false]
             );
+
+             // Audit Log Initial Message
+             await AuditService.logMessage({
+                original_message_id: msgResult.rows[0].id,
+                source_table: 'ticket_messages',
+                context_type: 'ticket',
+                context_id: ticket.id,
+                sender_id: userId as string,
+                content: description,
+                metadata: { ip: req.ip, user_agent: req.headers['user-agent'], is_initial: true },
+                created_at: msgResult.rows[0].created_at
+            });
         }
 
         // Log creation
@@ -751,6 +764,18 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
           [ticketId, req.user?.id, content, is_internal || false, attachment || null]
       );
 
+      // Audit Log
+      await AuditService.logMessage({
+          original_message_id: newMessage.rows[0].id,
+          source_table: 'ticket_messages',
+          context_type: 'ticket',
+          context_id: ticketId,
+          sender_id: req.user?.id as string,
+          content: content,
+          metadata: { ip: req.ip, user_agent: req.headers['user-agent'], is_internal },
+          created_at: newMessage.rows[0].created_at
+      });
+
       // Log History
       await logTicketHistory(pool, ticketId, req.user?.id, 'MESSAGE', null, content, 'Nova mensagem adicionada');
 
@@ -760,12 +785,18 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
         if (senderId && !is_internal) {
             const senderRes = await pool.query('SELECT name FROM users WHERE id = $1', [senderId]);
             const senderName = senderRes.rows[0]?.name || 'Usuário';
+            
+            const messagePayload = JSON.stringify({
+                ...newMessage.rows[0],
+                sender_name: senderName,
+                context_type: 'ticket'
+            });
 
             if (senderId === ticketOwnerId) {
                 if (currentTechnicianId) {
                     await pool.query(
-                        'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-                        [currentTechnicianId, 'new_message', ticketId, `Nova mensagem de ${senderName}`]
+                        'INSERT INTO notifications (user_id, type, reference_id, content, message_data) VALUES ($1, $2, $3, $4, $5)',
+                        [currentTechnicianId, 'new_message', ticketId, `Nova mensagem de ${senderName}`, messagePayload]
                     );
                 } else {
                     // Notify all Admins if ticket is unassigned
@@ -774,8 +805,8 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
                          // Avoid duplicate notifications if admin is also the sender (unlikely here but good practice)
                          if (admin.id !== senderId) {
                             await pool.query(
-                                'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-                                [admin.id, 'new_message', ticketId, `Nova mensagem de ${senderName} em chamado não atribuído`]
+                                'INSERT INTO notifications (user_id, type, reference_id, content, message_data) VALUES ($1, $2, $3, $4, $5)',
+                                [admin.id, 'new_message', ticketId, `Nova mensagem de ${senderName} em chamado não atribuído`, messagePayload]
                             );
                          }
                     }
@@ -783,8 +814,8 @@ export const addMessage = async (req: AuthRequest, res: Response) => {
             } else {
                 if (ticketOwnerId) {
                     await pool.query(
-                        'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-                        [ticketOwnerId, 'new_message', ticketId, `Nova mensagem de ${senderName}`]
+                        'INSERT INTO notifications (user_id, type, reference_id, content, message_data) VALUES ($1, $2, $3, $4, $5)',
+                        [ticketOwnerId, 'new_message', ticketId, `Nova mensagem de ${senderName}`, messagePayload]
                     );
                 }
             }

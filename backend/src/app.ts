@@ -12,6 +12,7 @@ import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import chatRoutes from './routes/chatRoutes';
 import logoRoutes from './routes/logoRoutes';
+import auditRoutes from './routes/auditRoutes';
 import path from 'path';
 
 const app = express();
@@ -73,6 +74,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/logos', logoRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

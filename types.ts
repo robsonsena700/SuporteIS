@@ -126,6 +126,7 @@ export interface Notification {
   type: 'new_message' | 'new_dm' | 'status_change' | 'system';
   referenceId: string;
   content: string;
+  messageData?: any;
   isRead: boolean;
   createdAt: string;
   createdAtIso?: string;
