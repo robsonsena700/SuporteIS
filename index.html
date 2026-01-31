@@ -1,6 +1,6 @@
 
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,6 +14,109 @@
     
     <!-- Material Symbols -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+      :root {
+        /* Light Mode Defaults */
+        --bg-main: #f3f4f6;
+        --bg-surface: #ffffff;
+        --bg-card: #ffffff;
+        --bg-input: #ffffff; /* Changed from #f9fafb for better contrast */
+        --border-main: #6b7280; /* Changed from #e5e7eb for WCAG AA (4.6:1) */
+        --text-main: #111827;
+        --text-secondary: #4b5563; /* Darkened from #6b7280 */
+        --text-muted: #6b7280; /* Darkened from #9ca3af */
+      }
+
+      .dark {
+        /* Dark Mode Overrides */
+        --bg-main: #101622;
+        --bg-surface: #111722;
+        --bg-card: #1a2332;
+        --bg-input: #111827; /* Darker input bg */
+        --border-main: #9ca3af; /* Lightened from #2a3649 for visibility */
+        --text-main: #ffffff;
+        --text-secondary: #d1d5db; /* Lightened from #92a4c9 */
+        --text-muted: #9ca3af; /* Lightened from #63748e */
+      }
+
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      }
+      
+      /* Apply transitions to all relevant properties for smooth theme switching */
+      *, *::before, *::after {
+        transition-property: background-color, border-color, color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 200ms;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: '#135bec',
+                hover: '#0f48bd',
+                light: 'rgba(19, 91, 236, 0.1)',
+              },
+              background: {
+                dark: 'var(--bg-main)',     // Mapped to variable
+                surface: 'var(--bg-surface)', // Mapped to variable
+                card: 'var(--bg-card)',       // Mapped to variable
+                input: 'var(--bg-input)'      // Mapped to variable
+              },
+              border: {
+                dark: 'var(--border-main)',   // Mapped to variable
+                light: '#324467'
+              },
+              text: {
+                primary: 'var(--text-main)', // New semantic color
+                secondary: 'var(--text-secondary)', // Mapped to variable
+                muted: 'var(--text-muted)'     // Mapped to variable
+              },
+              success: '#0bda5e',
+              warning: '#fa6238',
+            },
+            fontFamily: {
+              sans: ['Manrope', 'Noto Sans', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .material-symbols-outlined.filled {
+        font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #101622;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #2a3649;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #324467;
+      }
+      body {
+        background-color: #101622;
+        color: white;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

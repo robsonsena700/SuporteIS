@@ -59,8 +59,15 @@ const mapHistoryFromApi = (data: any): TicketHistory => ({
 });
 
 export const TicketService = {
-  getAll: async () => {
-    const response = await api.get('/tickets');
+  getAll: async (filters?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    priority?: string;
+    search?: string;
+    category?: string;
+  }) => {
+    const response = await api.get('/tickets', { params: filters });
     return response.data.map(mapTicketFromApi);
   },
 

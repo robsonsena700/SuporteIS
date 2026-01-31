@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Platform, Alert, Modal } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../api/api';
 import { Ticket, TicketStatus, TicketPriority } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +31,7 @@ const PRIORITY_OPTIONS = [
 export const TicketsScreen = () => {
   const navigation = useNavigation<TicketsScreenNavigationProp>();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +111,7 @@ export const TicketsScreen = () => {
   }, [fetchTickets]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isAutoRefresh) {
       fetchTickets(); // Initial fetch when enabled
       interval = setInterval(() => {
@@ -117,7 +119,9 @@ export const TicketsScreen = () => {
       }, 30000);
     }
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval !== undefined) {
+        clearInterval(interval);
+      }
     };
   }, [isAutoRefresh, fetchTickets]);
 
@@ -217,12 +221,12 @@ export const TicketsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <Header 
         title="Central de Atendimento" 
         rightAction={
           <TouchableOpacity 
-              style={styles.addButton} 
+              style={[styles.addButton, { backgroundColor: theme.primary }]} 
               onPress={() => navigation.navigate('NewTicket')}
           >
               <Plus color="#fff" size={24} />
@@ -230,7 +234,7 @@ export const TicketsScreen = () => {
         }
       />
 
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, { backgroundColor: theme.background }]}>
           <Tabs 
              tabs={['Sistema', 'Equipamento', 'Concluído']} 
              activeTab={activeTab} 
@@ -239,30 +243,34 @@ export const TicketsScreen = () => {
 
           <View style={styles.controlsContainer}>
               <View style={styles.searchRow}>
-                 <View style={styles.searchWrapper}>
-                    <Search color="#9ca3af" size={18} />
+                 <View style={[styles.searchWrapper, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Search color={theme.subtext} size={18} />
                     <TextInput
-                        style={styles.searchInput}
+                        style={[styles.searchInput, { color: theme.text }]}
                         placeholder="Buscar..."
-                        placeholderTextColor="#6b7280"
+                        placeholderTextColor={theme.placeholder}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X color="#9ca3af" size={18} />
+                            <X color={theme.subtext} size={18} />
                         </TouchableOpacity>
                     )}
                  </View>
                  
                  <TouchableOpacity 
-                    style={[styles.iconButton, filterModalVisible && styles.iconButtonActive]}
+                    style={[
+                        styles.iconButton, 
+                        { backgroundColor: theme.card, borderColor: theme.border },
+                        filterModalVisible && { backgroundColor: theme.primary, borderColor: theme.primary }
+                    ]}
                     onPress={() => {
                         setTempFilters(appliedFilters);
                         setFilterModalVisible(true);
                     }}
                  >
-                    <Filter color={filterModalVisible ? "#fff" : "#9ca3af"} size={20} />
+                    <Filter color={filterModalVisible ? "#fff" : theme.subtext} size={20} />
                  </TouchableOpacity>
               </View>
 
@@ -270,8 +278,9 @@ export const TicketsScreen = () => {
                    {user?.profile !== 'Cliente' && (
                        <TouchableOpacity 
                             style={[
-                                styles.actionButton, 
-                                appliedFilters.showMyTickets && styles.actionButtonActive
+                                styles.actionButton,
+                                { backgroundColor: theme.card, borderColor: theme.border }, 
+                                appliedFilters.showMyTickets && { backgroundColor: theme.primary + '20', borderColor: theme.primary + '80' }
                             ]}
                             onPress={() => {
                                 const newValue = !appliedFilters.showMyTickets;
@@ -279,8 +288,8 @@ export const TicketsScreen = () => {
                                 setTempFilters(prev => ({ ...prev, showMyTickets: newValue }));
                             }}
                         >
-                            <UserIcon color={appliedFilters.showMyTickets ? "#3b82f6" : "#9ca3af"} size={18} />
-                            <Text style={[styles.actionButtonText, appliedFilters.showMyTickets && styles.actionButtonTextActive]}>
+                            <UserIcon color={appliedFilters.showMyTickets ? theme.primary : theme.subtext} size={18} />
+                            <Text style={[styles.actionButtonText, { color: theme.subtext }, appliedFilters.showMyTickets && { color: theme.primary }]}>
                                 Meus Chamados
                             </Text>
                         </TouchableOpacity>
@@ -288,13 +297,14 @@ export const TicketsScreen = () => {
 
                     <TouchableOpacity 
                         style={[
-                            styles.actionButton, 
-                            isAutoRefresh && styles.actionButtonActive
+                            styles.actionButton,
+                            { backgroundColor: theme.card, borderColor: theme.border },
+                            isAutoRefresh && { backgroundColor: theme.primary + '20', borderColor: theme.primary + '80' }
                         ]}
                         onPress={() => setIsAutoRefresh(!isAutoRefresh)}
                     >
-                        <RefreshCw color={isAutoRefresh ? "#10b981" : "#9ca3af"} size={18} />
-                        <Text style={[styles.actionButtonText, isAutoRefresh && { color: '#10b981' }]}>
+                        <RefreshCw color={isAutoRefresh ? theme.secondary : theme.subtext} size={18} />
+                        <Text style={[styles.actionButtonText, { color: theme.subtext }, isAutoRefresh && { color: theme.secondary }]}>
                             {isAutoRefresh ? 'Auto: ON' : 'Auto: OFF'}
                         </Text>
                     </TouchableOpacity>
@@ -304,7 +314,7 @@ export const TicketsScreen = () => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : (
         <FlatList
@@ -321,15 +331,15 @@ export const TicketsScreen = () => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
           }
           ListEmptyComponent={
             <View style={styles.center}>
-                <View style={styles.emptyIconBg}>
-                    <Search size={32} color="#4b5563" />
+                <View style={[styles.emptyIconBg, { backgroundColor: theme.card }]}>
+                    <Search size={32} color={theme.subtext} />
                 </View>
-                <Text style={styles.emptyTitle}>Nenhum chamado encontrado</Text>
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyTitle, { color: theme.text }]}>Nenhum chamado encontrado</Text>
+                <Text style={[styles.emptyText, { color: theme.subtext }]}>
                     Tente ajustar os filtros ou busque por outro termo.
                 </Text>
             </View>
@@ -346,58 +356,78 @@ export const TicketsScreen = () => {
         onRequestClose={() => setFilterModalVisible(false)}
       >
           <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Filtrar e Ordenar</Text>
+              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+                  <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+                      <Text style={[styles.modalTitle, { color: theme.text }]}>Filtrar e Ordenar</Text>
                       <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                          <X color="#9ca3af" size={24} />
+                          <X color={theme.subtext} size={24} />
                       </TouchableOpacity>
                   </View>
                   
                   <ScrollView style={styles.modalBody}>
-                      <Text style={styles.filterSectionTitle}>Ordenar por</Text>
+                      <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Ordenar por</Text>
                       <View style={styles.filterOptionsRow}>
                           <TouchableOpacity 
-                             style={[styles.filterOption, tempFilters.sortBy === 'date' && styles.filterOptionActive]}
+                             style={[
+                                 styles.filterOption,
+                                 { backgroundColor: theme.background, borderColor: theme.border },
+                                 tempFilters.sortBy === 'date' && { backgroundColor: theme.primary, borderColor: theme.primary }
+                             ]}
                              onPress={() => setTempFilters(prev => ({ ...prev, sortBy: 'date' }))}
                           >
-                              <Calendar size={16} color={tempFilters.sortBy === 'date' ? '#fff' : '#9ca3af'} />
-                              <Text style={[styles.filterOptionText, tempFilters.sortBy === 'date' && styles.filterOptionTextActive]}>Data</Text>
+                              <Calendar size={16} color={tempFilters.sortBy === 'date' ? '#fff' : theme.subtext} />
+                              <Text style={[styles.filterOptionText, { color: theme.subtext }, tempFilters.sortBy === 'date' && { color: '#fff' }]}>Data</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
-                             style={[styles.filterOption, tempFilters.sortBy === 'priority' && styles.filterOptionActive]}
+                             style={[
+                                 styles.filterOption,
+                                 { backgroundColor: theme.background, borderColor: theme.border },
+                                 tempFilters.sortBy === 'priority' && { backgroundColor: theme.primary, borderColor: theme.primary }
+                             ]}
                              onPress={() => setTempFilters(prev => ({ ...prev, sortBy: 'priority' }))}
                           >
-                              <AlertCircle size={16} color={tempFilters.sortBy === 'priority' ? '#fff' : '#9ca3af'} />
-                              <Text style={[styles.filterOptionText, tempFilters.sortBy === 'priority' && styles.filterOptionTextActive]}>Prioridade</Text>
+                              <AlertCircle size={16} color={tempFilters.sortBy === 'priority' ? '#fff' : theme.subtext} />
+                              <Text style={[styles.filterOptionText, { color: theme.subtext }, tempFilters.sortBy === 'priority' && { color: '#fff' }]}>Prioridade</Text>
                           </TouchableOpacity>
                       </View>
 
-                      <Text style={styles.filterSectionTitle}>Ordem</Text>
+                      <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Ordem</Text>
                       <View style={styles.filterOptionsRow}>
                           <TouchableOpacity 
-                             style={[styles.filterOption, tempFilters.sortOrder === 'desc' && styles.filterOptionActive]}
+                             style={[
+                                 styles.filterOption,
+                                 { backgroundColor: theme.background, borderColor: theme.border },
+                                 tempFilters.sortOrder === 'desc' && { backgroundColor: theme.primary, borderColor: theme.primary }
+                             ]}
                              onPress={() => setTempFilters(prev => ({ ...prev, sortOrder: 'desc' }))}
                           >
-                              <Text style={[styles.filterOptionText, tempFilters.sortOrder === 'desc' && styles.filterOptionTextActive]}>Decrescente</Text>
+                              <Text style={[styles.filterOptionText, { color: theme.subtext }, tempFilters.sortOrder === 'desc' && { color: '#fff' }]}>Decrescente</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
-                             style={[styles.filterOption, tempFilters.sortOrder === 'asc' && styles.filterOptionActive]}
+                             style={[
+                                 styles.filterOption,
+                                 { backgroundColor: theme.background, borderColor: theme.border },
+                                 tempFilters.sortOrder === 'asc' && { backgroundColor: theme.primary, borderColor: theme.primary }
+                             ]}
                              onPress={() => setTempFilters(prev => ({ ...prev, sortOrder: 'asc' }))}
                           >
-                              <Text style={[styles.filterOptionText, tempFilters.sortOrder === 'asc' && styles.filterOptionTextActive]}>Crescente</Text>
+                              <Text style={[styles.filterOptionText, { color: theme.subtext }, tempFilters.sortOrder === 'asc' && { color: '#fff' }]}>Crescente</Text>
                           </TouchableOpacity>
                       </View>
 
-                      <Text style={styles.filterSectionTitle}>Prioridade</Text>
+                      <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Prioridade</Text>
                       <View style={styles.filterOptionsGrid}>
                           {PRIORITY_OPTIONS.map(opt => (
                               <TouchableOpacity
                                   key={opt.value}
-                                  style={[styles.filterOption, tempFilters.priority === opt.value && styles.filterOptionActive]}
+                                  style={[
+                                      styles.filterOption,
+                                      { backgroundColor: theme.background, borderColor: theme.border },
+                                      tempFilters.priority === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary }
+                                  ]}
                                   onPress={() => setTempFilters(prev => ({ ...prev, priority: opt.value }))}
                               >
-                                  <Text style={[styles.filterOptionText, tempFilters.priority === opt.value && styles.filterOptionTextActive]}>{opt.label}</Text>
+                                  <Text style={[styles.filterOptionText, { color: theme.subtext }, tempFilters.priority === opt.value && { color: '#fff' }]}>{opt.label}</Text>
                               </TouchableOpacity>
                           ))}
                       </View>
@@ -405,11 +435,17 @@ export const TicketsScreen = () => {
                       <View style={{ height: 40 }} />
                   </ScrollView>
 
-                  <View style={styles.modalFooter}>
-                      <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-                          <Text style={styles.resetButtonText}>Limpar</Text>
+                  <View style={[styles.modalFooter, { borderTopColor: theme.border }]}>
+                      <TouchableOpacity 
+                          style={[styles.resetButton, { borderColor: theme.border }]} 
+                          onPress={resetFilters}
+                      >
+                          <Text style={[styles.resetButtonText, { color: theme.subtext }]}>Limpar</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
+                      <TouchableOpacity 
+                          style={[styles.applyButton, { backgroundColor: theme.primary }]} 
+                          onPress={applyFilters}
+                      >
                           <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
                       </TouchableOpacity>
                   </View>

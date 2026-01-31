@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboa
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare, XCircle, Download } from 'lucide-react-native';
+import { ArrowLeft, Send, Clock, User as UserIcon, MoreVertical, Edit2, CheckCircle, UserPlus, FileText, History as HistoryIcon, Star, Lock, Calendar, MapPin, Paperclip, Flag, Tag, AlertTriangle, MessageSquare, XCircle, Download, Smile } from 'lucide-react-native';
 import { TicketService } from '../services/ticketService';
 import { Ticket, TicketStatus, TicketPriority, TicketHistory } from '../types';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNotifications } from '../context/NotificationContext';
 import { CustomPicker } from '../components/CustomPicker';
 import { RatingModal } from '../components/RatingModal';
@@ -14,7 +15,6 @@ import { useResponsive } from '../hooks/useResponsive';
 import { Tabs } from '../components/Tabs';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { API_URL } from '../api/api';
 
 type RootStackParamList = {
   TicketDetail: { ticketId: string };
@@ -22,22 +22,14 @@ type RootStackParamList = {
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, 'TicketDetail'>;
 type TicketDetailNavigationProp = StackNavigationProp<RootStackParamList>;
-
-const getAttachmentUrl = (path: string) => {
-    if (!path) return '';
-    if (path.startsWith('http') || path.startsWith('data:')) return path;
-    const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
-    // If path is like "uploads\file.jpg" (windows style), fix it? 
-    // Usually URLs use forward slashes.
-    const normalizedPath = path.replace(/\\/g, '/');
-    return `${baseUrl}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
-};
+const COMMON_EMOJIS = ["👍", "👎", "😊", "😂", "🤔", "👀", "✅", "❌", "🎉", "🔥", "❤️", "🙏", "👋", "😁", "😢", "😡", "🚀", "💻", "🐛", "🔧"];
 
 export const TicketDetailScreen = () => {
   const navigation = useNavigation<TicketDetailNavigationProp>();
   const route = useRoute<TicketDetailRouteProp>();
   const { ticketId } = route.params;
   const { user } = useAuth();
+  const { theme } = useTheme();
   const { notifications, markAsRead } = useNotifications();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, screenWidth } = useResponsive();
@@ -50,6 +42,11 @@ export const TicketDetailScreen = () => {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   
+  // Input State
+  const [inputHeight, setInputHeight] = useState(40);
+  const [isFocused, setIsFocused] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   // History
   const [history, setHistory] = useState<TicketHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -182,20 +179,20 @@ export const TicketDetailScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   if (unauthorized) {
       return (
-          <View style={[styles.container, styles.center]}>
-              <Lock size={48} color="#ef4444" />
-              <Text style={{color: '#fff', marginTop: 16, fontSize: 18, fontWeight: 'bold'}}>Acesso Negado</Text>
-              <Text style={{color: '#9ca3af', marginTop: 8}}>Você não tem permissão para ver este chamado.</Text>
-              <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop: 24, padding: 12, backgroundColor: '#374151', borderRadius: 8}}>
-                  <Text style={{color: '#fff'}}>Voltar</Text>
+          <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+              <Lock size={48} color={theme.danger} />
+              <Text style={{color: theme.text, marginTop: 16, fontSize: 18, fontWeight: 'bold'}}>Acesso Negado</Text>
+              <Text style={{color: theme.subtext, marginTop: 8}}>Você não tem permissão para ver este chamado.</Text>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop: 24, padding: 12, backgroundColor: theme.card, borderRadius: 8}}>
+                  <Text style={{color: theme.text}}>Voltar</Text>
               </TouchableOpacity>
           </View>
       );
@@ -203,8 +200,8 @@ export const TicketDetailScreen = () => {
 
   if (!ticket) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <Text style={{color: '#fff'}}>Chamado não encontrado</Text>
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+        <Text style={{color: theme.text}}>Chamado não encontrado</Text>
       </View>
     );
   }
@@ -302,8 +299,8 @@ export const TicketDetailScreen = () => {
                 style={styles.messageAvatarImage}
               />
             ) : (
-              <View style={[styles.messageAvatarPlaceholder, { backgroundColor: '#374151' }]}>
-                <Text style={styles.messageAvatarInitials}>
+              <View style={[styles.messageAvatarPlaceholder, { backgroundColor: theme.border }]}>
+                <Text style={[styles.messageAvatarInitials, { color: theme.text }]}>
                     {item.senderName?.substring(0, 2).toUpperCase() || 'US'}
                 </Text>
               </View>
@@ -313,40 +310,40 @@ export const TicketDetailScreen = () => {
         <View
           style={[
             styles.messageBubble,
-            isMe ? styles.myMessage : styles.otherMessage,
-            internal && styles.internalMessage,
+            isMe ? { backgroundColor: theme.primary, borderBottomRightRadius: 4, borderBottomLeftRadius: 16 } : { backgroundColor: theme.card },
+            internal && { backgroundColor: '#451a03', borderColor: theme.warning, borderWidth: 1 },
           ]}
         >
           <View style={styles.messageHeader}>
             <View style={styles.messageHeaderLeft}>
-              <Text style={styles.senderName}>{item.senderName}</Text>
+              <Text style={[styles.senderName, { color: isMe ? '#fff' : theme.text }]}>{item.senderName}</Text>
               {internal && (
-                  <View style={styles.internalBadge}>
+                  <View style={[styles.internalBadge, { backgroundColor: theme.warning }]}>
                       <Lock size={10} color="#000" />
                       <Text style={styles.internalText}>Interna</Text>
                   </View>
               )}
             </View>
-            <Text style={styles.messageTime}>
+            <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : theme.subtext }]}>
               {isValidDate ? format(date, 'HH:mm') : ''}
             </Text>
           </View>
-          <Text style={styles.messageText}>{item.content}</Text>
+          <Text style={[styles.messageText, { color: isMe ? '#fff' : theme.text }]}>{item.content}</Text>
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.background }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color="#fff" size={24} />
+          <ArrowLeft color={theme.text} size={24} />
         </TouchableOpacity>
         
         <View style={styles.headerInfo}>
-          <Text style={styles.headerCode}>{ticket.code || `#${ticket.id.substring(0,6)}`}</Text>
+          <Text style={[styles.headerCode, { color: theme.subtext }]}>{ticket.code || `#${ticket.id.substring(0,6)}`}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket.status) + '20' }]}>
              <Text style={[styles.statusText, { color: getStatusColor(ticket.status) }]}>{ticket.status}</Text>
           </View>
@@ -354,26 +351,26 @@ export const TicketDetailScreen = () => {
         
         <View style={styles.headerActions}>
             {isTechnician && isUnassigned && !isResolved && (
-                <TouchableOpacity onPress={handleTakeTicket} style={styles.actionButton}>
-                    <UserPlus color="#3b82f6" size={20} />
+                <TouchableOpacity onPress={handleTakeTicket} style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <UserPlus color={theme.primary} size={20} />
                 </TouchableOpacity>
             )}
 
             {canEvaluate && canViewRating ? (
-                <TouchableOpacity onPress={() => setShowRatingModal(true)} style={styles.actionButton}>
-                    <Star color="#fbbf24" size={20} />
+                <TouchableOpacity onPress={() => setShowRatingModal(true)} style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Star color={theme.warning} size={20} />
                 </TouchableOpacity>
             ) : (
                 !isResolved && (
-                    <TouchableOpacity onPress={handleResolvePress} style={styles.actionButton}>
-                        <CheckCircle color="#10b981" size={20} />
+                    <TouchableOpacity onPress={handleResolvePress} style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <CheckCircle color={theme.secondary} size={20} />
                     </TouchableOpacity>
                 )
             )}
 
             {canEdit && !isResolved && (
-                <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.actionButton}>
-                    <Edit2 color={isEditing ? "#3b82f6" : "#fff"} size={20} />
+                <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Edit2 color={isEditing ? theme.primary : theme.text} size={20} />
                 </TouchableOpacity>
             )}
         </View>
@@ -381,16 +378,16 @@ export const TicketDetailScreen = () => {
 
       {/* Ticket Main Info */}
       <View style={styles.mainInfo}>
-          <Text style={styles.ticketTitle}>{ticket.subject}</Text>
+          <Text style={[styles.ticketTitle, { color: theme.text }]}>{ticket.subject}</Text>
           <View style={styles.creatorInfo}>
-              <View style={styles.avatarSmall}>
+              <View style={[styles.avatarSmall, { backgroundColor: theme.card }]}>
                   {ticket.creatorAvatar ? (
-                       <Image source={{ uri: getAttachmentUrl(ticket.creatorAvatar) }} style={styles.avatarImage} />
+                       <Image source={{ uri: ticket.creatorAvatar }} style={styles.avatarImage} />
                   ) : (
-                       <UserIcon size={14} color="#9ca3af" />
+                       <UserIcon size={14} color={theme.subtext} />
                   )}
               </View>
-              <Text style={styles.creatorName}>{ticket.creatorName} • {format(new Date(ticket.createdAt), "dd 'de' MMM, HH:mm", { locale: ptBR })}</Text>
+              <Text style={[styles.creatorName, { color: theme.subtext }]}>{ticket.creatorName} • {format(new Date(ticket.createdAt), "dd 'de' MMM, HH:mm", { locale: ptBR })}</Text>
           </View>
       </View>
 
@@ -406,7 +403,7 @@ export const TicketDetailScreen = () => {
         {activeTab === 'Mensagens' ? (
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <View style={{ flex: 1 }}>
@@ -417,42 +414,94 @@ export const TicketDetailScreen = () => {
                   renderItem={renderMessageItem}
                   contentContainerStyle={styles.messagesList}
                   inverted={false}
+                  onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                  onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
                 />
                 
                 {!isResolved && (
-                    <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                        {isTechnician && (
-                            <TouchableOpacity 
-                                style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
-                                onPress={() => setIsInternal(!isInternal)}
-                            >
-                                <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
-                            </TouchableOpacity>
+                    <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                        {/* Emoji Picker */}
+                        {showEmojiPicker && (
+                            <View style={styles.emojiPicker}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                    {COMMON_EMOJIS.map(emoji => (
+                                        <TouchableOpacity 
+                                            key={emoji} 
+                                            onPress={() => setReplyText(prev => prev + emoji)}
+                                            style={styles.emojiButton}
+                                        >
+                                            <Text style={styles.emojiText}>{emoji}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
                         )}
-                        <TextInput
-                            style={styles.input}
-                            placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
-                            placeholderTextColor="#6b7280"
-                            value={replyText}
-                            onChangeText={setReplyText}
-                            multiline
-                        />
-                        <TouchableOpacity 
-                            style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
-                            onPress={handleSendReply}
-                            disabled={!replyText.trim() || sending}
-                        >
-                            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
-                        </TouchableOpacity>
+
+                        <View style={[
+                            styles.inputContainer, 
+                            isFocused && styles.inputContainerFocused
+                        ]}>
+                            {isTechnician && (
+                                <TouchableOpacity 
+                                    style={[styles.internalToggle, isInternal && styles.internalToggleActive]}
+                                    onPress={() => setIsInternal(!isInternal)}
+                                    accessibilityLabel={isInternal ? "Nota interna ativada" : "Nota interna desativada"}
+                                    accessibilityHint="Alterna entre mensagem pública e nota interna"
+                                >
+                                    <Lock size={16} color={isInternal ? '#fbbf24' : '#9ca3af'} />
+                                </TouchableOpacity>
+                            )}
+
+                            <TouchableOpacity 
+                                onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+                                style={styles.iconButton}
+                                accessibilityLabel="Inserir emoji"
+                            >
+                                <Smile size={20} color={showEmojiPicker ? "#3b82f6" : "#9ca3af"} />
+                            </TouchableOpacity>
+
+                            <TextInput
+                                style={[
+                                    styles.input, 
+                                    { height: Math.min(Math.max(40, inputHeight), 120) }
+                                ]}
+                                placeholder={isInternal ? "Nota interna..." : "Digite sua mensagem..."}
+                                placeholderTextColor={theme.placeholder}
+                                value={replyText}
+                                onChangeText={setReplyText}
+                                multiline
+                                onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
+                                onFocus={() => {
+                                    setIsFocused(true);
+                                    setShowEmojiPicker(false);
+                                }}
+                                onBlur={() => setIsFocused(false)}
+                                accessibilityLabel="Campo de mensagem"
+                                accessibilityHint="Digite sua mensagem para o chamado"
+                            />
+                            
+                            <TouchableOpacity 
+                                style={[styles.sendButton, (!replyText.trim() || sending) && styles.sendButtonDisabled]}
+                                onPress={handleSendReply}
+                                disabled={!replyText.trim() || sending}
+                                accessibilityLabel="Enviar mensagem"
+                                accessibilityState={{ disabled: !replyText.trim() || sending }}
+                            >
+                                {sending ? <ActivityIndicator color="#fff" size="small" /> : <Send color="#fff" size={20} />}
+                            </TouchableOpacity>
+                        </View>
+                        {replyText.length > 0 && (
+                             <Text style={styles.charCount}>{replyText.length} caracteres</Text>
+                        )}
                     </View>
                 )}
             </View>
           </KeyboardAvoidingView>
         ) : activeTab === 'Detalhes' ? (
-          <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView style={[styles.detailsContainer, { backgroundColor: theme.background }]} contentContainerStyle={{ paddingBottom: 40 }}>
             {isEditing && (
-                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Edição Rápida</Text>
+                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Edição Rápida</Text>
                     <View style={styles.formSection}>
                         <CustomPicker
                             label="Prioridade"
@@ -480,7 +529,7 @@ export const TicketDetailScreen = () => {
                             onSelect={(v) => setEditForm(p => ({...p, status: v as TicketStatus}))}
                         />
 
-                        <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
+                        <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSaveEdit}>
                             <Text style={styles.saveButtonText}>Salvar Alterações</Text>
                         </TouchableOpacity>
                     </View>
@@ -488,14 +537,14 @@ export const TicketDetailScreen = () => {
             )}
 
             {/* General Info Card */}
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <AlertTriangle size={18} color="#3b82f6" />
-                    <Text style={styles.cardTitle}>Informações Gerais</Text>
+            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+                    <AlertTriangle size={18} color={theme.primary} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Informações Gerais</Text>
                 </View>
                 
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Prioridade</Text>
+                <View style={[styles.infoRow, { borderBottomColor: theme.border + '50' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Prioridade</Text>
                     <View style={[styles.badge, { backgroundColor: getPriorityColor(ticket.priority) + '20' }]}>
                         <Text style={[styles.badgeText, { color: getPriorityColor(ticket.priority) }]}>
                             {ticket.priority}
@@ -503,153 +552,148 @@ export const TicketDetailScreen = () => {
                     </View>
                 </View>
 
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Categoria</Text>
-                    <Text style={styles.infoValue}>{ticket.category || 'Geral'}</Text>
+                <View style={[styles.infoRow, { borderBottomColor: theme.border + '50' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Categoria</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.category || 'Geral'}</Text>
                 </View>
 
-                 <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Cliente</Text>
-                    <Text style={styles.infoValue}>{ticket.clientName || 'N/A'}</Text>
+                 <View style={[styles.infoRow, { borderBottomColor: theme.border + '50' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Cliente</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.clientName || 'N/A'}</Text>
                 </View>
 
                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.infoLabel}>Local</Text>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Local</Text>
                     <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                        <MapPin size={14} color="#9ca3af" />
-                        <Text style={styles.infoValue}>{ticket.municipality || 'Não informado'}</Text>
+                        <MapPin size={14} color={theme.subtext} />
+                        <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.municipality || 'Não informado'}</Text>
                     </View>
                 </View>
             </View>
 
              {/* Technician Card */}
-             <View style={styles.card}>
-                 <View style={styles.cardHeader}>
-                    <UserIcon size={18} color="#3b82f6" />
-                    <Text style={styles.cardTitle}>Responsável Técnico</Text>
+             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                 <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+                    <UserIcon size={18} color={theme.primary} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Responsável Técnico</Text>
                 </View>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-                    <View style={[styles.avatar, { backgroundColor: '#374151' }]}>
+                    <View style={[styles.avatar, { backgroundColor: theme.border }]}>
                         {ticket.technicianAvatar ? (
-                             <Image source={{ uri: getAttachmentUrl(ticket.technicianAvatar) }} style={styles.avatarImage} />
+                             <Image source={{ uri: ticket.technicianAvatar }} style={styles.avatarImage} />
                         ) : (
-                             <UserIcon size={20} color="#9ca3af" />
+                             <UserIcon size={20} color={theme.subtext} />
                         )}
                     </View>
                     <View>
-                        <Text style={styles.infoValue}>{ticket.technician || 'Não atribuído'}</Text>
-                        <Text style={[styles.infoLabel, { fontSize: 12 }]}>{ticket.technician ? 'Técnico Designado' : 'Aguardando atribuição'}</Text>
+                        <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.technician || 'Não atribuído'}</Text>
+                        <Text style={[styles.infoLabel, { fontSize: 12, color: theme.subtext }]}>{ticket.technician ? 'Técnico Designado' : 'Aguardando atribuição'}</Text>
                     </View>
                 </View>
             </View>
 
             {/* Equipment Card */}
-            <View style={styles.card}>
-                 <View style={styles.cardHeader}>
+            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                 <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <View style={styles.iconBox}>
+                        <View style={[styles.iconBox, { backgroundColor: theme.border }]}>
                              <Text style={{fontSize: 16}}>🖥️</Text>
                         </View>
-                        <Text style={styles.cardTitle}>Equipamento</Text>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Equipamento</Text>
                     </View>
                 </View>
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Modelo</Text>
-                    <Text style={styles.infoValue}>{ticket.equipment || 'N/A'}</Text>
+                <View style={[styles.infoRow, { borderBottomColor: theme.border + '50' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Modelo</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.equipment || 'N/A'}</Text>
                 </View>
                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.infoLabel}>Serial</Text>
-                    <Text style={styles.infoValue}>{ticket.equipmentDetails?.serialNumber || ticket.serialNumber || 'N/A'}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.subtext }]}>Serial</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{ticket.equipmentDetails?.serialNumber || ticket.serialNumber || 'N/A'}</Text>
                 </View>
             </View>
 
             {/* Description Card */}
-            <View style={styles.card}>
-                 <View style={styles.cardHeader}>
-                    <FileText size={18} color="#3b82f6" />
-                    <Text style={styles.cardTitle}>Descrição</Text>
+            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                 <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+                    <FileText size={18} color={theme.primary} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Descrição</Text>
                 </View>
-                <Text style={styles.descriptionText}>{ticket.description}</Text>
+                <Text style={[styles.descriptionText, { color: theme.text }]}>{ticket.description}</Text>
             </View>
 
             {/* Attachments Card */}
             {ticket.attachment && (
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Paperclip size={18} color="#3b82f6" />
-                        <Text style={styles.cardTitle}>Anexo</Text>
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+                        <Paperclip size={18} color={theme.primary} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Anexo</Text>
                     </View>
                     
-                    {(() => {
-                        const fullUrl = getAttachmentUrl(ticket.attachment!);
-                        const isImage = ticket.attachment!.match(/\.(jpeg|jpg|gif|png)$/i) || ticket.attachment!.startsWith('data:image');
-                        
-                        return isImage ? (
-                            <TouchableOpacity onPress={() => Linking.openURL(fullUrl)}>
-                                <Image 
-                                    source={{ uri: fullUrl }} 
-                                    style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8, resizeMode: 'cover' }} 
-                                />
-                            </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity 
-                                style={styles.attachmentButton}
-                                onPress={() => Linking.openURL(fullUrl)}
-                            >
-                                <Download size={20} color="#3b82f6" />
-                                <Text style={styles.attachmentText}>Baixar Anexo</Text>
-                            </TouchableOpacity>
-                        );
-                    })()}
+                    {ticket.attachment.match(/\.(jpeg|jpg|gif|png)$/i) || ticket.attachment.startsWith('data:image') ? (
+                        <TouchableOpacity onPress={() => Linking.openURL(ticket.attachment!)}>
+                            <Image 
+                                source={{ uri: ticket.attachment }} 
+                                style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8, resizeMode: 'cover' }} 
+                            />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={[styles.attachmentButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => Linking.openURL(ticket.attachment!)}
+                        >
+                            <Download size={20} color={theme.primary} />
+                            <Text style={[styles.attachmentText, { color: theme.primary }]}>Baixar Anexo</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
             {ticket.rating && canViewRating && (
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Star size={18} color="#fbbf24" />
-                        <Text style={styles.cardTitle}>Avaliação</Text>
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+                        <Star size={18} color={theme.warning} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Avaliação</Text>
                     </View>
                     <View style={{flexDirection:'row', marginBottom: 8}}>
                             {[1,2,3,4,5].map(s => (
-                                <Text key={s} style={{fontSize: 24, color: s <= ticket.rating! ? '#eab308' : '#4b5563'}}>★</Text>
+                                <Text key={s} style={{fontSize: 24, color: s <= ticket.rating! ? theme.warning : theme.subtext}}>★</Text>
                             ))}
                     </View>
-                    {ticket.feedback && <Text style={[styles.descriptionText, { fontStyle: 'italic', color: '#9ca3af' }]}>"{ticket.feedback}"</Text>}
+                    {ticket.feedback && <Text style={[styles.descriptionText, { fontStyle: 'italic', color: theme.subtext }]}>"{ticket.feedback}"</Text>}
                 </View>
             )}
 
             {/* Cancel Button */}
             {!isResolved && ticket.status !== TicketStatus.CANCELED && (
                 <TouchableOpacity style={styles.cancelButton} onPress={handleCancelTicket}>
-                    <XCircle size={20} color="#ef4444" />
-                    <Text style={styles.cancelButtonText}>Cancelar Chamado</Text>
+                    <XCircle size={20} color={theme.danger} />
+                    <Text style={[styles.cancelButtonText, { color: theme.danger }]}>Cancelar Chamado</Text>
                 </TouchableOpacity>
             )}
 
           </ScrollView>
         ) : (
-            <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView style={[styles.detailsContainer, { backgroundColor: theme.background }]} contentContainerStyle={{ paddingBottom: 40 }}>
              {loadingHistory ? (
-                 <ActivityIndicator color="#3b82f6" style={{marginTop: 20}} />
+                 <ActivityIndicator color={theme.primary} style={{marginTop: 20}} />
              ) : (
                  history.map((h, index) => (
                      <View key={index} style={styles.historyItem}>
                          <View style={styles.historyLeft}>
-                            <View style={[styles.historyIcon, { backgroundColor: getHistoryColor(h.changeType) + '20' }]}>
+                            <View style={[styles.historyIcon, { backgroundColor: getHistoryColor(h.changeType) + '20', borderColor: theme.border }]}>
                                 <HistoryIcon size={16} color={getHistoryColor(h.changeType)} />
                             </View>
-                            {index < history.length - 1 && <View style={styles.historyLine} />}
+                            {index < history.length - 1 && <View style={[styles.historyLine, { backgroundColor: theme.border }]} />}
                          </View>
-                         <View style={styles.historyContent}>
+                         <View style={[styles.historyContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
                              <View style={styles.historyHeader}>
-                                 <Text style={styles.historyUser}>{h.userName || 'Sistema'}</Text>
-                                 <Text style={styles.historyTime}>{format(new Date(h.createdAt), "dd/MM HH:mm", { locale: ptBR })}</Text>
+                                 <Text style={[styles.historyUser, { color: theme.text }]}>{h.userName || 'Sistema'}</Text>
+                                 <Text style={[styles.historyTime, { color: theme.subtext }]}>{format(new Date(h.createdAt), "dd/MM HH:mm", { locale: ptBR })}</Text>
                              </View>
-                             <View style={styles.historyBadge}>
-                                <Text style={styles.historyType}>{h.changeType}</Text>
+                             <View style={[styles.historyBadge, { backgroundColor: theme.primary + '20', borderColor: theme.primary + '40' }]}>
+                                <Text style={[styles.historyType, { color: theme.primary }]}>{h.changeType}</Text>
                              </View>
-                             <Text style={styles.historyDetails}>{h.details}</Text>
+                             <Text style={[styles.historyDetails, { color: theme.text }]}>{h.details}</Text>
                          </View>
                      </View>
                  ))
@@ -846,23 +890,63 @@ const styles = StyleSheet.create({
       color: '#000',
       fontWeight: 'bold',
   },
-  inputContainer: {
+  inputWrapper: {
     padding: 12,
     backgroundColor: '#1f2937',
     borderTopWidth: 1,
     borderTopColor: '#374151',
+  },
+  inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-end',
+    gap: 8,
+    backgroundColor: '#111827',
+    borderRadius: 24,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  inputContainerFocused: {
+    borderColor: '#3b82f6',
   },
   input: {
     flex: 1,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     color: '#fff',
-    maxHeight: 100,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 8,
+    fontSize: 15,
+  },
+  emojiPicker: {
+    marginBottom: 12,
+    height: 40,
+  },
+  emojiButton: {
+      paddingHorizontal: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#374151',
+      marginRight: 8,
+      borderRadius: 8,
+      height: 40,
+      width: 40,
+  },
+  emojiText: {
+      fontSize: 20,
+  },
+  iconButton: {
+      padding: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: 40,
+      width: 40,
+  },
+  charCount: {
+      fontSize: 10,
+      color: '#6b7280',
+      textAlign: 'right',
+      marginTop: 4,
+      marginRight: 8,
   },
   sendButton: {
     width: 40,

@@ -5,6 +5,7 @@ import { mockUsers } from './mockData'; // Keep mockUsers for now or replace lat
 import { Ticket, User } from './types';
 import { TicketService } from './services/api';
 import { useAuth } from './context/AuthContext';
+import { useTheme } from './context/ThemeContext';
 
 // Pages
 import Login from './pages/Login';

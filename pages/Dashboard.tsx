@@ -32,7 +32,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading && !stats) return <div className="text-white p-8">Carregando dashboard...</div>;
+  if (loading && !stats) return <div className="text-text-primary p-8">Carregando dashboard...</div>;
 
   const canViewRating = user?.role === 'Administrador' || user?.role === 'Cliente' || user?.profile === 'Administrador' || user?.profile === 'Cliente';
 
@@ -41,7 +41,7 @@ const Dashboard: React.FC = () => {
       label: 'Total de Chamados',  
       value: stats.totalTickets, 
       trend: 'No período', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'inbox', 
       color: 'text-primary' 
     },
@@ -49,7 +49,7 @@ const Dashboard: React.FC = () => {
       label: 'Chamados Resolvidos', 
       value: stats.resolvedCount, 
       trend: `${((stats.resolvedCount / (stats.totalTickets || 1)) * 100).toFixed(1)}% taxa`, 
-      trendType: 'up', 
+      trendType: 'up' as const, 
       icon: 'check_circle', 
       color: 'text-success' 
     },
@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
       label: 'TMR - Tempo Médio', 
       value: stats.tmr || '00:00:00', 
       trend: 'Resolução', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'timer', 
       color: 'text-purple-400' 
     },
@@ -65,7 +65,7 @@ const Dashboard: React.FC = () => {
       label: 'Em Aberto', 
       value: stats.byStatus.find(s => s.status === 'Aberto')?.count || 0, 
       trend: 'Aguardando', 
-      trendType: 'down', 
+      trendType: 'down' as const, 
       icon: 'pending', 
       color: 'text-warning' 
     },
@@ -73,7 +73,7 @@ const Dashboard: React.FC = () => {
       label: 'Em Andamento', 
       value: (Number(stats.byStatus.find(s => s.status === 'Em Andamento')?.count || 0)) + (Number(stats.byStatus.find(s => s.status === 'Em Análise')?.count || 0)), 
       trend: 'Em tratativa', 
-      trendType: 'neutral', 
+      trendType: 'neutral' as const, 
       icon: 'trending_up', 
       color: 'text-blue-400' 
     },
@@ -81,7 +81,7 @@ const Dashboard: React.FC = () => {
       label: 'Média Satisfação', 
       value: stats.averageRating, 
       trend: 'Avaliação', 
-      trendType: Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down', 
+      trendType: (Number(stats.averageRating) >= 4.0 ? 'up' : Number(stats.averageRating) >= 3.0 ? 'neutral' : 'down') as 'up' | 'neutral' | 'down', 
       icon: 'star', 
       color: 'text-yellow-400' 
     },
@@ -94,17 +94,11 @@ const Dashboard: React.FC = () => {
     <div className="flex flex-col gap-8 pb-10">
       {/* User Info & Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Olá, {user?.name || 'Usuário'}</h1>
-          <p className="text-text-secondary">
-            {user?.role} | {user?.department || 'Geral'} | Último acesso: {user?.lastAccess || 'Hoje'}
-          </p>
-        </div>
         <div className="flex flex-wrap gap-3">
           <select 
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="h-10 px-4 bg-background-card border border-border-dark rounded-lg text-sm font-bold text-white hover:bg-background-input transition-all outline-none focus:ring-1 focus:ring-primary"
+            className="h-10 px-4 bg-background-card border border-border-dark rounded-lg text-sm font-bold text-text-primary hover:bg-background-input transition-all outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="today">Hoje</option>
             <option value="week">Últimos 7 dias</option>
@@ -118,7 +112,7 @@ const Dashboard: React.FC = () => {
               className={`flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-bold transition-all border ${
                 showMyTickets 
                 ? 'bg-primary/20 text-primary border-primary' 
-                : 'bg-background-card text-text-secondary border-border-dark hover:text-white'
+                : 'bg-background-card text-text-secondary border-border-dark hover:text-text-primary'
               }`}
             >
                <span className="material-symbols-outlined text-[20px]">
@@ -138,7 +132,7 @@ const Dashboard: React.FC = () => {
               <p className="text-text-secondary text-sm font-medium">{stat.label}</p>
               <span className={`material-symbols-outlined ${stat.color} group-hover:scale-110 transition-transform`}>{stat.icon}</span>
             </div>
-            <p className="text-white text-3xl font-bold mb-2">{stat.value}</p>
+            <p className="text-text-primary text-3xl font-bold mb-2">{stat.value}</p>
             <div className="flex items-center gap-1">
               <span className={`material-symbols-outlined text-sm ${stat.trendType === 'up' ? 'text-success' : stat.trendType === 'down' ? 'text-warning' : 'text-text-muted'}`}>
                 {stat.trendType === 'up' ? 'trending_up' : stat.trendType === 'down' ? 'trending_down' : 'remove'}
@@ -157,7 +151,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-background-card border border-border-dark p-6 rounded-xl flex flex-col gap-4">
           <div>
             <p className="text-text-secondary text-sm font-medium uppercase tracking-wider">Volume de Chamados</p>
-            <h3 className="text-white text-2xl font-bold">{stats?.totalTickets} <span className="text-sm font-normal text-text-muted">chamados no período</span></h3>
+            <h3 className="text-text-primary text-2xl font-bold">{stats?.totalTickets} <span className="text-sm font-normal text-text-muted">chamados no período</span></h3>
           </div>
           <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -179,14 +173,14 @@ const Dashboard: React.FC = () => {
         <div className="bg-background-card border border-border-dark p-6 rounded-xl flex flex-col gap-4">
           <div>
             <p className="text-text-secondary text-sm font-medium uppercase tracking-wider">Atividade Recente</p>
-            <h3 className="text-white text-2xl font-bold">Últimos Registros</h3>
+            <h3 className="text-text-primary text-2xl font-bold">Últimos Registros</h3>
           </div>
           <div className="flex flex-col gap-3 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
             {stats?.recentActivity && stats.recentActivity.length > 0 ? (
               stats.recentActivity.map((ticket: any) => (
                 <div key={ticket.id} className="flex items-center justify-between p-3 rounded-lg bg-background-input/30 hover:bg-background-input/50 transition-colors border border-border-dark/50">
                    <div className="flex flex-col gap-0.5">
-                      <span className="text-white font-bold text-sm truncate max-w-[200px]">{ticket.subject}</span>
+                      <span className="text-text-primary font-bold text-sm truncate max-w-[200px]">{ticket.subject}</span>
                       <span className="text-xs text-text-muted">{ticket.code} • {new Date(ticket.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                    </div>
                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${

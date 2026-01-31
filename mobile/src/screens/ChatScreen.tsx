@@ -6,6 +6,7 @@ import { ArrowLeft, Send } from 'lucide-react-native';
 import { ChatService } from '../services/chatService';
 import { UserService } from '../services/userService';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ChatMessage, User } from '../types';
 
 type RootStackParamList = {
@@ -19,6 +20,7 @@ export const ChatScreen = () => {
   const navigation = useNavigation();
   const { userId, userName: initialUserName } = route.params;
   const { user: currentUser } = useAuth();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,7 +29,7 @@ export const ChatScreen = () => {
   const [sending, setSending] = useState(false);
   const [chatUser, setChatUser] = useState<User | null>(null);
   
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
   useEffect(() => {
     fetchChatUser();
@@ -83,9 +85,13 @@ export const ChatScreen = () => {
     const isValidDate = !isNaN(date.getTime());
 
     return (
-      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.otherMessage]}>
-        <Text style={styles.messageText}>{item.content}</Text>
-        <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.otherTimestamp]}>
+      <View style={[
+        styles.messageBubble, 
+        isMe ? { backgroundColor: theme.primary, borderBottomRightRadius: 2 } : { backgroundColor: theme.card, borderBottomLeftRadius: 2 },
+        isMe ? styles.myMessage : styles.otherMessage
+      ]}>
+        <Text style={[styles.messageText, { color: isMe ? '#fff' : theme.text }]}>{item.content}</Text>
+        <Text style={[styles.timestamp, isMe ? { color: 'rgba(255, 255, 255, 0.7)' } : { color: theme.subtext }]}>
           {isValidDate ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
         </Text>
       </View>
@@ -93,14 +99,14 @@ export const ChatScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color="#fff" size={24} />
+          <ArrowLeft color={theme.text} size={24} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{chatUser?.name || initialUserName || 'Chat'}</Text>
-          <Text style={styles.headerSubtitle}>{chatUser?.profile || 'Usuário'}</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{chatUser?.name || initialUserName || 'Chat'}</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.subtext }]}>{chatUser?.profile || 'Usuário'}</Text>
         </View>
       </View>
 
@@ -112,7 +118,7 @@ export const ChatScreen = () => {
         <View style={[styles.content, { paddingBottom: insets.bottom }]}>
           {loading ? (
             <View style={styles.center}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+              <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : (
             <FlatList
@@ -127,17 +133,17 @@ export const ChatScreen = () => {
             />
           )}
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.card, color: theme.text }]}
               value={inputText}
               onChangeText={setInputText}
               placeholder="Digite sua mensagem..."
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.placeholder}
               multiline
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!inputText.trim() || sending) && styles.disabledSend]}
+              style={[styles.sendButton, { backgroundColor: theme.primary }, (!inputText.trim() || sending) && styles.disabledSend]}
               onPress={handleSend}
               disabled={!inputText.trim() || sending}
             >

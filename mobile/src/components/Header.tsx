@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { LogOut, Bell, Users, User as UserIcon, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ interface HeaderProps {
 export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { notifications, unreadCount, loading, alertEnabled, markAsRead, markAllAsRead, refreshNotifications, toggleAlert } = useNotifications();
+  const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   
@@ -49,7 +51,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
   };
 
   const handleTeamClick = () => {
-    if (user && (user.profile === 'Administrador' || user.profile === 'Suporte Técnico' || user.profile === 'Líder')) {
+    if (user && (user.profile === 'Administrador' || user.profile === 'Suporte Técnico' || user.profile === 'Suporte' || user.profile === 'Líder')) {
       setShowTeamModal(true);
       loadTeamUsers();
     } else {
@@ -64,6 +66,8 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
       let filtered = all.filter((u: User) => u.id !== user?.id);
       filtered = filtered.filter((u: User) => u.profile !== 'Cliente');
 
+      // Show all team members for authorized roles, not just online ones
+      /*
       if (user?.profile !== 'Administrador') {
         filtered = filtered.filter((u: User) => {
           const isOnline = u.calculatedStatus === 'online';
@@ -71,6 +75,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
           return isOnline || isBusy;
         });
       }
+      */
 
       setTeamUsers(filtered);
     } catch (error) {
@@ -147,7 +152,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
     ? new Date(user.lastAccess).toLocaleString('pt-BR') 
     : new Date().toLocaleString('pt-BR');
 
-  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico' || user?.profile === 'Líder';
+  const canShowTeam = user?.profile === 'Administrador' || user?.profile === 'Suporte Técnico' || user?.profile === 'Suporte' || user?.profile === 'Líder';
 
   return (
     <>
@@ -155,7 +160,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         <View style={styles.content}>
           <View style={styles.leftContainer}>
             {showUserInfo ? (
-              <View style={styles.userInfo}>
+              <TouchableOpacity style={styles.userInfo} onPress={handleOpenProfileMenu}>
                 <View style={styles.userAvatar}>
                   {user?.avatar ? (
                     <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
@@ -171,7 +176,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
                     {user?.profile} | Último acesso: {lastAccess}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ) : (
               <Text style={styles.title}>{title}</Text>
             )}
@@ -204,9 +209,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleLogout} style={styles.iconButton}>
-              <LogOut color="#ef4444" size={20} />
-            </TouchableOpacity>
+
           </View>
         </View>
       </View>
@@ -232,7 +235,7 @@ export const Header = ({ title, showUserInfo = false, rightAction }: HeaderProps
         <View style={styles.teamOverlay}>
           <View style={styles.teamContainer}>
             <View style={styles.teamHeader}>
-              <Text style={styles.teamTitle}>Equipe Online</Text>
+              <Text style={styles.teamTitle}>Equipe</Text>
               <TouchableOpacity onPress={() => setShowTeamModal(false)}>
                 <Text style={styles.teamCloseText}>Fechar</Text>
               </TouchableOpacity>

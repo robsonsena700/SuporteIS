@@ -1,420 +1,415 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  ActivityIndicator, 
-  Alert, 
-  Platform,
-  Modal,
-  ScrollView
-} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, ScrollView, Alert, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { Header } from '../components/Header';
 import { TicketService } from '../services/ticketService';
-import { Ticket, TicketStatus, TicketPriority } from '../types';
-import { Filter, Download, Calendar, Search, X, ChevronDown, ChevronUp, FileText, File as FileIcon } from 'lucide-react-native';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as Print from 'expo-print';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { Ticket } from '../types';
+import { Search, SlidersHorizontal, FileText, Download, Share2, FileSpreadsheet } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { TicketCard } from '../components/TicketCard';
+import { useNavigation } from '@react-navigation/native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as XLSX from 'xlsx';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  // Check if we are running on the New Architecture (Fabric) to avoid warnings
+  const isFabric = (global as any).nativeFabricUIManager != null;
+  if (!isFabric) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 
 export const ReportsScreen = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [showFilters, setShowFilters] = useState(true);
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   
-  // Filter States
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<string>('');
-  const [priority, setPriority] = useState<string>('');
-  const [startDate, setStartDate] = useState(''); // DDMMAAAA
-  const [endDate, setEndDate] = useState(''); // DDMMAAAA
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filters
+  const [searchText, setSearchText] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState('');
+  const [priority, setPriority] = useState('');
   const [category, setCategory] = useState('');
 
-  // Helper to convert DDMMAAAA to YYYY-MM-DD
-  const parseDate = (dateStr: string) => {
-    if (!dateStr || dateStr.length !== 8) return undefined;
-    const day = dateStr.substring(0, 2);
-    const month = dateStr.substring(2, 4);
-    const year = dateStr.substring(4, 8);
+  // Helper to convert DD/MM/YYYY to YYYY-MM-DD
+  const parseDateToISO = (dateStr: string) => {
+    if (!dateStr || dateStr.length !== 10) return undefined;
+    const [day, month, year] = dateStr.split('/');
     return `${year}-${month}-${day}`;
   };
 
-  const handleSearch = async () => {
-    setLoading(true);
+  // Helper to format input as DD/MM/YYYY
+  const handleDateChange = (text: string, setter: (value: string) => void) => {
+    const numbers = text.replace(/\D/g, '');
+    let formatted = numbers;
     
-    // Validate Date Format
-    if ((startDate && startDate.length !== 8) || (endDate && endDate.length !== 8)) {
-        Alert.alert('Erro', 'Data deve estar no formato DDMMAAAA (8 dígitos).');
-        setLoading(false);
-        return;
+    if (numbers.length > 2) {
+      formatted = `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
     }
+    if (numbers.length > 4) {
+      formatted = `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
+    }
+    
+    setter(formatted);
+  };
 
+  const fetchReport = useCallback(async () => {
+    setLoading(true);
     try {
-      const result = await TicketService.getReport({
-        search,
-        status,
-        priority,
-        startDate: parseDate(startDate),
-        endDate: parseDate(endDate),
-        category
-      });
-      setTickets(result);
-      setShowFilters(false); // Auto-collapse on search to show results
+      const filters = {
+        search: searchText || undefined,
+        startDate: parseDateToISO(startDate),
+        endDate: parseDateToISO(endDate),
+        status: status || undefined,
+        priority: priority || undefined,
+        category: category || undefined
+      };
+
+      const data = await TicketService.getAll(filters);
+      setTickets(data);
     } catch (error) {
-      console.error(error);
-      Alert.alert('Erro', 'Não foi possível gerar o relatório.');
+      console.error('Failed to fetch report', error);
+      Alert.alert('Erro', 'Não foi possível carregar o relatório.');
     } finally {
       setLoading(false);
     }
+  }, [searchText, startDate, endDate, status, priority, category]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  const toggleFilters = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowFilters(!showFilters);
   };
 
-  const generateCSV = () => {
-    if (tickets.length === 0) return;
-
-    // CSV Header
-    const header = 'ID,Código,Assunto,Status,Prioridade,Cliente,Técnico,Data Criação,Data Resolução\n';
-    
-    // CSV Rows
-    const rows = tickets.map(t => {
-      const created = t.createdAt ? format(new Date(t.createdAt), 'dd/MM/yyyy HH:mm') : '';
-      const resolved = t.resolvedAt ? format(new Date(t.resolvedAt), 'dd/MM/yyyy HH:mm') : '';
-      
-      // Escape fields that might contain commas
-      const subject = `"${(t.subject || '').replace(/"/g, '""')}"`;
-      const client = `"${(t.clientName || '').replace(/"/g, '""')}"`;
-      const tech = `"${(t.technician || '').replace(/"/g, '""')}"`;
-
-      return `${t.id},${t.code},${subject},${t.status},${t.priority},${client},${tech},${created},${resolved}`;
-    }).join('\n');
-
-    return header + rows;
+  const clearFilters = () => {
+    setSearchText('');
+    setStartDate('');
+    setEndDate('');
+    setStatus('');
+    setPriority('');
+    setCategory('');
   };
 
-  const handleExportCSV = async () => {
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (startDate) count++;
+    if (endDate) count++;
+    if (status) count++;
+    if (priority) count++;
+    if (category) count++;
+    return count;
+  };
+
+  const handleTicketPress = (ticket: Ticket) => {
+    navigation.navigate('TicketDetail', { ticketId: ticket.id });
+  };
+
+  const generatePDF = async () => {
     if (tickets.length === 0) {
       Alert.alert('Atenção', 'Não há dados para exportar.');
       return;
     }
 
     try {
-      const csvData = generateCSV();
-      if (!csvData) return;
+      const html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Helvetica, Arial, sans-serif; padding: 20px; }
+              h1 { color: #333; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+              th { background-color: #f2f2f2; }
+              tr:nth-child(even) { background-color: #f9f9f9; }
+              .status-resolvido { color: #10b981; font-weight: bold; }
+              .status-aberto { color: #3b82f6; font-weight: bold; }
+              .status-outros { color: #f59e0b; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h1>Relatório de Chamados</h1>
+            <p>Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+            <p>Total de registros: ${tickets.length}</p>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Assunto</th>
+                  <th>Cliente</th>
+                  <th>Status</th>
+                  <th>Prioridade</th>
+                  <th>Data</th>
+                  <th>Técnico</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tickets.map(t => `
+                  <tr>
+                    <td>${t.code || t.id.slice(0, 6)}</td>
+                    <td>${t.subject}</td>
+                    <td>${t.clientName || '-'}</td>
+                    <td class="${t.status === 'Resolvido' ? 'status-resolvido' : t.status === 'Aberto' ? 'status-aberto' : 'status-outros'}">${t.status}</td>
+                    <td>${t.priority}</td>
+                    <td>${t.createdAtIso ? format(new Date(t.createdAtIso), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</td>
+                    <td>${t.technician || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
 
-      const filename = `relatorio_chamados_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
-      const file = new File(Paths.document, filename);
-
-      file.write(csvData);
-      
-      const fileUri = file.uri;
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert('Sucesso', `Arquivo salvo em: ${fileUri}`);
-      }
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
-      console.error(error);
-      Alert.alert('Erro', 'Falha ao exportar CSV.');
+      console.error('Error generating PDF:', error);
+      Alert.alert('Erro', 'Falha ao gerar PDF.');
     }
   };
 
-  const handleExportPDF = async () => {
+  const generateXLS = async () => {
     if (tickets.length === 0) {
-        Alert.alert('Atenção', 'Não há dados para exportar.');
-        return;
+      Alert.alert('Atenção', 'Não há dados para exportar.');
+      return;
     }
-
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Helvetica, Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; color: #333; margin-bottom: 5px; }
-            p.subtitle { text-align: center; color: #666; font-size: 12px; margin-top: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 10px; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-            .status { font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1>Relatório de Chamados</h1>
-          <p class="subtitle">Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
-          <p class="subtitle">Total de registros: ${tickets.length}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Assunto</th>
-                <th>Cliente</th>
-                <th>Técnico</th>
-                <th>Status</th>
-                <th>Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tickets.map(t => `
-                <tr>
-                  <td>${t.code}</td>
-                  <td>${t.subject}</td>
-                  <td>${t.clientName || '-'}</td>
-                  <td>${t.technician || '-'}</td>
-                  <td class="status">${t.status}</td>
-                  <td>${t.createdAt ? format(new Date(t.createdAt), 'dd/MM/yyyy') : '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
 
     try {
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      const data = tickets.map(t => ({
+        'Código': t.code || t.id.slice(0, 6),
+        'Assunto': t.subject,
+        'Equipamento': t.equipment,
+        'Cliente': t.clientName,
+        'Status': t.status,
+        'Prioridade': t.priority,
+        'Data Criação': t.createdAtIso ? format(new Date(t.createdAtIso), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-',
+        'Técnico': t.technician || 'Sem técnico',
+        'Resolvido Em': t.resolvedAt ? format(new Date(t.resolvedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      
+      // Use cast to any to avoid linter errors with expo-file-system types
+      const fs = FileSystem as any;
+      const uri = (fs.documentDirectory || fs.cacheDirectory) + 'relatorio_chamados.xlsx';
+      
+      await fs.writeAsStringAsync(uri, wbout, {
+        encoding: fs.EncodingType.Base64
+      });
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: 'Exportar Relatório XLS'
+      });
+
     } catch (error) {
-        console.error(error);
-        Alert.alert('Erro', 'Falha ao gerar PDF.');
+      console.error('Error generating XLS:', error);
+      Alert.alert('Erro', 'Falha ao gerar Excel.');
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Aberto': return '#ef4444';
-      case 'Em Andamento': return '#3b82f6';
-      case 'Em Análise': return '#8b5cf6';
-      case 'Resolvido': return '#10b981';
-      case 'Cancelado': return '#6b7280';
-      default: return '#9ca3af';
-    }
-  };
-
-  const renderTicketItem = ({ item }: { item: Ticket }) => (
-    <View style={styles.ticketCard}>
-      <View style={styles.ticketHeader}>
-        <View style={styles.codeContainer}>
-           <Text style={styles.ticketCode}>{item.code}</Text>
-           {item.priority === 'Alta' && <View style={styles.priorityDot} />}
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
-        </View>
-      </View>
-      
-      <Text style={styles.ticketSubject} numberOfLines={2}>{item.subject}</Text>
-      
-      <View style={styles.ticketFooter}>
-        <View style={styles.footerInfo}>
-            <Text style={styles.footerLabel}>Cliente:</Text>
-            <Text style={styles.footerValue} numberOfLines={1}>{item.clientName}</Text>
-        </View>
-        <View style={styles.footerInfo}>
-            <Text style={styles.footerLabel}>Data:</Text>
-            <Text style={styles.footerValue}>{item.createdAt ? format(new Date(item.createdAt), 'dd/MM/yyyy') : '-'}</Text>
-        </View>
-      </View>
-    </View>
+  const FilterOption = ({ label, value, selected, onSelect }: any) => (
+    <TouchableOpacity 
+      style={[
+        styles.filterChip, 
+        { backgroundColor: theme.card, borderColor: theme.border },
+        selected === value && { backgroundColor: theme.primary + '20', borderColor: theme.primary }
+      ]} 
+      onPress={() => onSelect(value === selected ? '' : value)}
+    >
+      <Text style={[
+        styles.filterChipText, 
+        { color: theme.subtext },
+        selected === value && { color: theme.primary, fontWeight: 'bold' }
+      ]}>{label}</Text>
+    </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Header title="Relatórios" />
       
-      <View style={styles.mainContent}>
-        {/* Toggle Filters Button */}
-        <TouchableOpacity 
-            style={styles.filterToggle} 
-            onPress={() => setShowFilters(!showFilters)}
-        >
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                <Filter size={20} color="#3b82f6" />
-                <Text style={styles.filterToggleText}>Filtros de Busca</Text>
-            </View>
-            {showFilters ? <ChevronUp size={20} color="#9ca3af" /> : <ChevronDown size={20} color="#9ca3af" />}
-        </TouchableOpacity>
-
-        {/* Filters Section */}
-        {showFilters && (
-            <View style={styles.filtersContainer}>
-                {/* Search */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Busca</Text>
-                    <View style={styles.inputWrapper}>
-                        <Search size={18} color="#9ca3af" style={{marginLeft: 10}} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Buscar por assunto, ID, técnico..."
-                            placeholderTextColor="#6b7280"
-                            value={search}
-                            onChangeText={setSearch}
-                        />
-                    </View>
-                </View>
-
-                {/* Category (Type) Row */}
-                <View style={styles.row}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>Tipo de Chamado</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8}}>
-                            {['', 'Serviço', 'Equipamento'].map((c) => (
-                                <TouchableOpacity 
-                                    key={c}
-                                    style={[
-                                        styles.chip, 
-                                        category === c && styles.chipActive
-                                    ]}
-                                    onPress={() => setCategory(category === c ? '' : c)}
-                                >
-                                    <Text style={[styles.chipText, category === c && styles.chipTextActive]}>
-                                        {c || 'Todos'}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </View>
-
-                {/* Status & Priority Row */}
-                <View style={styles.row}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>Status</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8}}>
-                            {['', 'Aberto', 'Em Andamento', 'Em Análise', 'Resolvido'].map((s) => (
-                                <TouchableOpacity 
-                                    key={s}
-                                    style={[
-                                        styles.chip, 
-                                        status === s && styles.chipActive,
-                                        status === s && { backgroundColor: s ? getStatusColor(s) : '#3b82f6' }
-                                    ]}
-                                    onPress={() => setStatus(status === s ? '' : s)}
-                                >
-                                    <Text style={[styles.chipText, status === s && styles.chipTextActive]}>
-                                        {s || 'Todos'}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </View>
-
-                <View style={styles.row}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>Prioridade</Text>
-                        <View style={{flexDirection: 'row', gap: 8}}>
-                            {['', 'Baixa', 'Média', 'Alta'].map((p) => (
-                                <TouchableOpacity 
-                                    key={p}
-                                    style={[styles.chip, priority === p && styles.chipActive]}
-                                    onPress={() => setPriority(priority === p ? '' : p)}
-                                >
-                                    <Text style={[styles.chipText, priority === p && styles.chipTextActive]}>
-                                        {p || 'Todas'}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                </View>
-
-                {/* Date Range */}
-                <View style={styles.row}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>De (DDMMAAAA)</Text>
-                        <View style={styles.inputWrapper}>
-                            <Calendar size={18} color="#9ca3af" style={{marginLeft: 10}} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="DDMMAAAA"
-                                placeholderTextColor="#6b7280"
-                                value={startDate}
-                                onChangeText={(text) => setStartDate(text.replace(/[^0-9]/g, ''))}
-                                maxLength={8}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                    </View>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>Até (DDMMAAAA)</Text>
-                        <View style={styles.inputWrapper}>
-                            <Calendar size={18} color="#9ca3af" style={{marginLeft: 10}} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="DDMMAAAA"
-                                placeholderTextColor="#6b7280"
-                                value={endDate}
-                                onChangeText={(text) => setEndDate(text.replace(/[^0-9]/g, ''))}
-                                maxLength={8}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                <TouchableOpacity 
-                    style={styles.searchButton}
-                    onPress={handleSearch}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.searchButtonText}>Gerar Relatório</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
-        )}
-
-        {/* Results Info & Export */}
-        <View style={styles.resultsHeader}>
-            <Text style={styles.resultsCount}>
-                <Text style={{color: '#3b82f6', fontWeight: 'bold'}}>{tickets.length}</Text> chamados encontrados
-            </Text>
-            
-            <View style={{flexDirection: 'row', gap: 8}}>
-                <TouchableOpacity 
-                    style={[styles.exportButton, tickets.length === 0 && styles.exportButtonDisabled]}
-                    onPress={handleExportCSV}
-                    disabled={tickets.length === 0}
-                >
-                    <Download size={14} color={tickets.length > 0 ? '#10b981' : '#4b5563'} />
-                    <Text style={[styles.exportButtonText, tickets.length === 0 && {color: '#4b5563'}]}>CSV</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={[styles.exportButton, tickets.length === 0 && styles.exportButtonDisabled, { borderColor: tickets.length > 0 ? 'rgba(239, 68, 68, 0.2)' : '#374151', backgroundColor: tickets.length > 0 ? 'rgba(239, 68, 68, 0.1)' : '#1f2937' }]}
-                    onPress={handleExportPDF}
-                    disabled={tickets.length === 0}
-                >
-                    <FileIcon size={14} color={tickets.length > 0 ? '#ef4444' : '#4b5563'} />
-                    <Text style={[styles.exportButtonText, tickets.length === 0 ? {color: '#4b5563'} : {color: '#ef4444'}]}>PDF</Text>
-                </TouchableOpacity>
-            </View>
+      <View style={styles.content}>
+        <View style={styles.toolbar}>
+          <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Search size={20} color={theme.subtext} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.text }]}
+              placeholder="Buscar..."
+              placeholderTextColor={theme.placeholder}
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+              onSubmitEditing={fetchReport}
+            />
+          </View>
+          
+          <TouchableOpacity 
+            style={[
+              styles.filterButton, 
+              { backgroundColor: theme.card, borderColor: theme.border },
+              showFilters && { backgroundColor: theme.primary, borderColor: theme.primary }
+            ]} 
+            onPress={toggleFilters}
+          >
+            <SlidersHorizontal size={20} color={showFilters ? '#fff' : theme.text} />
+            {getActiveFilterCount() > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{getActiveFilterCount()}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* List */}
-        <FlatList
+        {showFilters && (
+          <View style={[styles.filtersContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Categoria</Text>
+              <View style={styles.filterRow}>
+                <FilterOption 
+                  label="Sistema" 
+                  value="Sistema" 
+                  selected={category} 
+                  onSelect={setCategory} 
+                />
+                <FilterOption 
+                  label="Equipamento" 
+                  value="Equipamento" 
+                  selected={category} 
+                  onSelect={setCategory} 
+                />
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Período</Text>
+              <View style={styles.dateRow}>
+                <View style={styles.dateInputContainer}>
+                  <Text style={[styles.dateLabel, { color: theme.subtext }]}>De</Text>
+                  <TextInput
+                    style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={theme.placeholder}
+                    value={startDate}
+                    onChangeText={(text) => handleDateChange(text, setStartDate)}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+                <View style={styles.dateInputContainer}>
+                  <Text style={[styles.dateLabel, { color: theme.subtext }]}>Até</Text>
+                  <TextInput
+                    style={[styles.dateInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={theme.placeholder}
+                    value={endDate}
+                    onChangeText={(text) => handleDateChange(text, setEndDate)}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Status</Text>
+              <View style={styles.filterWrap}>
+                {['Aberto', 'Em Andamento', 'Em Análise', 'Resolvido'].map(s => (
+                  <FilterOption 
+                    key={s}
+                    label={s} 
+                    value={s} 
+                    selected={status} 
+                    onSelect={setStatus} 
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text }]}>Prioridade</Text>
+              <View style={styles.filterRow}>
+                {['Baixa', 'Média', 'Alta'].map(p => (
+                  <FilterOption 
+                    key={p}
+                    label={p} 
+                    value={p} 
+                    selected={priority} 
+                    onSelect={setPriority} 
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={[styles.actionButtons, { borderTopColor: theme.border }]}>
+               <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                <Text style={[styles.clearButtonText, { color: theme.subtext }]}>Limpar Filtros</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.exportButtons}>
+                <TouchableOpacity style={styles.exportButton} onPress={generatePDF}>
+                  <FileText size={18} color="#fff" />
+                  <Text style={styles.exportButtonText}>PDF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.exportButton, { backgroundColor: '#10b981' }]} onPress={generateXLS}>
+                  <FileSpreadsheet size={18} color="#fff" />
+                  <Text style={styles.exportButtonText}>XLS</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.summaryContainer}>
+          <Text style={[styles.summaryText, { color: theme.subtext }]}>
+            Total encontrado: <Text style={[styles.summaryHighlight, { color: theme.primary }]}>{tickets.length}</Text>
+          </Text>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.subtext }]}>Carregando relatórios...</Text>
+          </View>
+        ) : (
+          <FlatList
             data={tickets}
-            renderItem={renderTicketItem}
+            renderItem={({ item }) => (
+              <TicketCard 
+                ticket={item} 
+                onPress={handleTicketPress}
+              />
+            )}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
-            !loading ? (
-                <View style={styles.emptyState}>
-                    <FileText size={48} color="#374151" />
-                    <Text style={styles.emptyStateText}>Nenhum registro encontrado</Text>
-                    <Text style={styles.emptyStateSubtext}>Ajuste os filtros para buscar resultados</Text>
-                </View>
-            ) : null
-        }
-        />
+              <View style={styles.emptyContainer}>
+                <FileText size={48} color={theme.subtext} />
+                <Text style={[styles.emptyText, { color: theme.subtext }]}>Nenhum registro encontrado</Text>
+              </View>
+            }
+          />
+        )}
       </View>
     </View>
   );
@@ -425,207 +420,198 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111827',
   },
-  mainContent: {
+  content: {
     flex: 1,
   },
-  filterToggle: {
+  toolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
-    backgroundColor: '#1f2937',
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  filterToggleText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  filtersContainer: {
-    padding: 16,
-    backgroundColor: '#1f2937',
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    color: '#d1d5db',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#374151',
-  },
-  input: {
-    flex: 1,
-    height: 40,
-    color: '#fff',
-    paddingHorizontal: 10,
-    fontSize: 14,
-  },
-  row: {
-    flexDirection: 'row',
     gap: 12,
+    zIndex: 10,
   },
-  chip: {
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#111827',
-    borderRadius: 20,
+    height: 44,
     borderWidth: 1,
     borderColor: '#374151',
   },
-  chipActive: {
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4b5563',
+  },
+  filterButtonActive: {
     backgroundColor: '#3b82f6',
     borderColor: '#3b82f6',
   },
-  chipText: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
-  },
-  searchButton: {
-    backgroundColor: '#3b82f6',
-    height: 44,
-    borderRadius: 8,
-    alignItems: 'center',
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: 'center',
-    marginTop: 8,
+    alignItems: 'center',
+    paddingHorizontal: 4,
   },
-  searchButtonText: {
+  badgeText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#111827',
-  },
-  resultsCount: {
-    color: '#d1d5db',
-    fontSize: 14,
-  },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
-  },
-  exportButtonDisabled: {
-    backgroundColor: '#1f2937',
-    borderColor: '#374151',
-  },
-  exportButtonText: {
-    color: '#10b981',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
-  listContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
-  },
-  ticketCard: {
+  filtersContainer: {
     backgroundColor: '#1f2937',
+    marginHorizontal: 16,
+    marginBottom: 16,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: '#374151',
   },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  filterSection: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  codeContainer: {
+  filterRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
-  ticketCode: {
-    color: '#6b7280',
+  filterWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  filterChipSelected: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: '#3b82f6',
+  },
+  filterChipText: {
+    color: '#9ca3af',
     fontSize: 12,
+  },
+  filterChipTextSelected: {
+    color: '#3b82f6',
     fontWeight: 'bold',
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ef4444',
+  dateRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  dateInputContainer: {
+    flex: 1,
   },
-  statusText: {
+  dateLabel: {
+    color: '#9ca3af',
     fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    marginBottom: 4,
   },
-  ticketSubject: {
+  dateInput: {
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    padding: 8,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    lineHeight: 22,
+    fontSize: 12,
   },
-  ticketFooter: {
+  actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#374151',
-    paddingTop: 12,
+    paddingTop: 16,
   },
-  footerInfo: {
-    flex: 1,
+  clearButton: {
+    padding: 8,
   },
-  footerLabel: {
-    color: '#6b7280',
-    fontSize: 10,
-    marginBottom: 2,
-  },
-  footerValue: {
-    color: '#d1d5db',
+  clearButtonText: {
+    color: '#9ca3af',
     fontSize: 12,
+    textDecorationLine: 'underline',
   },
-  emptyState: {
+  exportButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exportButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    backgroundColor: '#ef4444',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
   },
-  emptyStateText: {
+  exportButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 16,
   },
-  emptyStateSubtext: {
+  summaryContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  summaryText: {
     color: '#9ca3af',
     fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
+  },
+  summaryHighlight: {
+    color: '#3b82f6',
+    fontWeight: 'bold',
+  },
+  listContent: {
+    padding: 16,
+    paddingTop: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#9ca3af',
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    color: '#6b7280',
+    marginTop: 16,
+    fontSize: 16,
   },
 });

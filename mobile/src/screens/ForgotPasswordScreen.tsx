@@ -3,13 +3,15 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export const ForgotPasswordScreen = () => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = () => {
     if (!email) {
       Alert.alert('Erro', 'Por favor, informe seu e-mail.');
       return;
@@ -29,33 +31,33 @@ export const ForgotPasswordScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color="#9ca3af" size={24} />
-          <Text style={styles.backText}>Voltar</Text>
+          <ArrowLeft color={theme.subtext} size={24} />
+          <Text style={[styles.backText, { color: theme.subtext }]}>Voltar</Text>
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Mail color="#3b82f6" size={32} />
+          <View style={[styles.iconContainer, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '20' }]}>
+            <Mail color={theme.primary} size={32} />
           </View>
-          <Text style={styles.title}>Recuperar Senha</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: theme.text }]}>Recuperar Senha</Text>
+          <Text style={[styles.subtitle, { color: theme.subtext }]}>
             Insira o e-mail associado à sua conta e enviaremos instruções para redefinir sua senha.
           </Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+            <Mail color={theme.subtext} size={20} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               placeholder="E-mail"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.placeholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -64,7 +66,7 @@ export const ForgotPasswordScreen = () => {
           </View>
 
           <TouchableOpacity 
-            style={styles.button} 
+            style={[styles.button, { backgroundColor: theme.primary }]} 
             onPress={handleResetPassword}
             disabled={isSubmitting}
           >

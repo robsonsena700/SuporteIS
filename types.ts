@@ -1,4 +1,13 @@
 
+export interface LogoConfig {
+  web: string;
+  mobile: {
+    x1: string;
+    x2: string;
+    x3: string;
+  };
+}
+
 export enum TicketStatus {
   OPEN = 'Aberto',
   IN_ANALYSIS = 'Em Análise',
@@ -117,6 +126,7 @@ export interface Notification {
   type: 'new_message' | 'new_dm' | 'status_change' | 'system';
   referenceId: string;
   content: string;
+  messageData?: any;
   isRead: boolean;
   createdAt: string;
   createdAtIso?: string;

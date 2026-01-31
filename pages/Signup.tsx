@@ -22,6 +22,8 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
 
@@ -112,10 +114,10 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             <div className="size-14 bg-primary rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/40">
               <span className="material-symbols-outlined text-4xl filled">hub</span>
             </div>
-            <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Support<span className="text-primary">IS</span></h1>
+            <h1 className="text-4xl font-black tracking-tight text-text-primary uppercase italic">Support<span className="text-primary">IS</span></h1>
           </div>
           
-          <h2 className="text-5xl font-black text-white leading-tight mb-6">Pronto para otimizar sua TI?</h2>
+          <h2 className="text-5xl font-black text-text-primary leading-tight mb-6">Pronto para otimizar sua TI?</h2>
           <p className="text-lg text-text-secondary leading-relaxed mb-12">
             Realize suas solicitações de suporte de forma rápida e eficiente,	unindo performance e satisfação dos usuários.
           </p>
@@ -131,7 +133,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 </div>
                 <div>
-                  <h4 className="text-white font-bold text-sm">{item.title}</h4>
+                  <h4 className="text-text-primary font-bold text-sm">{item.title}</h4>
                   <p className="text-text-muted text-xs">{item.desc}</p>
                 </div>
               </div>
@@ -143,7 +145,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
       {/* Right Panel - Form */}
       <div className="w-full lg:w-7/12 flex flex-col bg-background-dark overflow-y-auto">
         <header className="flex items-center justify-between px-6 py-6 lg:px-20 lg:py-8">
-          <div className="lg:hidden flex items-center gap-2 text-white">
+          <div className="lg:hidden flex items-center gap-2 text-text-primary">
             <span className="material-symbols-outlined text-primary text-3xl">hub</span>
             <span className="text-xl font-bold">SupportIS</span>
           </div>
@@ -155,7 +157,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
 
         <main className="flex-1 flex flex-col justify-center px-6 lg:px-24 max-w-2xl mx-auto w-full pb-10">
           <div className="mb-8 lg:mb-10">
-            <h2 className="text-3xl lg:text-5xl font-black text-white mb-3 tracking-tight">Criar nova conta</h2>
+            <h2 className="text-3xl lg:text-5xl font-black text-text-primary mb-3 tracking-tight">Criar nova conta</h2>
             <p className="text-text-secondary text-sm lg:text-base">Realize seu cadastro para começar a utilizar nossos serviços.</p>
           </div>
 
@@ -168,49 +170,49 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
           <form className="flex flex-col gap-5" onSubmit={handleSignupSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Nome</label>
+                <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Nome</label>
                 <input 
                   required
                   type="text" 
                   placeholder="Seu nome"
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
-                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Sobrenome</label>
+                <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Sobrenome</label>
                 <input 
                   required
                   type="text" 
                   placeholder="Seu sobrenome"
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
-                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">E-mail ou Usuário</label>
+              <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">E-mail ou Usuário</label>
               <input 
                 required
                 type="email" 
                 placeholder="nome@empresa.com"
                 value={formData.email}
                 onChange={e => setFormData({...formData, email: e.target.value})}
-                className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col gap-2 md:col-span-1">
-                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">UF *</label>
+                <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">UF *</label>
                 <select
                   required
                   value={formData.uf}
                   onChange={handleUfChange}
-                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all appearance-none"
+                  className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none"
                   disabled={loadingEstados}
                   style={{ backgroundImage: 'none' }} 
                 >
@@ -222,7 +224,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
               </div>
 
               <div className="flex flex-col gap-2 md:col-span-2">
-                <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Município *</label>
+                <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Município *</label>
                 <div className="relative">
                     <input
                       list="municipios-list"
@@ -230,7 +232,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                       placeholder={loadingMunicipios ? 'Carregando...' : 'Pesquise o município'}
                       value={formData.municipality}
                       onChange={e => setFormData({...formData, municipality: e.target.value})}
-                      className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all disabled:opacity-50"
+                      className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all disabled:opacity-50"
                       disabled={!formData.uf || loadingMunicipios}
                     />
                     <datalist id="municipios-list">
@@ -248,49 +250,60 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Unidade / Empresa</label>
+              <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Unidade / Empresa</label>
               <input 
                 required
                 type="text" 
                 placeholder="Ex: UBS Sede, Hospital ou Empresa XYZ"
                 value={formData.company}
                 onChange={e => setFormData({...formData, company: e.target.value})}
-                className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                className="w-full h-12 px-4 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Senha de Acesso</label>
+              <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Senha de Acesso</label>
               <div className="relative">
                 <input 
                   required
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   placeholder="Mínimo 8 caracteres (letras e números)"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
-                  className="w-full h-12 px-4 pr-12 bg-background-input border border-border-dark rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                  className="w-full h-12 px-4 pr-12 bg-background-input border border-border-dark rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                 />
-                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-[20px]">visibility</span>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility' : 'visibility_off'}</span>
                 </button>
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white text-xs font-bold uppercase tracking-widest ml-1">Confirmar Senha</label>
+              <label className="text-text-secondary text-xs font-bold uppercase tracking-widest ml-1">Confirmar Senha</label>
               <div className="relative">
                 <input 
                   required
-                  type="password" 
+                  type={showConfirmPassword ? "text" : "password"} 
                   placeholder="Confirme sua senha"
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
-                  className={`w-full h-12 px-4 pr-12 bg-background-input border rounded-xl text-white focus:ring-1 focus:ring-primary outline-none transition-all ${
+                  className={`w-full h-12 px-4 pr-12 bg-background-input border rounded-xl text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all ${
                     formData.confirmPassword && formData.password !== formData.confirmPassword 
                     ? 'border-red-500 focus:border-red-500' 
                     : 'border-border-dark'
                   }`}
                 />
+                 <button 
+                  type="button" 
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showConfirmPassword ? 'visibility' : 'visibility_off'}</span>
+                </button>
               </div>
             </div>
 

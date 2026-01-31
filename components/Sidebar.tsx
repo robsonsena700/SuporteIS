@@ -42,13 +42,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
   ];
 
   const navItems = allNavItems.filter(item => {
-    // Hide 'Logos' for non-admin users
+    // Hide Logos menu for non-administrators
     if (item.label === 'Logos' && user?.profile !== 'Administrador') {
       return false;
     }
 
     if (user?.profile === 'Cliente') {
-      return !['Equipamentos', 'Usuários', 'Logos'].includes(item.label);
+      return !['Equipamentos', 'Usuários'].includes(item.label);
     }
     return true;
   });
@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
                     className="h-12 w-auto object-contain mb-2" 
                   />
                 ) : (
-                  <h1 className="text-white text-xl font-bold leading-tight truncate tracking-wide">
+                  <h1 className="text-text-primary text-xl font-bold leading-tight truncate tracking-wide">
                     <span className="text-primary">IS</span> Suporte
                   </h1>
                 )}
@@ -89,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
           {/* Mobile Close Button */}
           <button 
             onClick={onClose}
-            className="lg:hidden p-2 text-text-secondary hover:text-white transition-colors rounded-lg active:bg-white/10"
+            className="lg:hidden p-2 text-text-secondary hover:text-text-primary transition-colors rounded-lg active:bg-white/10"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -121,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isOpen = false, onClo
         </div>
 
         {/* Footer Actions - Fixed Bottom Area */}
-        <div className="p-6 shrink-0 flex flex-col gap-4 border-t border-white/5 bg-[#111827]/50 backdrop-blur-sm">
+        <div className="p-6 shrink-0 flex flex-col gap-4 border-t border-border-dark bg-background-surface/80 backdrop-blur-sm">
           <button 
             onClick={onLogout}
             className="flex w-full items-center justify-center gap-3 h-12 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all active:scale-95 group"

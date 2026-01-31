@@ -67,6 +67,8 @@ api.interceptors.response.use(
         console.log(`[API Retry] Attempt ${originalRequest._retryCount} for ${originalRequest.url} after ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return api(originalRequest);
+      } else {
+        console.error(`[API Failure] Max retries reached for ${originalRequest.url}. Target: ${originalRequest.baseURL}`);
       }
     }
 

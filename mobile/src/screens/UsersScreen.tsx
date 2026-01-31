@@ -4,6 +4,7 @@ import { Header } from '../components/Header';
 import { UserService } from '../services/userService';
 import { User } from '../types';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Search, Plus, Filter, MoreVertical, Edit2, Key, Trash2, X, Save, User as UserIcon, Check, Phone, Building, Shield, Mail } from 'lucide-react-native';
 import { CustomPicker } from '../components/CustomPicker';
 import { useLocationIBGE } from '../hooks/useLocationIBGE';
@@ -20,6 +21,7 @@ interface UserModalProps {
 
 const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user, loading }) => {
   const { user: currentUser } = useAuth();
+  const { theme } = useTheme();
   const { estados, municipios, loadingEstados, loadingMunicipios, fetchMunicipios, clearMunicipios } = useLocationIBGE();
   const canEditLocation = currentUser?.profile === 'Suporte Técnico' || currentUser?.profile === 'Administrador';
 
@@ -89,39 +91,39 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{user ? 'Editar Usuário' : 'Novo Usuário'}</Text>
+        <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>{user ? 'Editar Usuário' : 'Novo Usuário'}</Text>
             <TouchableOpacity onPress={onClose}>
-              <X color="#9ca3af" size={24} />
+              <X color={theme.subtext} size={24} />
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.modalBody}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nome</Text>
-              <View style={styles.inputContainer}>
-                <UserIcon size={20} color="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Nome</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <UserIcon size={20} color={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={formData.name}
                   onChangeText={t => setFormData({...formData, name: t})}
                   placeholder="Nome completo"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Email</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Mail size={20} color={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={formData.email}
                   onChangeText={t => setFormData({...formData, email: t})}
                   placeholder="email@exemplo.com"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -130,15 +132,15 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
 
             {!user && (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Senha</Text>
-                <View style={styles.inputContainer}>
-                  <Key size={20} color="#6b7280" style={styles.inputIcon} />
+                <Text style={[styles.label, { color: theme.subtext }]}>Senha</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                  <Key size={20} color={theme.subtext} style={styles.inputIcon} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     value={formData.password}
                     onChangeText={t => setFormData({...formData, password: t})}
                     placeholder="Senha inicial"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={theme.placeholder}
                     secureTextEntry
                   />
                 </View>
@@ -173,43 +175,43 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Cargo / Função</Text>
-              <View style={styles.inputContainer}>
-                <Shield size={20} color="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Cargo / Função</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Shield size={20} color={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={formData.profile}
                   onChangeText={t => setFormData({...formData, profile: t})}
                   placeholder="Ex: Suporte Técnico"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Departamento</Text>
-              <View style={styles.inputContainer}>
-                <Building size={20} color="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Departamento</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Building size={20} color={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={formData.department}
                   onChangeText={t => setFormData({...formData, department: t})}
                   placeholder="Departamento"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Telefone</Text>
-              <View style={styles.inputContainer}>
-                <Phone size={20} color="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Telefone</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Phone size={20} color={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={formData.phone}
                   onChangeText={t => setFormData({...formData, phone: t})}
                   placeholder="(00) 00000-0000"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -253,17 +255,17 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
                 />
               </>
             ) : (
-              <Text style={styles.permissionDeniedText}>
+              <Text style={[styles.permissionDeniedText, { color: theme.danger }]}>
                 Acesso negado: apenas perfis de suporte ou administrador podem alterar UF e Município.
               </Text>
             )}
           </ScrollView>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={loading}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <View style={[styles.modalFooter, { borderTopColor: theme.border }]}>
+            <TouchableOpacity style={[styles.cancelButton, { borderColor: theme.border }]} onPress={onClose} disabled={loading}>
+              <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSubmit} disabled={loading}>
+            <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSubmit} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Salvar</Text>}
             </TouchableOpacity>
           </View>
@@ -275,6 +277,7 @@ const UserModal: React.FC<UserModalProps> = ({ visible, onClose, onSubmit, user,
 
 const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit: (pass: string) => Promise<void>; loading?: boolean }> = ({ visible, onClose, onSubmit, loading }) => {
   const [password, setPassword] = useState('');
+  const { theme } = useTheme();
 
   const handleSubmit = () => {
     if (password.length < 6) {
@@ -287,34 +290,34 @@ const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit:
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { maxHeight: 'auto' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Alterar Senha</Text>
+        <View style={[styles.modalContent, { maxHeight: 'auto', backgroundColor: theme.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Alterar Senha</Text>
             <TouchableOpacity onPress={onClose}>
-              <X stroke="#9ca3af" size={24} />
+              <X stroke={theme.subtext} size={24} />
             </TouchableOpacity>
           </View>
           <View style={styles.modalBody}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nova Senha</Text>
-              <View style={styles.inputContainer}>
-                <Key size={20} stroke="#6b7280" style={styles.inputIcon} />
+              <Text style={[styles.label, { color: theme.subtext }]}>Nova Senha</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Key size={20} stroke={theme.subtext} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Mínimo 6 caracteres"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                   secureTextEntry
                 />
               </View>
             </View>
           </View>
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <View style={[styles.modalFooter, { borderTopColor: theme.border }]}>
+            <TouchableOpacity style={[styles.cancelButton, { borderColor: theme.border }]} onPress={onClose}>
+              <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSubmit} disabled={loading}>
+            <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSubmit} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Salvar Senha</Text>}
             </TouchableOpacity>
           </View>
@@ -328,6 +331,7 @@ const PasswordModal: React.FC<{ visible: boolean; onClose: () => void; onSubmit:
 
 export const UsersScreen = () => {
   const { user: currentUser } = useAuth();
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -443,10 +447,10 @@ export const UsersScreen = () => {
   }, [users, searchQuery, sortOrder]);
 
   const renderItem = ({ item }: { item: User }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.card }]}>
       <View style={styles.cardHeader}>
         <View style={styles.userInfo}>
-          <View style={styles.avatarPlaceholder}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.border }]}>
             {item.avatar ? (
                 <Image source={{uri: item.avatar}} style={styles.avatar} />
             ) : (
@@ -454,15 +458,15 @@ export const UsersScreen = () => {
             )}
           </View>
           <View>
-            <Text style={styles.userName}>{item.name}</Text>
-            <Text style={styles.userEmail}>{item.email}</Text>
+            <Text style={[styles.userName, { color: theme.text }]}>{item.name}</Text>
+            <Text style={[styles.userEmail, { color: theme.subtext }]}>{item.email}</Text>
             <View style={styles.badges}>
-                <View style={[styles.badge, { backgroundColor: '#3b82f620' }]}>
-                    <Text style={[styles.badgeText, { color: '#3b82f6' }]}>{item.role}</Text>
+                <View style={[styles.badge, { backgroundColor: theme.primary + '20' }]}>
+                    <Text style={[styles.badgeText, { color: theme.primary }]}>{item.role}</Text>
                 </View>
                 {item.status !== 'Ativo' && (
-                    <View style={[styles.badge, { backgroundColor: '#ef444420' }]}>
-                        <Text style={[styles.badgeText, { color: '#ef4444' }]}>{item.status}</Text>
+                    <View style={[styles.badge, { backgroundColor: theme.danger + '20' }]}>
+                        <Text style={[styles.badgeText, { color: theme.danger }]}>{item.status}</Text>
                     </View>
                 )}
             </View>
@@ -472,41 +476,41 @@ export const UsersScreen = () => {
           {canManageUsers && (
             <>
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={[styles.actionButton, { backgroundColor: theme.border }]}
                 onPress={() => {
                   setSelectedUser(item);
                   setUserModalVisible(true);
                 }}
               >
-                <Edit2 stroke="#9ca3af" size={20} />
+                <Edit2 stroke={theme.subtext} size={20} />
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={[styles.actionButton, { backgroundColor: theme.border }]}
                 onPress={() => {
                   setSelectedUser(item);
                   setPasswordModalVisible(true);
                 }}
               >
-                <Key stroke="#9ca3af" size={20} />
+                <Key stroke={theme.subtext} size={20} />
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={[styles.actionButton, { backgroundColor: theme.border }]}
                 onPress={() => handleDelete(item)}
               >
-                <Trash2 stroke="#ef4444" size={20} />
+                <Trash2 stroke={theme.danger} size={20} />
               </TouchableOpacity>
             </>
           )}
         </View>
       </View>
       
-      <View style={styles.cardDetails}>
-          <Text style={styles.detailText}>
-              <Shield size={14} color="#6b7280" /> {item.profile}
+      <View style={[styles.cardDetails, { borderTopColor: theme.border }]}>
+          <Text style={[styles.detailText, { color: theme.subtext }]}>
+              <Shield size={14} color={theme.subtext} /> {item.profile}
           </Text>
           {item.department && (
-              <Text style={styles.detailText}>
-                  <Building size={14} color="#6b7280" /> {item.department}
+              <Text style={[styles.detailText, { color: theme.subtext }]}>
+                  <Building size={14} color={theme.subtext} /> {item.department}
               </Text>
           )}
       </View>
@@ -514,22 +518,22 @@ export const UsersScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Header title="Gerenciar Usuários" />
       
       <View style={styles.toolbar}>
-        <View style={styles.searchContainer}>
-          <Search color="#9ca3af" size={20} />
+        <View style={[styles.searchContainer, { backgroundColor: theme.card }]}>
+          <Search color={theme.subtext} size={20} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.text }]}
             placeholder="Buscar usuários..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={theme.subtext}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
         <TouchableOpacity 
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: theme.primary }]}
           onPress={() => {
             setSelectedUser(null);
             setUserModalVisible(true);
@@ -545,12 +549,12 @@ export const UsersScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUsers(); }} tintColor="#fff" />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUsers(); }} tintColor={theme.primary} />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Nenhum usuário encontrado</Text>
+              <Text style={[styles.emptyText, { color: theme.subtext }]}>Nenhum usuário encontrado</Text>
             </View>
           ) : null
         }

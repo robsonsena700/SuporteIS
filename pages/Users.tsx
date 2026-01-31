@@ -174,14 +174,14 @@ const Users: React.FC<UsersProps> = () => {
 
   const canManageUsers = currentUser?.profile === 'Administrador' || currentUser?.profile === 'Líder' || currentUser?.role === 'Administrador' || currentUser?.role === 'Líder';
 
-  if (loading) return <div className="text-white p-8">Carregando usuários...</div>;
+  if (loading) return <div className="text-text-primary p-8">Carregando usuários...</div>;
   if (error) return <div className="text-red-400 p-8">{error}</div>;
 
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-white text-3xl font-black">Gerenciamento de Usuários</h1>
+          <h1 className="text-text-primary text-3xl font-black">Gerenciamento de Usuários</h1>
           <p className="text-text-secondary">Administre o acesso, perfis e status dos usuários do sistema.</p>
         </div>
         {canManageUsers && (
@@ -217,7 +217,7 @@ const Users: React.FC<UsersProps> = () => {
                         {u.avatar ? <img src={u.avatar} className="size-10 rounded-full" alt="" /> : <span className="material-symbols-outlined">person</span>}
                       </div>
                       <div className="flex flex-col text-right md:text-left">
-                        <span className="text-white text-sm font-bold">{u.name}</span>
+                        <span className="text-text-primary text-sm font-bold">{u.name}</span>
                         <span className="text-text-muted text-xs break-all">{u.email}</span>
                       </div>
                     </div>
@@ -244,10 +244,10 @@ const Users: React.FC<UsersProps> = () => {
                     <div className="text-right w-full md:w-auto">
                     {canManageUsers && (
                         <div className="flex justify-end gap-2">
-                        <button onClick={() => openPasswordModal(u)} className="text-text-muted hover:text-white p-1.5 transition-colors" title="Alterar Senha">
+                        <button onClick={() => openPasswordModal(u)} className="text-text-muted hover:text-text-primary p-1.5 transition-colors" title="Alterar Senha">
                             <span className="material-symbols-outlined text-[18px]">key</span>
                         </button>
-                        <button onClick={() => handleEdit(u)} className="text-text-muted hover:text-white p-1.5 transition-colors" title="Editar">
+                        <button onClick={() => handleEdit(u)} className="text-text-muted hover:text-text-primary p-1.5 transition-colors" title="Editar">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </button>
                         <button onClick={() => handleDelete(u.id)} className="text-text-muted hover:text-red-400 p-1.5 transition-colors" title="Excluir">
@@ -269,7 +269,7 @@ const Users: React.FC<UsersProps> = () => {
       {isPasswordModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-background-card border border-border-dark w-full max-w-md rounded-2xl p-6 shadow-2xl animate-fade-in">
-            <h2 className="text-xl font-bold text-white mb-6">Alterar Senha</h2>
+            <h2 className="text-xl font-bold text-text-primary mb-6">Alterar Senha</h2>
             <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-bold text-text-secondary uppercase">Nova Senha</label>
@@ -277,7 +277,7 @@ const Users: React.FC<UsersProps> = () => {
                     type="password" 
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                    className="h-10 px-4 bg-background-input border border-border-dark rounded-lg text-white focus:ring-1 focus:ring-primary outline-none"
+                    className="h-10 px-4 bg-background-input border border-border-dark rounded-lg text-text-primary focus:ring-1 focus:ring-primary outline-none"
                     placeholder="Mínimo 6 caracteres"
                     required
                   />
@@ -287,7 +287,7 @@ const Users: React.FC<UsersProps> = () => {
                   <button 
                     type="button"
                     onClick={() => setIsPasswordModalOpen(false)}
-                    className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-white transition-colors"
+                    className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-text-primary transition-colors"
                   >
                     Cancelar
                   </button>
@@ -308,8 +308,8 @@ const Users: React.FC<UsersProps> = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-background-card w-full max-w-lg rounded-2xl border border-border-dark shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-border-dark flex justify-between items-center">
-              <h3 className="text-xl font-black text-white">{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-white">
+              <h3 className="text-xl font-black text-text-primary">{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-text-primary">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -321,7 +321,7 @@ const Users: React.FC<UsersProps> = () => {
                     required
                     value={formData.name} 
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none" 
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none" 
                     />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -329,7 +329,7 @@ const Users: React.FC<UsersProps> = () => {
                     <input 
                     value={formData.department} 
                     onChange={e => setFormData({...formData, department: e.target.value})}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none" 
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none" 
                     />
                 </div>
               </div>
@@ -341,7 +341,7 @@ const Users: React.FC<UsersProps> = () => {
                   type="email"
                   value={formData.email} 
                   onChange={e => setFormData({...formData, email: e.target.value})}
-                  className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none" 
+                  className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none" 
                 />
               </div>
 
@@ -356,7 +356,7 @@ const Users: React.FC<UsersProps> = () => {
                       clearMunicipios();
                       if (uf) fetchMunicipios(uf);
                     }}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none"
                     disabled={loadingEstados}
                   >
                     <option value="">Selecione...</option>
@@ -370,7 +370,7 @@ const Users: React.FC<UsersProps> = () => {
                   <select
                     value={formData.municipality}
                     onChange={(e) => setFormData(prev => ({ ...prev, municipality: e.target.value }))}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none"
                     disabled={!formData.uf || loadingMunicipios}
                   >
                     <option value="">{loadingMunicipios ? 'Carregando...' : 'Selecione...'}</option>
@@ -387,7 +387,7 @@ const Users: React.FC<UsersProps> = () => {
                     <select 
                     value={formData.role} 
                     onChange={e => setFormData({...formData, role: e.target.value})}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none"
                     >
                     <option value="Cliente">Cliente</option>
                     <option value="Técnico">Técnico</option>
@@ -399,7 +399,7 @@ const Users: React.FC<UsersProps> = () => {
                     <input 
                     value={formData.profile} 
                     onChange={e => setFormData({...formData, profile: e.target.value})}
-                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none" 
+                    className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none" 
                     />
                 </div>
               </div>
@@ -409,7 +409,7 @@ const Users: React.FC<UsersProps> = () => {
                 <select 
                   value={formData.status} 
                   onChange={e => setFormData({...formData, status: e.target.value})}
-                  className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-white text-sm focus:ring-1 focus:ring-primary outline-none"
+                  className="h-10 px-3 bg-background-input border border-border-dark rounded-lg text-text-primary text-sm focus:ring-1 focus:ring-primary outline-none"
                 >
                   <option value="Ativo">Ativo</option>
                   <option value="Inativo">Inativo</option>
@@ -418,7 +418,7 @@ const Users: React.FC<UsersProps> = () => {
               </div>
 
               <div className="mt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-white transition-colors">Cancelar</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-text-primary transition-colors">Cancelar</button>
                 <button type="submit" className="px-6 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/30 transition-all">
                   {selectedUser ? 'Salvar Alterações' : 'Criar Usuário'}
                 </button>

@@ -176,26 +176,26 @@ const Reports: React.FC = () => {
     return (
         <div className="flex flex-col gap-6">
             <div>
-                <h1 className="text-white text-3xl font-black">Relatórios</h1>
+                <h1 className="text-text-primary text-3xl font-black">Relatórios</h1>
                 <p className="text-text-secondary">Exportação e análise de chamados</p>
             </div>
 
             <div className="bg-background-card p-6 rounded-xl border border-border-dark flex flex-col gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="flex flex-col gap-2 md:col-span-2">
-                        <label className="text-white text-sm font-bold">Busca</label>
+                        <label className="text-text-secondary text-sm font-bold">Busca</label>
                         <input 
                             type="text" 
                             placeholder="Buscar por assunto, ID, técnico..."
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterText}
                             onChange={e => setFilterText(e.target.value)}
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <label className="text-white text-sm font-bold">Categoria</label>
+                        <label className="text-text-secondary text-sm font-bold">Categoria</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterCategory}
                             onChange={e => setFilterCategory(e.target.value)}
                         >
@@ -205,27 +205,27 @@ const Reports: React.FC = () => {
                         </select>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <label className="text-white text-sm font-bold">Data Inicial</label>
+                        <label className="text-text-secondary text-sm font-bold">Data Inicial</label>
                         <input 
                             type="date" 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <label className="text-white text-sm font-bold">Data Final</label>
+                        <label className="text-text-secondary text-sm font-bold">Data Final</label>
                         <input 
                             type="date" 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={endDate}
                             onChange={e => setEndDate(e.target.value)}
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <label className="text-white text-sm font-bold">Status</label>
+                        <label className="text-text-secondary text-sm font-bold">Status</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterStatus}
                             onChange={e => setFilterStatus(e.target.value)}
                         >
@@ -237,9 +237,9 @@ const Reports: React.FC = () => {
                         </select>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <label className="text-white text-sm font-bold">Prioridade</label>
+                        <label className="text-text-secondary text-sm font-bold">Prioridade</label>
                         <select 
-                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                            className="h-10 bg-background-input border border-border-dark rounded-lg px-3 text-text-primary focus:ring-1 focus:ring-primary outline-none"
                             value={filterPriority}
                             onChange={e => setFilterPriority(e.target.value)}
                         >
@@ -262,7 +262,7 @@ const Reports: React.FC = () => {
                 ) : (
                     <>
                         <div className="flex flex-wrap justify-between items-center gap-3">
-                            <div className="text-white font-bold">
+                            <div className="text-text-primary font-bold">
                                 Total de chamados encontrados: <span className="text-primary">{tickets.length}</span>
                             </div>
                             <div className="flex gap-3">
@@ -307,11 +307,11 @@ const Reports: React.FC = () => {
                                         <tr key={t.id} className="block md:table-row mb-4 md:mb-0 border border-border-dark md:border-0 rounded-lg md:rounded-none bg-background-input/10 hover:bg-background-input/30">
                                             <td className="p-3 flex justify-between md:table-cell border-b border-border-dark md:border-0">
                                                 <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Código</span>
-                                                <span className="text-white text-xs font-mono">{t.code || `CH-${t.id.slice(0,4)}`}</span>
+                                                <span className="text-text-primary text-xs font-mono">{t.code || `CH-${t.id.slice(0,4)}`}</span>
                                             </td>
                                             <td className="p-3 flex justify-between md:table-cell border-b border-border-dark md:border-0">
                                                 <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Assunto</span>
-                                                <span className="text-white text-sm text-right md:text-left">{t.subject}</span>
+                                                <span className="text-text-primary text-sm text-right md:text-left">{t.subject}</span>
                                             </td>
                                             <td className="p-3 flex justify-between md:table-cell border-b border-border-dark md:border-0">
                                                 <span className="md:hidden text-xs font-bold text-text-secondary uppercase">Equipamento</span>

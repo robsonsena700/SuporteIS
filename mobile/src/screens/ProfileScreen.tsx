@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Image, ActivityIndicator, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { UserService } from '../services/userService';
-import { LogOut, Camera, User as UserIcon, Phone, Briefcase, Mail, Shield, Building, Save } from 'lucide-react-native';
+import { LogOut, Camera, User as UserIcon, Phone, Briefcase, Mail, Shield, Building, Save, Settings } from 'lucide-react-native';
 import { Header } from '../components/Header';
 import * as ImagePicker from 'expo-image-picker';
 import { CustomPicker } from '../components/CustomPicker';
 import { useResponsive } from '../hooks/useResponsive';
+import { useTheme } from '../context/ThemeContext';
 
 export const ProfileScreen = () => {
   const { user, signOut, updateUser } = useAuth();
+  const { theme, mode, setMode } = useTheme();
   const navigation = useNavigation<any>();
   const { responsiveValue } = useResponsive();
   const [loading, setLoading] = useState(false);
@@ -109,13 +111,13 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <View style={profileStyles.container}>
+    <View style={[profileStyles.container, { backgroundColor: theme.background }]}>
       <Header title="Perfil" />
       
       <ScrollView contentContainerStyle={profileStyles.scrollContent}>
         <View style={profileStyles.pageHeader}>
-          <Text style={profileStyles.pageTitle}>Ajustes de Perfil</Text>
-          <Text style={profileStyles.pageSubtitle}>
+          <Text style={[profileStyles.pageTitle, { color: theme.text }]}>Ajustes de Perfil</Text>
+          <Text style={[profileStyles.pageSubtitle, { color: theme.subtext }]}>
             Gerencie suas informações pessoais e preferências de conta.
           </Text>
         </View>
@@ -125,26 +127,26 @@ export const ProfileScreen = () => {
             {formData.avatar ? (
               <Image
                 source={{ uri: formData.avatar }}
-                style={[profileStyles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+                style={[profileStyles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2, borderColor: theme.border }]}
               />
             ) : (
-              <View style={profileStyles.avatarPlaceholder}>
-                <UserIcon size={40} color="#9ca3af" />
+              <View style={[profileStyles.avatarPlaceholder, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                <UserIcon size={40} color={theme.subtext} />
               </View>
             )}
-            <TouchableOpacity style={profileStyles.cameraButton} onPress={handlePickImage}>
+            <TouchableOpacity style={[profileStyles.cameraButton, { borderColor: theme.background }]} onPress={handlePickImage}>
               <Camera size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={profileStyles.profileName}>{user?.name}</Text>
+          <Text style={[profileStyles.profileName, { color: theme.text }]}>{user?.name}</Text>
           <Text style={profileStyles.profileRole}>{user?.profile}</Text>
-          <Text style={profileStyles.profileEmail}>
+          <Text style={[profileStyles.profileEmail, { color: theme.subtext }]}>
             {user?.email} {user?.id ? `• ID: #${user.id.substring(0, 5)}` : ''}
           </Text>
           <View style={profileStyles.avatarActions}>
-            <TouchableOpacity style={profileStyles.avatarActionPrimary} onPress={handlePickImage}>
-              <Camera size={18} color="#fff" />
-              <Text style={profileStyles.avatarActionPrimaryText}>Alterar Foto</Text>
+            <TouchableOpacity style={[profileStyles.avatarActionPrimary, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={handlePickImage}>
+              <Camera size={18} color={theme.text} />
+              <Text style={[profileStyles.avatarActionPrimaryText, { color: theme.text }]}>Alterar Foto</Text>
             </TouchableOpacity>
             {formData.avatar ? (
               <TouchableOpacity style={profileStyles.avatarActionSecondary} onPress={handleRemovePhoto}>
@@ -155,59 +157,59 @@ export const ProfileScreen = () => {
         </View>
 
         <View style={profileStyles.formSection}>
-          <Text style={profileStyles.sectionTitle}>Informações Pessoais</Text>
+          <Text style={[profileStyles.sectionTitle, { color: theme.text }]}>Informações Pessoais</Text>
           
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Nome</Text>
-            <View style={profileStyles.inputContainer}>
-              <UserIcon size={20} color="#6b7280" style={profileStyles.inputIcon} />
+            <Text style={[profileStyles.label, { color: theme.subtext }]}>Nome</Text>
+            <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <UserIcon size={20} color={theme.subtext} style={profileStyles.inputIcon} />
               <TextInput
-                style={profileStyles.input}
+                style={[profileStyles.input, { color: theme.text }]}
                 value={formData.name}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
                 placeholder="Seu nome"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Email</Text>
-            <View style={profileStyles.inputContainer}>
-              <Mail size={20} color="#6b7280" style={profileStyles.inputIcon} />
+            <Text style={[profileStyles.label, { color: theme.subtext }]}>Email</Text>
+            <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Mail size={20} color={theme.subtext} style={profileStyles.inputIcon} />
               <TextInput
-                style={profileStyles.inputReadonly}
+                style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                 value={user?.email || ''}
                 editable={false}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Telefone / WhatsApp</Text>
-            <View style={profileStyles.inputContainer}>
-              <Phone size={20} color="#6b7280" style={profileStyles.inputIcon} />
+            <Text style={[profileStyles.label, { color: theme.subtext }]}>Telefone / WhatsApp</Text>
+            <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Phone size={20} color={theme.subtext} style={profileStyles.inputIcon} />
               <TextInput
-                style={profileStyles.input}
+                style={[profileStyles.input, { color: theme.text }]}
                 value={formData.phone}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
                 placeholder="(00) 00000-0000"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.placeholder}
                 keyboardType="phone-pad"
               />
             </View>
           </View>
 
           <View style={profileStyles.inputGroup}>
-            <Text style={profileStyles.label}>Cliente / Empresa</Text>
-            <View style={profileStyles.inputContainer}>
-              <Building size={20} color="#6b7280" style={profileStyles.inputIcon} />
+            <Text style={[profileStyles.label, { color: theme.subtext }]}>Cliente / Empresa</Text>
+            <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+              <Building size={20} color={theme.subtext} style={profileStyles.inputIcon} />
               <TextInput
-                style={profileStyles.inputReadonly}
+                style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                 value={user?.company || ''}
                 editable={false}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           </View>
@@ -215,17 +217,17 @@ export const ProfileScreen = () => {
 
         {user?.profile !== 'Cliente' && (
           <View style={profileStyles.formSection}>
-            <Text style={profileStyles.sectionTitle}>Dados do Sistema</Text>
+            <Text style={[profileStyles.sectionTitle, { color: theme.text }]}>Dados do Sistema</Text>
 
             <View style={profileStyles.inputGroup}>
-              <Text style={profileStyles.label}>Cargo / Função</Text>
-              <View style={profileStyles.inputContainer}>
-                <Briefcase size={20} color="#6b7280" style={profileStyles.inputIcon} />
+              <Text style={[profileStyles.label, { color: theme.subtext }]}>Cargo / Função</Text>
+              <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Briefcase size={20} color={theme.subtext} style={profileStyles.inputIcon} />
                 <TextInput
-                  style={profileStyles.inputReadonly}
+                  style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                   value={user?.role || ''}
                   editable={false}
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
@@ -242,31 +244,51 @@ export const ProfileScreen = () => {
             </View>
 
             <View style={profileStyles.inputGroup}>
-              <Text style={profileStyles.label}>Perfil de Acesso</Text>
-              <View style={profileStyles.inputContainer}>
-                <Shield size={20} color="#6b7280" style={profileStyles.inputIcon} />
+              <Text style={[profileStyles.label, { color: theme.subtext }]}>Perfil de Acesso</Text>
+              <View style={[profileStyles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Shield size={20} color={theme.subtext} style={profileStyles.inputIcon} />
                 <TextInput
-                  style={profileStyles.inputReadonly}
+                  style={[profileStyles.inputReadonly, { color: theme.subtext }]}
                   value={user?.profile || ''}
                   editable={false}
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </View>
           </View>
         )}
 
+        <View style={profileStyles.formSection}>
+          <Text style={[profileStyles.sectionTitle, { color: theme.text }]}>Preferências</Text>
+          
+          <View style={profileStyles.inputGroup}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.inputBg, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: theme.inputBorder }}>
+              <View style={{ gap: 4 }}>
+                 <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>Modo Escuro</Text>
+                 <Text style={{ color: theme.subtext, fontSize: 12 }}>{mode === 'dark' ? 'Ativado' : 'Desativado'}</Text>
+              </View>
+              <Switch
+                trackColor={{ false: "#767577", true: theme.primary }}
+                thumbColor={"#f4f3f4"}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={(val) => setMode(val ? 'dark' : 'light')}
+                value={mode === 'dark'}
+              />
+            </View>
+          </View>
+        </View>
+
         <View style={profileStyles.actionsRow}>
           <TouchableOpacity
-            style={profileStyles.cancelButton}
+            style={[profileStyles.cancelButton, { borderColor: theme.border }]}
             onPress={() => navigation.goBack()}
             accessibilityRole="button"
             accessibilityLabel="Cancelar alterações de perfil"
           >
-            <Text style={profileStyles.cancelButtonText}>Cancelar</Text>
+            <Text style={[profileStyles.cancelButtonText, { color: theme.text }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={profileStyles.saveButton}
+            style={[profileStyles.saveButton, { backgroundColor: theme.primary }]}
             onPress={handleUpdate}
             disabled={loading}
             accessibilityRole="button"

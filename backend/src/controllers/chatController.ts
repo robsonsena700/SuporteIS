@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { AuditService } from '../services/AuditService';
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
   try {
@@ -30,14 +31,39 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       [senderId, receiverId, content]
     );
 
+    const newMessage = result.rows[0];
+
+    // Audit Log
+    await AuditService.logMessage({
+        original_message_id: newMessage.id,
+        source_table: 'direct_messages',
+        context_type: 'direct',
+        context_id: receiverId, // In direct chat context, usually we track the "chat partner" or a thread ID. Here using receiver.
+        sender_id: senderId,
+        recipient_id: receiverId,
+        content: content,
+        metadata: { ip: req.ip, user_agent: req.headers['user-agent'] },
+        created_at: newMessage.created_at
+    });
+
     // Fetch sender name for notification
     const senderNameRes = await pool.query('SELECT name FROM users WHERE id = $1', [senderId]);
     const senderName = senderNameRes.rows[0]?.name || 'Usuário';
 
     // Notify receiver (create notification)
     await pool.query(
-        'INSERT INTO notifications (user_id, type, reference_id, content) VALUES ($1, $2, $3, $4)',
-        [receiverId, 'new_dm', senderId, `Nova mensagem de ${senderName}`]
+        'INSERT INTO notifications (user_id, type, reference_id, content, message_data) VALUES ($1, $2, $3, $4, $5)',
+        [
+            receiverId, 
+            'new_dm', 
+            senderId, 
+            `Nova mensagem de ${senderName}`,
+            JSON.stringify({
+                ...newMessage,
+                sender_name: senderName,
+                context_type: 'direct'
+            })
+        ]
     );
 
     res.status(201).json(result.rows[0]);
